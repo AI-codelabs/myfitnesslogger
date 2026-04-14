@@ -45,7 +45,10 @@ export const FoodLogTable = ({ data }: FoodLogTableProps) => {
               <TableBody>
                 {meal.entries.map((entry, idx) => (
                   <TableRow key={idx}>
-                    <TableCell className="font-medium text-sm">{entry.name}</TableCell>
+                    <TableCell className="font-medium text-sm">
+                      {entry.name}
+                      {entry.brand && <span className="text-muted-foreground text-xs ml-1.5">({entry.brand})</span>}
+                    </TableCell>
                     <TableCell className="text-right tabular-nums">{entry.calories}</TableCell>
                     <TableCell className="text-right tabular-nums">{entry.carbohydrates}g</TableCell>
                     <TableCell className="text-right tabular-nums">{entry.fat}g</TableCell>
