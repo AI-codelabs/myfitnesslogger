@@ -76,6 +76,14 @@ const Index = () => {
     }
   };
 
+  const handleCookieConnect = (cookieStr: string) => {
+    setMfpCookies(cookieStr);
+    setMfpUsername("MFP User");
+    setMfpConnected(true);
+    localStorage.setItem(COOKIES_KEY, cookieStr);
+    localStorage.setItem(USERNAME_KEY, "MFP User");
+  };
+
   const handleDisconnect = () => {
     localStorage.removeItem(COOKIES_KEY);
     localStorage.removeItem(USERNAME_KEY);
@@ -106,7 +114,7 @@ const Index = () => {
 
       <main className="container mx-auto px-6 py-10 max-w-5xl">
         {!mfpConnected ? (
-          <MfpLoginForm onLogin={handleMfpLogin} isLoading={isConnecting} error={error} />
+          <MfpLoginForm onLogin={handleMfpLogin} onCookieConnect={handleCookieConnect} isLoading={isConnecting} error={error} />
         ) : (
           <div>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
