@@ -12,10 +12,10 @@ export default defineConfig(({ mode }) => ({
       overlay: false,
     },
     proxy: {
-      "/api/mfp-fetch": {
+      "/api/mfp": {
         target: "http://localhost:8787",
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/mfp-fetch/, ""),
+        rewrite: (path) => path.replace(/^\/api\/mfp/, ""),
       },
     },
   },
