@@ -78,23 +78,54 @@ async function refreshGwtValues() {
   }
 }
 
+// Extract set-cookie headers (works in Deno edge runtime)
+function extractCookies(resp: Response, jar: Map<string, string>) {
+  // Try getSetCookie first (Deno 1.37+), fall back to manual parsing
+  const cookies: string[] = resp.headers.getSetCookie?.() || [];
+  if (cookies.length === 0) {
+    // Fallback: iterate all headers
+    resp.headers.forEach((value, key) => {
+      if (key.toLowerCase() === "set-cookie") {
+        cookies.push(value);
+      }
+    });
+  }
+  for (const cookie of cookies) {
+    const [kv] = cookie.split(";");
+    const eqIdx = kv.indexOf("=");
+    if (eqIdx > 0) {
+      const k = kv.substring(0, eqIdx).trim();
+      const v = kv.substring(eqIdx + 1).trim();
+      if (k && v) jar.set(k, v);
+    }
+  }
+}
+
 // Step 1: Get anti-CSRF token from login page
 async function getAntiCsrf(cookieJar: Map<string, string>): Promise<string> {
+  console.log("Step 1: Fetching login page for anti-CSRF token...");
   const resp = await fetch(CRONOMETER_LOGIN_PAGE, {
-    headers: { "User-Agent": "Mozilla/5.0" },
+    headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" },
     redirect: "follow",
   });
 
-  // Capture cookies
-  for (const cookie of resp.headers.getSetCookie?.() || []) {
-    const [kv] = cookie.split(";");
-    const [k, v] = kv.split("=");
-    if (k && v) cookieJar.set(k.trim(), v.trim());
-  }
+  console.log(`Login page status: ${resp.status}`);
+  extractCookies(resp, cookieJar);
+  console.log(`Cookies after login page: ${Array.from(cookieJar.keys()).join(", ")}`);
 
   const html = await resp.text();
-  const match = html.match(/name="anticsrf"\s+value="([^"]+)"/);
-  if (!match) throw new Error("Could not find anti-CSRF token");
+  
+  // Try multiple patterns for the CSRF token
+  let match = html.match(/name="anticsrf"\s+value="([^"]+)"/);
+  if (!match) match = html.match(/name='anticsrf'\s+value='([^']+)'/);
+  if (!match) match = html.match(/anticsrf['"]\s+value=['"]([\w-]+)['"]/);
+  
+  if (!match) {
+    console.error("Could not find anti-CSRF token. Page snippet:", html.substring(0, 1000));
+    throw new Error("Could not find anti-CSRF token on login page");
+  }
+  
+  console.log(`Anti-CSRF token found: ${match[1].substring(0, 10)}...`);
   return match[1];
 }
 
@@ -102,42 +133,48 @@ function cookieString(jar: Map<string, string>): string {
   return Array.from(jar.entries()).map(([k, v]) => `${k}=${v}`).join("; ");
 }
 
-function captureCookies(resp: Response, jar: Map<string, string>) {
-  for (const cookie of resp.headers.getSetCookie?.() || []) {
-    const [kv] = cookie.split(";");
-    const [k, v] = kv.split("=");
-    if (k && v) jar.set(k.trim(), v.trim());
-  }
-}
-
 // Step 2: Login
 async function login(username: string, password: string, cookieJar: Map<string, string>) {
   const csrf = await getAntiCsrf(cookieJar);
 
+  console.log("Step 2: Posting login credentials...");
   const body = new URLSearchParams({ anticsrf: csrf, username, password });
   const resp = await fetch(CRONOMETER_LOGIN_API, {
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
-      "User-Agent": "Mozilla/5.0",
-      Cookie: cookieString(cookieJar),
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "Cookie": cookieString(cookieJar),
+      "Origin": "https://cronometer.com",
+      "Referer": "https://cronometer.com/login/",
     },
     body: body.toString(),
     redirect: "manual",
   });
 
-  captureCookies(resp, cookieJar);
+  console.log(`Login response status: ${resp.status}`);
+  extractCookies(resp, cookieJar);
+  console.log(`Cookies after login: ${Array.from(cookieJar.keys()).join(", ")}`);
+  console.log(`Has sesnonce: ${cookieJar.has("sesnonce")}`);
 
   const text = await resp.text();
-  let result: { success?: boolean; error?: string };
+  console.log(`Login response body: ${text.substring(0, 300)}`);
+  
+  // Handle redirect responses (302) - login succeeded if redirected
+  if (resp.status >= 300 && resp.status < 400) {
+    console.log("Login succeeded (redirect response)");
+    return;
+  }
+  
+  let result: { success?: boolean; error?: string; redirect?: string };
   try {
     result = JSON.parse(text);
   } catch {
-    throw new Error(`Login response was not JSON: ${text.substring(0, 200)}`);
+    throw new Error(`Login response was not JSON (status ${resp.status}): ${text.substring(0, 300)}`);
   }
 
-  if (result.error) throw new Error(result.error);
-  if (!result.success) throw new Error("Login failed");
+  if (result.error) throw new Error(`Cronometer login error: ${result.error}`);
+  if (!result.success && !result.redirect) throw new Error(`Login failed. Response: ${JSON.stringify(result)}`);
 }
 
 // Step 3: GWT Authenticate to get user ID
@@ -156,7 +193,7 @@ async function gwtAuthenticate(cookieJar: Map<string, string>): Promise<string> 
     body: payload,
   });
 
-  captureCookies(resp, cookieJar);
+  extractCookies(resp, cookieJar);
   const text = await resp.text();
 
   // Response like: //OK[123456,...]
@@ -186,7 +223,7 @@ async function generateAuthToken(
     body: payload,
   });
 
-  captureCookies(resp, cookieJar);
+  extractCookies(resp, cookieJar);
   const text = await resp.text();
 
   // Response contains the token in quotes
