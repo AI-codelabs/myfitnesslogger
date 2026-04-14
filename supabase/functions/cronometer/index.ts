@@ -357,7 +357,8 @@ serve(async (req) => {
   }
 
   try {
-    const { action, username, password, start, end } = await req.json();
+    const body = await req.json();
+    const { action, username, password, start, end, cookies, user_id, gwt_permutation, gwt_header } = body;
 
     if (action === "connect") {
       if (!username || !password) {
@@ -383,9 +384,8 @@ serve(async (req) => {
     }
 
     if (action === "export") {
-      const { cookies, user_id, gwt_permutation, gwt_header } = await req.json();
       if (!cookies || !user_id) {
-        return json({ error: "Missing session data" }, 400);
+        return json({ error: "Missing session data. Please sign in again." }, 400);
       }
 
       // Use provided GWT values or cached
