@@ -1,4 +1,4 @@
-import type { FoodLogData } from "@/types/mfp";
+import type { DayLog } from "@/types/cronometer";
 import {
   Table,
   TableBody,
@@ -9,24 +9,24 @@ import {
 } from "@/components/ui/table";
 
 interface FoodLogTableProps {
-  data: FoodLogData;
+  days: DayLog[];
 }
 
-export const FoodLogTable = ({ data }: FoodLogTableProps) => {
+export const FoodLogTable = ({ days }: FoodLogTableProps) => {
   return (
     <div className="space-y-6">
-      {data.meals.map((meal) => (
-        <div key={meal.name} className="rounded-xl border border-border bg-card overflow-hidden">
+      {days.map((day) => (
+        <div key={day.date} className="rounded-xl border border-border bg-card overflow-hidden">
           <div className="px-5 py-3 border-b border-border gradient-brand-subtle">
             <div className="flex items-center justify-between">
-              <h3 className="font-semibold tracking-tight">{meal.name}</h3>
+              <h3 className="font-semibold tracking-tight">{day.date}</h3>
               <span className="text-sm text-muted-foreground">
-                {meal.totals.calories} cal
+                {day.totals.calories} cal
               </span>
             </div>
           </div>
 
-          {meal.entries.length === 0 ? (
+          {day.entries.length === 0 ? (
             <div className="px-5 py-4 text-sm text-muted-foreground italic">
               No entries logged
             </div>
@@ -34,36 +34,36 @@ export const FoodLogTable = ({ data }: FoodLogTableProps) => {
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
-                  <TableHead className="w-[40%]">Food</TableHead>
+                  <TableHead className="w-[35%]">Food</TableHead>
+                  <TableHead>Amount</TableHead>
                   <TableHead className="text-right">Cal</TableHead>
+                  <TableHead className="text-right">Protein</TableHead>
                   <TableHead className="text-right">Carbs</TableHead>
                   <TableHead className="text-right">Fat</TableHead>
-                  <TableHead className="text-right">Protein</TableHead>
-                  <TableHead className="text-right">Sugar</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {meal.entries.map((entry, idx) => (
+                {day.entries.map((entry, idx) => (
                   <TableRow key={idx}>
                     <TableCell className="font-medium text-sm">
                       {entry.name}
-                      {entry.brand && <span className="text-muted-foreground text-xs ml-1.5">({entry.brand})</span>}
+                      {entry.group && (
+                        <span className="text-muted-foreground text-xs ml-1.5">({entry.group})</span>
+                      )}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">{entry.calories}</TableCell>
-                    <TableCell className="text-right tabular-nums">{entry.carbohydrates}g</TableCell>
-                    <TableCell className="text-right tabular-nums">{entry.fat}g</TableCell>
-                    <TableCell className="text-right tabular-nums">{entry.protein}g</TableCell>
-                    <TableCell className="text-right tabular-nums">{entry.sugar}g</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{entry.amount}</TableCell>
+                    <TableCell className="text-right tabular-nums">{Math.round(entry.calories)}</TableCell>
+                    <TableCell className="text-right tabular-nums">{entry.protein.toFixed(1)}g</TableCell>
+                    <TableCell className="text-right tabular-nums">{entry.carbohydrates.toFixed(1)}g</TableCell>
+                    <TableCell className="text-right tabular-nums">{entry.fat.toFixed(1)}g</TableCell>
                   </TableRow>
                 ))}
-                {/* Meal totals row */}
                 <TableRow className="bg-muted/50 font-semibold">
-                  <TableCell>Total</TableCell>
-                  <TableCell className="text-right tabular-nums">{meal.totals.calories}</TableCell>
-                  <TableCell className="text-right tabular-nums">{meal.totals.carbohydrates}g</TableCell>
-                  <TableCell className="text-right tabular-nums">{meal.totals.fat}g</TableCell>
-                  <TableCell className="text-right tabular-nums">{meal.totals.protein}g</TableCell>
-                  <TableCell className="text-right tabular-nums">{meal.totals.sugar}g</TableCell>
+                  <TableCell colSpan={2}>Daily Total</TableCell>
+                  <TableCell className="text-right tabular-nums">{day.totals.calories}</TableCell>
+                  <TableCell className="text-right tabular-nums">{day.totals.protein}g</TableCell>
+                  <TableCell className="text-right tabular-nums">{day.totals.carbohydrates}g</TableCell>
+                  <TableCell className="text-right tabular-nums">{day.totals.fat}g</TableCell>
                 </TableRow>
               </TableBody>
             </Table>
@@ -71,28 +71,32 @@ export const FoodLogTable = ({ data }: FoodLogTableProps) => {
         </div>
       ))}
 
-      {/* Daily totals */}
-      <div className="rounded-xl border-2 border-primary/30 bg-card overflow-hidden">
-        <div className="px-5 py-4 gradient-brand">
-          <div className="flex items-center justify-between text-primary-foreground">
-            <h3 className="font-bold text-lg">Daily Total</h3>
-            <span className="text-lg font-bold">{data.totals.calories} cal</span>
+      {/* Weekly summary */}
+      {days.length > 1 && (
+        <div className="rounded-xl border-2 border-primary/30 bg-card overflow-hidden">
+          <div className="px-5 py-4 gradient-brand">
+            <div className="flex items-center justify-between text-primary-foreground">
+              <h3 className="font-bold text-lg">7-Day Summary</h3>
+              <span className="text-lg font-bold">
+                {Math.round(days.reduce((s, d) => s + d.totals.calories, 0) / days.length)} avg cal/day
+              </span>
+            </div>
+          </div>
+          <div className="grid grid-cols-4 divide-x divide-border">
+            {[
+              { label: "Avg Protein", value: `${(days.reduce((s, d) => s + d.totals.protein, 0) / days.length).toFixed(0)}g` },
+              { label: "Avg Carbs", value: `${(days.reduce((s, d) => s + d.totals.carbohydrates, 0) / days.length).toFixed(0)}g` },
+              { label: "Avg Fat", value: `${(days.reduce((s, d) => s + d.totals.fat, 0) / days.length).toFixed(0)}g` },
+              { label: "Avg Fiber", value: `${(days.reduce((s, d) => s + d.totals.fiber, 0) / days.length).toFixed(0)}g` },
+            ].map((item) => (
+              <div key={item.label} className="px-4 py-4 text-center">
+                <div className="text-lg font-bold tabular-nums">{item.value}</div>
+                <div className="text-xs text-muted-foreground mt-0.5">{item.label}</div>
+              </div>
+            ))}
           </div>
         </div>
-        <div className="grid grid-cols-4 divide-x divide-border">
-          {[
-            { label: "Carbs", value: `${data.totals.carbohydrates}g` },
-            { label: "Fat", value: `${data.totals.fat}g` },
-            { label: "Protein", value: `${data.totals.protein}g` },
-            { label: "Sugar", value: `${data.totals.sugar}g` },
-          ].map((item) => (
-            <div key={item.label} className="px-4 py-4 text-center">
-              <div className="text-lg font-bold tabular-nums">{item.value}</div>
-              <div className="text-xs text-muted-foreground mt-0.5">{item.label}</div>
-            </div>
-          ))}
-        </div>
-      </div>
+      )}
     </div>
   );
 };
