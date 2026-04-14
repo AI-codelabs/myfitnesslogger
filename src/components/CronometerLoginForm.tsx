@@ -12,6 +12,7 @@ interface CronometerLoginFormProps {
 export const CronometerLoginForm = ({ onLogin, isLoading, error }: CronometerLoginFormProps) => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
