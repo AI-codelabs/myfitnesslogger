@@ -132,24 +132,42 @@ def login(username, password):
 
     tokens = token_resp.json()
 
-    # Step 6: Get user info to find domain_user_id
-    user_headers = standard_headers(session_token=tokens["access_token"])
-    user_resp = requests.get(f"{IDENTITY_URL}/users/me", headers=user_headers)
-    
+    # Step 6: Extract user ID from id_token JWT
+    id_token = tokens.get("id_token", "")
+    identity_user_id = None
+    if id_token:
+        try:
+            parts = id_token.split(".")
+            if len(parts) == 3:
+                padding = 4 - len(parts[1]) % 4
+                payload = base64.urlsafe_b64decode(parts[1] + "=" * padding)
+                claims = json.loads(payload)
+                identity_user_id = claims.get("sub")
+        except Exception:
+            pass
+
+    # Step 7: Get user info to find domain_user_id
     domain_user_id = None
     user_email = username
     display_name = username
-    if user_resp.ok:
-        user_data = user_resp.json()
-        for link in user_data.get("accountLinks", []):
-            if link.get("domain") == "MFP":
-                domain_user_id = link.get("domainUserId")
-                break
-        emails = user_data.get("profileEmails", {}).get("emails", [])
-        if emails:
-            user_email = emails[0].get("email", username)
-        profile = user_data.get("profile", {})
-        display_name = profile.get("displayName") or profile.get("firstName") or user_email
+
+    if identity_user_id:
+        user_headers = standard_headers(session_token=tokens["access_token"])
+        user_resp = requests.get(
+            f"{IDENTITY_URL}/users/{identity_user_id}?fetch_profile=true&fetch_emails=true",
+            headers=user_headers,
+        )
+        if user_resp.ok:
+            user_data = user_resp.json()
+            for link in user_data.get("accountLinks", []):
+                if link.get("domain") == "MFP":
+                    domain_user_id = link.get("domainUserId")
+                    break
+            emails = user_data.get("profileEmails", {}).get("emails", [])
+            if emails:
+                user_email = emails[0].get("email", username)
+            profile = user_data.get("profile", {})
+            display_name = profile.get("displayName") or profile.get("firstName") or user_email
 
     return {
         "access_token": tokens["access_token"],
