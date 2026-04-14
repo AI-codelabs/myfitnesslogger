@@ -2,72 +2,96 @@ import { useState, useEffect, useCallback } from "react";
 import { MfpLoginForm } from "@/components/MfpLoginForm";
 import { FoodLogTable } from "@/components/FoodLogTable";
 import { ConnectionStatus } from "@/components/ConnectionStatus";
-import { loginToMfp, fetchFoodLog } from "@/lib/mfp";
-import { toast } from "@/hooks/use-toast";
+import {
+  loginToMfp,
+  fetchFoodLog,
+  refreshMfpToken,
+  saveSession,
+  getSession,
+  clearSession,
+  type MfpSession,
+} from "@/lib/mfp";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import type { FoodLogData } from "@/types/mfp";
 
-const COOKIES_KEY = "mfp_cookies";
-const USERNAME_KEY = "mfp_username";
-
 const Index = () => {
-  const [mfpConnected, setMfpConnected] = useState(false);
-  const [mfpCookies, setMfpCookies] = useState<string | null>(null);
-  const [mfpUsername, setMfpUsername] = useState<string | null>(null);
+  const [session, setSession] = useState<MfpSession | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isFetching, setIsFetching] = useState(false);
   const [foodLog, setFoodLog] = useState<FoodLogData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split("T")[0]);
 
-  // Restore saved session
+  // Restore session
   useEffect(() => {
-    const saved = localStorage.getItem(COOKIES_KEY);
-    const savedUser = localStorage.getItem(USERNAME_KEY);
-    if (saved) {
-      setMfpCookies(saved);
-      setMfpUsername(savedUser);
-      setMfpConnected(true);
-    }
+    const saved = getSession();
+    if (saved) setSession(saved);
   }, []);
 
-  const loadFoodLog = useCallback(async (cookies: string, date: string) => {
+  // Fetch diary
+  const loadDiary = useCallback(async (sess: MfpSession, date: string) => {
     setIsFetching(true);
     setError(null);
     try {
-      const data = await fetchFoodLog(cookies, date);
+      let data = await fetchFoodLog(sess.access_token, sess.domain_user_id, date);
+
+      // If session expired, try refreshing
+      if (data.error === "session_expired" && sess.refresh_token) {
+        const refreshed = await refreshMfpToken(sess.refresh_token);
+        if (refreshed.access_token) {
+          const newSess = {
+            ...sess,
+            access_token: refreshed.access_token,
+            refresh_token: refreshed.refresh_token || sess.refresh_token,
+            expires_at: Date.now() + (refreshed.expires_in || 3600) * 1000,
+          };
+          setSession(newSess);
+          saveSession(newSess);
+          data = await fetchFoodLog(newSess.access_token, sess.domain_user_id, date);
+        } else {
+          clearSession();
+          setSession(null);
+          setError("Session expired. Please sign in again.");
+          setIsFetching(false);
+          return;
+        }
+      }
+
       if (data.error) {
         setError(data.error);
       } else {
         setFoodLog(data);
       }
     } catch {
-      setError("Failed to fetch food log. Your session may have expired.");
+      setError("Failed to load food log.");
     } finally {
       setIsFetching(false);
     }
   }, []);
 
   useEffect(() => {
-    if (mfpConnected && mfpCookies) {
-      loadFoodLog(mfpCookies, selectedDate);
-    }
-  }, [mfpConnected, mfpCookies, selectedDate, loadFoodLog]);
+    if (session) loadDiary(session, selectedDate);
+  }, [session, selectedDate, loadDiary]);
 
-  const handleMfpLogin = async (email: string, password: string) => {
+  const handleLogin = async (email: string, password: string) => {
     setIsConnecting(true);
     setError(null);
     try {
       const result = await loginToMfp(email, password);
       if (result.error) {
         setError(result.error);
-      } else if (result.cookies) {
-        setMfpCookies(result.cookies);
-        setMfpUsername(result.username || email);
-        setMfpConnected(true);
-        localStorage.setItem(COOKIES_KEY, result.cookies);
-        localStorage.setItem(USERNAME_KEY, result.username || email);
+      } else if (result.access_token) {
+        const sess: MfpSession = {
+          access_token: result.access_token,
+          refresh_token: result.refresh_token,
+          domain_user_id: result.domain_user_id,
+          display_name: result.display_name,
+          email: result.email,
+          expires_at: Date.now() + (result.expires_in || 3600) * 1000,
+        };
+        setSession(sess);
+        saveSession(sess);
       }
     } catch {
       setError("Connection failed. Please try again.");
@@ -76,21 +100,11 @@ const Index = () => {
     }
   };
 
-  const handleCookieConnect = (cookieStr: string) => {
-    setMfpCookies(cookieStr);
-    setMfpUsername("MFP User");
-    setMfpConnected(true);
-    localStorage.setItem(COOKIES_KEY, cookieStr);
-    localStorage.setItem(USERNAME_KEY, "MFP User");
-  };
-
   const handleDisconnect = () => {
-    localStorage.removeItem(COOKIES_KEY);
-    localStorage.removeItem(USERNAME_KEY);
-    setMfpConnected(false);
-    setMfpCookies(null);
-    setMfpUsername(null);
+    clearSession();
+    setSession(null);
     setFoodLog(null);
+    setError(null);
   };
 
   return (
@@ -104,17 +118,17 @@ const Index = () => {
           </div>
           <h1 className="text-xl font-semibold tracking-tight">MFP Connect</h1>
           <div className="ml-auto flex items-center gap-4">
-            <ConnectionStatus connected={mfpConnected} />
-            {mfpUsername && (
-              <span className="text-sm text-muted-foreground hidden sm:inline">{mfpUsername}</span>
+            <ConnectionStatus connected={!!session} />
+            {session && (
+              <span className="text-sm text-muted-foreground hidden sm:inline">{session.display_name}</span>
             )}
           </div>
         </div>
       </header>
 
       <main className="container mx-auto px-6 py-10 max-w-5xl">
-        {!mfpConnected ? (
-          <MfpLoginForm onLogin={handleMfpLogin} onCookieConnect={handleCookieConnect} isLoading={isConnecting} error={error} />
+        {!session ? (
+          <MfpLoginForm onLogin={handleLogin} isLoading={isConnecting} error={error} />
         ) : (
           <div>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
@@ -128,7 +142,7 @@ const Index = () => {
               </div>
               <div className="flex items-center gap-3">
                 <Input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="w-auto" />
-                <Button variant="outline" size="sm" onClick={() => mfpCookies && loadFoodLog(mfpCookies, selectedDate)} disabled={isFetching}>
+                <Button variant="outline" size="sm" onClick={() => loadDiary(session, selectedDate)} disabled={isFetching}>
                   {isFetching ? "Loading..." : "Refresh"}
                 </Button>
                 <button onClick={handleDisconnect} className="text-sm text-muted-foreground hover:text-destructive transition-colors">
