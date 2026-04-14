@@ -23,32 +23,53 @@ const Index = () => {
   const [error, setError] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split("T")[0]);
 
-  // Restore session
+  // Restore session — validate it has required fields
   useEffect(() => {
     const saved = getSession();
-    if (saved) setSession(saved);
+    if (saved && saved.access_token && saved.domain_user_id) {
+      setSession(saved);
+    } else if (saved) {
+      // Stale/incomplete session — clear it
+      clearSession();
+    }
   }, []);
 
   // Fetch diary
   const loadDiary = useCallback(async (sess: MfpSession, date: string) => {
+    if (!sess.domain_user_id) {
+      clearSession();
+      setSession(null);
+      setError("Invalid session. Please sign in again.");
+      return;
+    }
     setIsFetching(true);
     setError(null);
     try {
       let data = await fetchFoodLog(sess.access_token, sess.domain_user_id, date);
 
-      // If session expired, try refreshing
+      // If session expired, try refreshing ONCE
       if (data.error === "session_expired" && sess.refresh_token) {
         const refreshed = await refreshMfpToken(sess.refresh_token);
         if (refreshed.access_token) {
-          const newSess = {
+          const newSess: MfpSession = {
             ...sess,
             access_token: refreshed.access_token,
             refresh_token: refreshed.refresh_token || sess.refresh_token,
             expires_at: Date.now() + (refreshed.expires_in || 3600) * 1000,
           };
-          setSession(newSess);
           saveSession(newSess);
           data = await fetchFoodLog(newSess.access_token, sess.domain_user_id, date);
+          // Only update session state if diary succeeded (prevents loop)
+          if (!data.error || data.error !== "session_expired") {
+            setSession(newSess);
+          } else {
+            // Refresh worked but diary still fails — force re-login
+            clearSession();
+            setSession(null);
+            setError("Session is invalid. Please sign in again.");
+            setIsFetching(false);
+            return;
+          }
         } else {
           clearSession();
           setSession(null);
@@ -72,7 +93,8 @@ const Index = () => {
 
   useEffect(() => {
     if (session) loadDiary(session, selectedDate);
-  }, [session, selectedDate, loadDiary]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.access_token, selectedDate]);
 
   const handleLogin = async (email: string, password: string) => {
     setIsConnecting(true);
