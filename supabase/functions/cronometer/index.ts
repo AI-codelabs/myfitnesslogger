@@ -193,7 +193,7 @@ async function gwtAuthenticate(cookieJar: Map<string, string>): Promise<string> 
     body: payload,
   });
 
-  captureCookies(resp, cookieJar);
+  extractCookies(resp, cookieJar);
   const text = await resp.text();
 
   // Response like: //OK[123456,...]
@@ -223,7 +223,7 @@ async function generateAuthToken(
     body: payload,
   });
 
-  captureCookies(resp, cookieJar);
+  extractCookies(resp, cookieJar);
   const text = await resp.text();
 
   // Response contains the token in quotes
