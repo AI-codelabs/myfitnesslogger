@@ -14,7 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      mfp_sessions: {
+        Row: {
+          cookies: string
+          created_at: string
+          id: string
+          mfp_username: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cookies: string
+          created_at?: string
+          id?: string
+          mfp_username?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cookies?: string
+          created_at?: string
+          id?: string
+          mfp_username?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
