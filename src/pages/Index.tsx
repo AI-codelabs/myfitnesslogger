@@ -1,16 +1,16 @@
 import { useState, useEffect, useCallback } from "react";
-import { useAuth } from "@/hooks/useAuth";
-import { AuthForm } from "@/components/AuthForm";
 import { MfpLoginForm } from "@/components/MfpLoginForm";
 import { FoodLogTable } from "@/components/FoodLogTable";
 import { ConnectionStatus } from "@/components/ConnectionStatus";
-import { loginToMfp, fetchFoodLog, saveMfpSession, getMfpSession, deleteMfpSession } from "@/lib/mfp";
+import { loginToMfp, fetchFoodLog } from "@/lib/mfp";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import type { FoodLogData } from "@/types/mfp";
 
+const COOKIES_KEY = "mfp_cookies";
+const USERNAME_KEY = "mfp_username";
+
 const Index = () => {
-  const { user, loading: authLoading, signUp, signIn, signOut } = useAuth();
   const [mfpConnected, setMfpConnected] = useState(false);
   const [mfpCookies, setMfpCookies] = useState<string | null>(null);
   const [mfpUsername, setMfpUsername] = useState<string | null>(null);
@@ -20,19 +20,17 @@ const Index = () => {
   const [error, setError] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split("T")[0]);
 
-  // Check for existing MFP session on load
+  // Restore saved session
   useEffect(() => {
-    if (!user) return;
-    getMfpSession(user.id).then(({ data }) => {
-      if (data) {
-        setMfpCookies(data.cookies);
-        setMfpUsername(data.mfp_username);
-        setMfpConnected(true);
-      }
-    });
-  }, [user]);
+    const saved = localStorage.getItem(COOKIES_KEY);
+    const savedUser = localStorage.getItem(USERNAME_KEY);
+    if (saved) {
+      setMfpCookies(saved);
+      setMfpUsername(savedUser);
+      setMfpConnected(true);
+    }
+  }, []);
 
-  // Auto-fetch food log when connected and date changes
   const loadFoodLog = useCallback(async (cookies: string, date: string) => {
     setIsFetching(true);
     setError(null);
@@ -56,10 +54,6 @@ const Index = () => {
     }
   }, [mfpConnected, mfpCookies, selectedDate, loadFoodLog]);
 
-  const handleAuth = async (email: string, password: string, isSignUp: boolean) => {
-    return isSignUp ? signUp(email, password) : signIn(email, password);
-  };
-
   const handleMfpLogin = async (email: string, password: string) => {
     setIsConnecting(true);
     setError(null);
@@ -67,11 +61,12 @@ const Index = () => {
       const result = await loginToMfp(email, password);
       if (result.error) {
         setError(result.error);
-      } else if (result.cookies && user) {
+      } else if (result.cookies) {
         setMfpCookies(result.cookies);
         setMfpUsername(result.username || email);
         setMfpConnected(true);
-        await saveMfpSession(user.id, result.cookies, result.username || email);
+        localStorage.setItem(COOKIES_KEY, result.cookies);
+        localStorage.setItem(USERNAME_KEY, result.username || email);
       }
     } catch {
       setError("Connection failed. Please try again.");
@@ -80,29 +75,14 @@ const Index = () => {
     }
   };
 
-  const handleDisconnect = async () => {
-    if (user) await deleteMfpSession(user.id);
+  const handleDisconnect = () => {
+    localStorage.removeItem(COOKIES_KEY);
+    localStorage.removeItem(USERNAME_KEY);
     setMfpConnected(false);
     setMfpCookies(null);
     setMfpUsername(null);
     setFoodLog(null);
   };
-
-  if (authLoading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
-      </div>
-    );
-  }
-
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center px-4">
-        <AuthForm onAuth={handleAuth} isLoading={false} />
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -117,13 +97,8 @@ const Index = () => {
           <div className="ml-auto flex items-center gap-4">
             <ConnectionStatus connected={mfpConnected} />
             {mfpUsername && (
-              <span className="text-sm text-muted-foreground hidden sm:inline">
-                {mfpUsername}
-              </span>
+              <span className="text-sm text-muted-foreground hidden sm:inline">{mfpUsername}</span>
             )}
-            <button onClick={signOut} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-              Sign out
-            </button>
           </div>
         </div>
       </header>
@@ -143,33 +118,18 @@ const Index = () => {
                 )}
               </div>
               <div className="flex items-center gap-3">
-                <Input
-                  type="date"
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                  className="w-auto"
-                />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => mfpCookies && loadFoodLog(mfpCookies, selectedDate)}
-                  disabled={isFetching}
-                >
+                <Input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="w-auto" />
+                <Button variant="outline" size="sm" onClick={() => mfpCookies && loadFoodLog(mfpCookies, selectedDate)} disabled={isFetching}>
                   {isFetching ? "Loading..." : "Refresh"}
                 </Button>
-                <button
-                  onClick={handleDisconnect}
-                  className="text-sm text-muted-foreground hover:text-destructive transition-colors"
-                >
+                <button onClick={handleDisconnect} className="text-sm text-muted-foreground hover:text-destructive transition-colors">
                   Disconnect
                 </button>
               </div>
             </div>
 
             {error && (
-              <div className="rounded-lg bg-destructive/10 border border-destructive/20 px-4 py-3 text-sm text-destructive mb-6">
-                {error}
-              </div>
+              <div className="rounded-lg bg-destructive/10 border border-destructive/20 px-4 py-3 text-sm text-destructive mb-6">{error}</div>
             )}
 
             {isFetching && !foodLog ? (
