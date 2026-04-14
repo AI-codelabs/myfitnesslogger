@@ -3,6 +3,7 @@ import { MfpLoginForm } from "@/components/MfpLoginForm";
 import { FoodLogTable } from "@/components/FoodLogTable";
 import { ConnectionStatus } from "@/components/ConnectionStatus";
 import { loginToMfp, fetchFoodLog } from "@/lib/mfp";
+import { toast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import type { FoodLogData } from "@/types/mfp";
