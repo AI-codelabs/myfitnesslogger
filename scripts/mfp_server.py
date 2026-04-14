@@ -110,8 +110,6 @@ class MFPHandler(BaseHTTPRequestHandler):
         content_length = int(self.headers.get("Content-Length", 0))
         body = self.rfile.read(content_length)
         
-        self.send_header("Access-Control-Allow-Origin", "*")
-        
         try:
             data = json.loads(body)
             cookies = data.get("cookies", "")
@@ -119,6 +117,7 @@ class MFPHandler(BaseHTTPRequestHandler):
             
             if not cookies:
                 self.send_response(400)
+                self.send_header("Access-Control-Allow-Origin", "*")
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
                 self.wfile.write(json.dumps({"error": "No cookies provided"}).encode())
@@ -127,12 +126,14 @@ class MFPHandler(BaseHTTPRequestHandler):
             result = fetch_food_log(cookies, target_date)
             
             self.send_response(200)
+            self.send_header("Access-Control-Allow-Origin", "*")
             self.send_header("Content-Type", "application/json")
             self.end_headers()
             self.wfile.write(json.dumps(result).encode())
             
         except Exception as e:
             self.send_response(500)
+            self.send_header("Access-Control-Allow-Origin", "*")
             self.send_header("Content-Type", "application/json")
             self.end_headers()
             self.wfile.write(json.dumps({"error": str(e)}).encode())
