@@ -21,15 +21,15 @@ export const CronometerLoginForm = ({ onLogin, isLoading, error }: CronometerLog
   };
 
   return (
-    <div className="max-w-md mx-auto">
-      <div className="text-center mb-8">
-        <h2 className="text-3xl font-bold tracking-tight mb-3">Connect Cronometer</h2>
-        <p className="text-muted-foreground leading-relaxed">
+    <div className="max-w-md mx-auto px-0 sm:px-0">
+      <div className="text-center mb-6 sm:mb-8">
+        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight mb-2 sm:mb-3">Connect Cronometer</h2>
+        <p className="text-sm sm:text-base text-muted-foreground leading-relaxed px-2">
           Sign in with your Cronometer account to view your last 7 days of food data.
         </p>
       </div>
-      <form onSubmit={handleSubmit} className="space-y-5">
-        <div className="rounded-xl border border-border bg-card p-6 space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
+        <div className="rounded-xl border border-border bg-card p-4 sm:p-6 space-y-3.5 sm:space-y-4">
           <div>
             <label className="text-sm font-medium mb-1.5 block">Username or Email</label>
             <Input
@@ -38,6 +38,7 @@ export const CronometerLoginForm = ({ onLogin, isLoading, error }: CronometerLog
               onChange={(e) => setUsername(e.target.value)}
               placeholder="your@email.com"
               required
+              className="h-11"
             />
           </div>
           <div>
@@ -49,19 +50,19 @@ export const CronometerLoginForm = ({ onLogin, isLoading, error }: CronometerLog
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 required
-                className="pr-10"
+                className="pr-11 h-11"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-1"
               >
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
             </div>
           </div>
           {error && (
-            <div className="rounded-lg bg-destructive/10 border border-destructive/20 px-4 py-3 text-sm text-destructive">
+            <div className="rounded-lg bg-destructive/10 border border-destructive/20 px-3 py-2.5 text-sm text-destructive">
               {error}
             </div>
           )}
