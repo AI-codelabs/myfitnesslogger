@@ -2,6 +2,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { AppLayout } from "@/components/AppLayout";
 import { Card } from "@/components/ui/card";
 import { Loader2, BarChart3, TrendingUp, Users } from "lucide-react";
+import { DashboardNotifications } from "@/components/DashboardNotifications";
 
 const Index = () => {
   const { role, loading } = useAuth();
@@ -25,7 +26,7 @@ const Index = () => {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
             {[
               { icon: Users, title: "Client overview", desc: "Active, onboarding and pending counts over time." },
               { icon: TrendingUp, title: "Engagement", desc: "Logins and activity trends per week." },
@@ -43,6 +44,8 @@ const Index = () => {
               </Card>
             ))}
           </div>
+
+          <DashboardNotifications />
         </div>
       </AppLayout>
     );
