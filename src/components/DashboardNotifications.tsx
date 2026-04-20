@@ -125,7 +125,6 @@ export function DashboardNotifications() {
             <TableRow>
               <TableHead className="w-8"></TableHead>
               <TableHead>Notification</TableHead>
-              <TableHead className="hidden md:table-cell w-40">Type</TableHead>
               <TableHead className="w-36 text-right">When</TableHead>
             </TableRow>
           </TableHeader>
@@ -155,11 +154,6 @@ export function DashboardNotifications() {
                       {n.body}
                     </p>
                   )}
-                </TableCell>
-                <TableCell className="hidden md:table-cell">
-                  <Badge variant="outline" className="capitalize font-normal">
-                    {n.type.replace(/_/g, " ")}
-                  </Badge>
                 </TableCell>
                 <TableCell className="text-right text-xs text-muted-foreground">
                   {formatDistanceToNow(new Date(n.created_at), {
