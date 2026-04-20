@@ -370,6 +370,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_clients_last_active: {
+        Args: { _coach_id: string }
+        Returns: {
+          last_sign_in_at: string
+          user_id: string
+        }[]
+      }
       get_invitation_by_token: {
         Args: { _token: string }
         Returns: {
