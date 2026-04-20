@@ -50,8 +50,8 @@
 
     --success: 142 60% 42%;
     --success-foreground: 0 0% 100%;
-    --warning: 36 95% 55%;
-    --warning-foreground: 36 95% 15%;
+    --warning: 25 90% 58%;
+    --warning-foreground: 0 0% 100%;
   }
 
   .dark {
