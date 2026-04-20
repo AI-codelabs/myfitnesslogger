@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { CheckCheck, Bell, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -29,6 +29,7 @@ interface Notification {
 
 export function DashboardNotifications() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [items, setItems] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -129,63 +130,44 @@ export function DashboardNotifications() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {items.map((n) => {
-              const row = (
-                <>
-                  <TableCell>
-                    {!n.read_at ? (
-                      <span className="inline-block h-2 w-2 rounded-full bg-primary" />
-                    ) : (
-                      <span className="inline-block h-2 w-2" />
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <p className={cn("text-sm", !n.read_at && "font-medium")}>
-                      {n.title}
+            {items.map((n) => (
+              <TableRow
+                key={n.id}
+                className={cn("cursor-pointer", !n.read_at && "bg-primary/5")}
+                onClick={() => {
+                  markRead(n.id);
+                  if (n.link) navigate(n.link);
+                }}
+              >
+                <TableCell>
+                  {!n.read_at ? (
+                    <span className="inline-block h-2 w-2 rounded-full bg-primary" />
+                  ) : (
+                    <span className="inline-block h-2 w-2" />
+                  )}
+                </TableCell>
+                <TableCell>
+                  <p className={cn("text-sm", !n.read_at && "font-medium")}>
+                    {n.title}
+                  </p>
+                  {n.body && (
+                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
+                      {n.body}
                     </p>
-                    {n.body && (
-                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
-                        {n.body}
-                      </p>
-                    )}
-                  </TableCell>
-                  <TableCell className="hidden md:table-cell">
-                    <Badge variant="outline" className="capitalize font-normal">
-                      {n.type.replace(/_/g, " ")}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right text-xs text-muted-foreground">
-                    {formatDistanceToNow(new Date(n.created_at), {
-                      addSuffix: true,
-                    })}
-                  </TableCell>
-                </>
-              );
-
-              const className = cn(
-                "cursor-pointer",
-                !n.read_at && "bg-primary/5",
-              );
-
-              return n.link ? (
-                <TableRow
-                  key={n.id}
-                  className={className}
-                  onClick={() => markRead(n.id)}
-                  asChild
-                >
-                  <Link to={n.link}>{row}</Link>
-                </TableRow>
-              ) : (
-                <TableRow
-                  key={n.id}
-                  className={className}
-                  onClick={() => markRead(n.id)}
-                >
-                  {row}
-                </TableRow>
-              );
-            })}
+                  )}
+                </TableCell>
+                <TableCell className="hidden md:table-cell">
+                  <Badge variant="outline" className="capitalize font-normal">
+                    {n.type.replace(/_/g, " ")}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-right text-xs text-muted-foreground">
+                  {formatDistanceToNow(new Date(n.created_at), {
+                    addSuffix: true,
+                  })}
+                </TableCell>
+              </TableRow>
+            ))}
           </TableBody>
         </Table>
       )}
