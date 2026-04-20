@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -9,14 +9,26 @@ import Login from "./pages/Login.tsx";
 import Signup from "./pages/Signup.tsx";
 import Account from "./pages/Account.tsx";
 import NotFound from "./pages/NotFound.tsx";
+import Onboarding from "./pages/Onboarding.tsx";
+import ClientProfile from "./pages/ClientProfile.tsx";
 import { AppLayout } from "./components/AppLayout";
 
 const queryClient = new QueryClient();
 
-const Protected = ({ children }: { children: JSX.Element }) => {
-  const { session, loading } = useAuth();
+const Protected = ({ children, requireOnboarding = true }: { children: JSX.Element; requireOnboarding?: boolean }) => {
+  const { session, loading, role, onboardingComplete } = useAuth();
+  const location = useLocation();
   if (loading) return null;
   if (!session) return <Navigate to="/login" replace />;
+  // Gate clients (role=user) until onboarding is complete
+  if (
+    requireOnboarding &&
+    role === "user" &&
+    onboardingComplete === false &&
+    location.pathname !== "/onboarding"
+  ) {
+    return <Navigate to="/onboarding" replace />;
+  }
   return children;
 };
 
@@ -37,6 +49,8 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Protected><Index /></Protected>} />
             <Route path="/account" element={<Protected><AppLayout><Account /></AppLayout></Protected>} />
+            <Route path="/onboarding" element={<Protected requireOnboarding={false}><Onboarding /></Protected>} />
+            <Route path="/clients/:clientId" element={<Protected><AppLayout><ClientProfile /></AppLayout></Protected>} />
             <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
             <Route path="/signup" element={<Signup />} />
             <Route path="*" element={<NotFound />} />

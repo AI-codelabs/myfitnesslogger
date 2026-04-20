@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,13 @@ interface Invitation {
   accepted_at: string | null;
 }
 
+const statusStyles: Record<string, { label: string; className: string }> = {
+  pending: { label: "Pending", className: "bg-muted text-muted-foreground" },
+  onboarding: { label: "Onboarding", className: "bg-amber-100 text-amber-900 dark:bg-amber-500/20 dark:text-amber-200" },
+  active: { label: "Active", className: "bg-emerald-100 text-emerald-900 dark:bg-emerald-500/20 dark:text-emerald-200" },
+  accepted: { label: "Active", className: "bg-emerald-100 text-emerald-900 dark:bg-emerald-500/20 dark:text-emerald-200" },
+};
+
 const CoachDashboard = () => {
   const { user } = useAuth();
   const [invitations, setInvitations] = useState<Invitation[]>([]);
@@ -52,8 +60,82 @@ const CoachDashboard = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
-  const accepted = invitations.filter((i) => i.status === "accepted");
+  const active = invitations.filter((i) => i.status === "active" || i.status === "accepted");
+  const onboarding = invitations.filter((i) => i.status === "onboarding");
   const pending = invitations.filter((i) => i.status === "pending");
+
+  const renderRow = (inv: Invitation) => {
+    const style = statusStyles[inv.status] ?? statusStyles.pending;
+    const clickable = !!inv.accepted_user_id && (inv.status === "onboarding" || inv.status === "active" || inv.status === "accepted");
+    const subtitle =
+      inv.status === "active" || inv.status === "accepted"
+        ? `Joined ${inv.accepted_at ? formatDistanceToNow(new Date(inv.accepted_at), { addSuffix: true }) : ""}`
+        : inv.status === "onboarding"
+          ? `Signed up · awaiting onboarding`
+          : `Invited ${formatDistanceToNow(new Date(inv.created_at), { addSuffix: true })}`;
+
+    const content = (
+      <Card className={`p-4 flex items-center gap-3 transition ${clickable ? "hover:bg-muted/40 cursor-pointer" : ""}`}>
+        <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
+          <Mail className="h-4 w-4 text-muted-foreground" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-medium truncate">{inv.email}</p>
+          <p className="text-xs text-muted-foreground">{subtitle}</p>
+        </div>
+        <Badge className={`flex-shrink-0 border-0 ${style.className}`}>{style.label}</Badge>
+        {inv.status === "pending" && (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-muted-foreground hover:text-destructive flex-shrink-0"
+                aria-label="Delete invitation"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete invitation?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This removes the pending invite for {inv.email}. The link in the email will stop working.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={async () => {
+                    const { error } = await supabase
+                      .from("invitations")
+                      .delete()
+                      .eq("id", inv.id);
+                    if (error) toast.error(error.message);
+                    else {
+                      toast.success("Invitation deleted");
+                      load();
+                    }
+                  }}
+                >
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
+      </Card>
+    );
+
+    return clickable ? (
+      <Link to={`/clients/${inv.accepted_user_id}`} key={inv.id} className="block">
+        {content}
+      </Link>
+    ) : (
+      <div key={inv.id}>{content}</div>
+    );
+  };
 
   return (
     <div className="px-4 py-6 sm:px-8 sm:py-8 max-w-5xl mx-auto w-full">
@@ -61,7 +143,7 @@ const CoachDashboard = () => {
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {accepted.length} active client{accepted.length === 1 ? "" : "s"} · {pending.length} pending
+            {active.length} active · {onboarding.length} onboarding · {pending.length} pending
           </p>
         </div>
         <Button onClick={() => setDialogOpen(true)} className="gap-2 h-11">
@@ -87,69 +169,7 @@ const CoachDashboard = () => {
           </Button>
         </Card>
       ) : (
-        <div className="space-y-2">
-          {invitations.map((inv) => (
-            <Card key={inv.id} className="p-4 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
-                <Mail className="h-4 w-4 text-muted-foreground" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-medium truncate">{inv.email}</p>
-                <p className="text-xs text-muted-foreground">
-                  {inv.status === "accepted" && inv.accepted_at
-                    ? `Joined ${formatDistanceToNow(new Date(inv.accepted_at), { addSuffix: true })}`
-                    : `Invited ${formatDistanceToNow(new Date(inv.created_at), { addSuffix: true })}`}
-                </p>
-              </div>
-              <Badge
-                variant={inv.status === "accepted" ? "default" : "secondary"}
-                className="flex-shrink-0"
-              >
-                {inv.status === "accepted" ? "Active" : inv.status}
-              </Badge>
-              {inv.status === "pending" && (
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-muted-foreground hover:text-destructive flex-shrink-0"
-                      aria-label="Delete invitation"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Delete invitation?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        This removes the pending invite for {inv.email}. The link in the email will stop working.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={async () => {
-                          const { error } = await supabase
-                            .from("invitations")
-                            .delete()
-                            .eq("id", inv.id);
-                          if (error) toast.error(error.message);
-                          else {
-                            toast.success("Invitation deleted");
-                            load();
-                          }
-                        }}
-                      >
-                        Delete
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              )}
-            </Card>
-          ))}
-        </div>
+        <div className="space-y-2">{invitations.map(renderRow)}</div>
       )}
 
       <InviteClientDialog open={dialogOpen} onOpenChange={setDialogOpen} onInvited={load} />
@@ -158,3 +178,4 @@ const CoachDashboard = () => {
 };
 
 export default CoachDashboard;
+
