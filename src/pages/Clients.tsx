@@ -40,7 +40,7 @@ const statusStyles: Record<string, { label: string; className: string }> = {
   inactive: { label: "Inactive", className: "bg-muted text-muted-foreground" },
 };
 
-const CoachDashboard = () => {
+const Clients = () => {
   const { user } = useAuth();
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [lastActive, setLastActive] = useState<Record<string, string | null>>({});
@@ -214,7 +214,7 @@ const CoachDashboard = () => {
     <div className="px-4 py-6 sm:px-8 sm:py-8 max-w-5xl mx-auto w-full">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Clients</h1>
           <p className="text-sm text-muted-foreground mt-1">
             {active.length} active · {onboarding.length} onboarding · {pending.length} pending
           </p>
@@ -278,4 +278,4 @@ const CoachDashboard = () => {
   );
 };
 
-export default CoachDashboard;
+export default Clients;

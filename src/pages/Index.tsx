@@ -1,7 +1,7 @@
 import { useAuth } from "@/hooks/useAuth";
 import { AppLayout } from "@/components/AppLayout";
-import CoachDashboard from "./CoachDashboard";
-import { Loader2 } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { Loader2, BarChart3, TrendingUp, Users } from "lucide-react";
 
 const Index = () => {
   const { role, loading } = useAuth();
@@ -17,7 +17,33 @@ const Index = () => {
   if (role === "coach") {
     return (
       <AppLayout>
-        <CoachDashboard />
+        <div className="px-4 py-6 sm:px-8 sm:py-8 max-w-5xl mx-auto w-full">
+          <div className="mb-6">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Stats and insights across your clients.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[
+              { icon: Users, title: "Client overview", desc: "Active, onboarding and pending counts over time." },
+              { icon: TrendingUp, title: "Engagement", desc: "Logins and activity trends per week." },
+              { icon: BarChart3, title: "Progress", desc: "Aggregated client progress metrics." },
+            ].map(({ icon: Icon, title, desc }) => (
+              <Card key={title} className="p-5 flex flex-col gap-3">
+                <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                  <Icon className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <div>
+                  <p className="font-medium">{title}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{desc}</p>
+                </div>
+                <p className="text-xs text-muted-foreground/70 mt-auto">Coming soon</p>
+              </Card>
+            ))}
+          </div>
+        </div>
       </AppLayout>
     );
   }

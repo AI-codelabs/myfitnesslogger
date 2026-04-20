@@ -11,6 +11,7 @@ import Account from "./pages/Account.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import Onboarding from "./pages/Onboarding.tsx";
 import ClientProfile from "./pages/ClientProfile.tsx";
+import Clients from "./pages/Clients.tsx";
 import { AppLayout } from "./components/AppLayout";
 
 const queryClient = new QueryClient();
@@ -48,6 +49,7 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/" element={<Protected><Index /></Protected>} />
+            <Route path="/clients" element={<Protected><AppLayout><Clients /></AppLayout></Protected>} />
             <Route path="/account" element={<Protected><AppLayout><Account /></AppLayout></Protected>} />
             <Route path="/onboarding" element={<Protected requireOnboarding={false}><Onboarding /></Protected>} />
             <Route path="/clients/:clientId" element={<Protected><AppLayout><ClientProfile /></AppLayout></Protected>} />
