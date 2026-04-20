@@ -4,9 +4,21 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { UserPlus, Users, Mail, Loader2 } from "lucide-react";
+import { UserPlus, Users, Mail, Loader2, Trash2 } from "lucide-react";
 import { InviteClientDialog } from "@/components/InviteClientDialog";
 import { formatDistanceToNow } from "date-fns";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface Invitation {
   id: string;
@@ -95,6 +107,46 @@ const CoachDashboard = () => {
               >
                 {inv.status === "accepted" ? "Active" : inv.status}
               </Badge>
+              {inv.status === "pending" && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-muted-foreground hover:text-destructive flex-shrink-0"
+                      aria-label="Delete invitation"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete invitation?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This removes the pending invite for {inv.email}. The link in the email will stop working.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={async () => {
+                          const { error } = await supabase
+                            .from("invitations")
+                            .delete()
+                            .eq("id", inv.id);
+                          if (error) toast.error(error.message);
+                          else {
+                            toast.success("Invitation deleted");
+                            load();
+                          }
+                        }}
+                      >
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
             </Card>
           ))}
         </div>
