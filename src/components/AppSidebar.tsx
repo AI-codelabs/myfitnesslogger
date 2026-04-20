@@ -1,4 +1,4 @@
-import { LayoutDashboard, User as UserIcon, LogOut } from "lucide-react";
+import { LayoutDashboard, User as UserIcon, LogOut, Users } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   Sidebar,
@@ -51,6 +51,14 @@ export function AppSidebar() {
                   <NavLink to="/" className={linkCls(isActive("/"))}>
                     <LayoutDashboard className="h-4 w-4" />
                     {!collapsed && <span>Dashboard</span>}
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={isActive("/clients")}>
+                  <NavLink to="/clients" className={linkCls(isActive("/clients"))}>
+                    <Users className="h-4 w-4" />
+                    {!collapsed && <span>Clients</span>}
                   </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
