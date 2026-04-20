@@ -75,7 +75,8 @@ export function InviteClientDialog({ open, onOpenChange, onInvited }: Props) {
       return;
     }
 
-    const inviteLink = `${window.location.origin}/signup?token=${invite.token}`;
+    const PUBLIC_APP_URL = "https://myfitnesslogger.lovable.app";
+    const inviteLink = `${PUBLIC_APP_URL}/signup?token=${invite.token}`;
 
     // 2. Send email via coach's Gmail
     const { error: sendErr } = await supabase.functions.invoke("send-invite-email", {
