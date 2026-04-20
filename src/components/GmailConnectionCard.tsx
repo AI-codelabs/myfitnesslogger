@@ -90,7 +90,7 @@ export function GmailConnectionCard() {
       ) : connection ? (
         <div className="space-y-3">
           <div className="flex items-center gap-2 text-sm rounded-md bg-muted/40 border border-border/60 px-3 py-2">
-            <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-500 flex-shrink-0" />
+            <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
             <span className="truncate">
               Connected as <strong>{connection.email}</strong>
             </span>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -13,8 +13,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Copy, Check, Loader2 } from "lucide-react";
+import { Loader2, Mail, AlertCircle, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
+import { Link } from "react-router-dom";
 
 const schema = z.object({
   email: z.string().trim().email("Enter a valid email").max(255),
@@ -30,17 +31,24 @@ export function InviteClientDialog({ open, onOpenChange, onInvited }: Props) {
   const { user } = useAuth();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
-  const [inviteLink, setInviteLink] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [gmailConnected, setGmailConnected] = useState<boolean | null>(null);
+  const [coachEmail, setCoachEmail] = useState<string | null>(null);
 
-  const reset = () => {
-    setEmail("");
-    setInviteLink(null);
-    setCopied(false);
-  };
+  useEffect(() => {
+    if (!open || !user) return;
+    (async () => {
+      const { data } = await supabase
+        .from("coach_email_connections")
+        .select("email")
+        .eq("coach_id", user.id)
+        .maybeSingle();
+      setGmailConnected(!!data);
+      setCoachEmail(data?.email ?? null);
+    })();
+  }, [open, user]);
 
   const handleClose = (next: boolean) => {
-    if (!next) reset();
+    if (!next) setEmail("");
     onOpenChange(next);
   };
 
@@ -54,29 +62,39 @@ export function InviteClientDialog({ open, onOpenChange, onInvited }: Props) {
     if (!user) return;
     setLoading(true);
 
-    const { data, error } = await supabase
+    // 1. Create invitation row
+    const { data: invite, error: inviteErr } = await supabase
       .from("invitations")
       .insert({ coach_id: user.id, email: parsed.data.email.toLowerCase() })
       .select("token")
       .single();
 
-    setLoading(false);
-    if (error) {
-      toast.error(error.message);
+    if (inviteErr) {
+      setLoading(false);
+      toast.error(inviteErr.message);
       return;
     }
-    const link = `${window.location.origin}/signup?token=${data.token}`;
-    setInviteLink(link);
-    onInvited();
-    toast.success("Invitation created");
-  };
 
-  const copyLink = async () => {
-    if (!inviteLink) return;
-    await navigator.clipboard.writeText(inviteLink);
-    setCopied(true);
-    toast.success("Link copied");
-    setTimeout(() => setCopied(false), 2000);
+    const inviteLink = `${window.location.origin}/signup?token=${invite.token}`;
+
+    // 2. Send email via coach's Gmail
+    const { error: sendErr } = await supabase.functions.invoke("send-invite-email", {
+      body: {
+        recipientEmail: parsed.data.email.toLowerCase(),
+        inviteLink,
+        coachName: user.user_metadata?.display_name || user.email,
+      },
+    });
+
+    setLoading(false);
+
+    if (sendErr) {
+      toast.error(`Invitation created but email failed: ${sendErr.message}`);
+    } else {
+      toast.success("Invitation sent");
+    }
+    onInvited();
+    handleClose(false);
   };
 
   return (
@@ -85,12 +103,43 @@ export function InviteClientDialog({ open, onOpenChange, onInvited }: Props) {
         <DialogHeader>
           <DialogTitle>Invite a client</DialogTitle>
           <DialogDescription>
-            Enter your client's email. They'll be able to create an account using the invite link.
+            We'll email them an invitation link from your connected Gmail.
           </DialogDescription>
         </DialogHeader>
 
-        {!inviteLink ? (
+        {gmailConnected === null ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground py-6 justify-center">
+            <Loader2 className="h-4 w-4 animate-spin" /> Checking connection…
+          </div>
+        ) : !gmailConnected ? (
+          <div className="space-y-4">
+            <div className="rounded-lg border border-border/60 bg-muted/40 p-4 space-y-2">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <AlertCircle className="h-4 w-4 text-primary" />
+                Connect Gmail first
+              </div>
+              <p className="text-sm text-muted-foreground">
+                You need to connect a Gmail account before sending invites. Invitations will be sent from your address so clients can reply directly to you.
+              </p>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => handleClose(false)}>
+                Cancel
+              </Button>
+              <Button asChild>
+                <Link to="/account">
+                  <Mail className="h-4 w-4 mr-2" />
+                  Go to Account
+                </Link>
+              </Button>
+            </DialogFooter>
+          </div>
+        ) : (
           <form onSubmit={handleInvite} className="space-y-4">
+            <div className="rounded-md bg-muted/40 border border-border/60 px-3 py-2 text-xs flex items-center gap-2">
+              <CheckCircle2 className="h-3.5 w-3.5 text-primary flex-shrink-0" />
+              <span className="truncate">Sending from {coachEmail}</span>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="invite-email">Client email</Label>
               <Input
@@ -113,23 +162,6 @@ export function InviteClientDialog({ open, onOpenChange, onInvited }: Props) {
               </Button>
             </DialogFooter>
           </form>
-        ) : (
-          <div className="space-y-4">
-            <div className="rounded-lg bg-muted/40 border border-border/60 p-3 space-y-2">
-              <p className="text-xs text-muted-foreground">
-                Email sending isn't set up yet — share this link with your client manually:
-              </p>
-              <div className="flex gap-2">
-                <Input value={inviteLink} readOnly className="h-10 text-xs font-mono" />
-                <Button onClick={copyLink} size="icon" variant="outline" className="h-10 w-10 flex-shrink-0">
-                  {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                </Button>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button onClick={() => handleClose(false)}>Done</Button>
-            </DialogFooter>
-          </div>
         )}
       </DialogContent>
     </Dialog>

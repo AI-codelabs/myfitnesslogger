@@ -40,6 +40,8 @@ const Account = () => {
           </Button>
         </div>
       </Card>
+
+      {isCoach && <GmailConnectionCard />}
     </div>
   );
 };
