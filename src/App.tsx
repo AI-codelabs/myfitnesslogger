@@ -7,7 +7,9 @@ import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import Index from "./pages/Index.tsx";
 import Login from "./pages/Login.tsx";
 import Signup from "./pages/Signup.tsx";
+import Account from "./pages/Account.tsx";
 import NotFound from "./pages/NotFound.tsx";
+import { AppLayout } from "./components/AppLayout";
 
 const queryClient = new QueryClient();
 
@@ -34,8 +36,9 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/" element={<Protected><Index /></Protected>} />
+            <Route path="/account" element={<Protected><AppLayout><Account /></AppLayout></Protected>} />
             <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
-            <Route path="/signup" element={<PublicOnly><Signup /></PublicOnly>} />
+            <Route path="/signup" element={<Signup />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
