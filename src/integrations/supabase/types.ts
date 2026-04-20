@@ -161,6 +161,159 @@ export type Database = {
         }
         Relationships: []
       }
+      onboarding_responses: {
+        Row: {
+          activity_level: string | null
+          age: number | null
+          belly_cm: number | null
+          body_fat_pct: number | null
+          challenges: string[] | null
+          coach_expectations: string | null
+          completed_at: string | null
+          created_at: string
+          details: Json
+          diet_preferences: string | null
+          drinks_alcohol: string | null
+          equipment_brands: string[] | null
+          focus_muscles: string[] | null
+          follows_meal_plan: boolean | null
+          full_name: string | null
+          goal_reason: string | null
+          height_cm: number | null
+          hips_cm: number | null
+          id: string
+          injuries: string | null
+          lifting_since: string | null
+          meals_per_day: number | null
+          occupation: string | null
+          past_failures: string | null
+          photo_consent: string | null
+          primary_goal: string | null
+          progress_photo_back_path: string | null
+          progress_photo_front_path: string | null
+          progress_photo_side_path: string | null
+          sleep_hours: number | null
+          smokes: string | null
+          step_tracker_screenshot_path: string | null
+          supplements: string | null
+          target_outcome: string | null
+          tracks_macros: boolean | null
+          train_days: string[] | null
+          train_freq_current: number | null
+          train_freq_target: number | null
+          train_location: string | null
+          train_location_other: string | null
+          typical_day_food: string | null
+          updated_at: string
+          user_id: string
+          waist_cm: number | null
+          water_liters: number | null
+          weekly_training_hours: number | null
+          weeks_committed: number | null
+          weight_kg: number | null
+        }
+        Insert: {
+          activity_level?: string | null
+          age?: number | null
+          belly_cm?: number | null
+          body_fat_pct?: number | null
+          challenges?: string[] | null
+          coach_expectations?: string | null
+          completed_at?: string | null
+          created_at?: string
+          details?: Json
+          diet_preferences?: string | null
+          drinks_alcohol?: string | null
+          equipment_brands?: string[] | null
+          focus_muscles?: string[] | null
+          follows_meal_plan?: boolean | null
+          full_name?: string | null
+          goal_reason?: string | null
+          height_cm?: number | null
+          hips_cm?: number | null
+          id?: string
+          injuries?: string | null
+          lifting_since?: string | null
+          meals_per_day?: number | null
+          occupation?: string | null
+          past_failures?: string | null
+          photo_consent?: string | null
+          primary_goal?: string | null
+          progress_photo_back_path?: string | null
+          progress_photo_front_path?: string | null
+          progress_photo_side_path?: string | null
+          sleep_hours?: number | null
+          smokes?: string | null
+          step_tracker_screenshot_path?: string | null
+          supplements?: string | null
+          target_outcome?: string | null
+          tracks_macros?: boolean | null
+          train_days?: string[] | null
+          train_freq_current?: number | null
+          train_freq_target?: number | null
+          train_location?: string | null
+          train_location_other?: string | null
+          typical_day_food?: string | null
+          updated_at?: string
+          user_id: string
+          waist_cm?: number | null
+          water_liters?: number | null
+          weekly_training_hours?: number | null
+          weeks_committed?: number | null
+          weight_kg?: number | null
+        }
+        Update: {
+          activity_level?: string | null
+          age?: number | null
+          belly_cm?: number | null
+          body_fat_pct?: number | null
+          challenges?: string[] | null
+          coach_expectations?: string | null
+          completed_at?: string | null
+          created_at?: string
+          details?: Json
+          diet_preferences?: string | null
+          drinks_alcohol?: string | null
+          equipment_brands?: string[] | null
+          focus_muscles?: string[] | null
+          follows_meal_plan?: boolean | null
+          full_name?: string | null
+          goal_reason?: string | null
+          height_cm?: number | null
+          hips_cm?: number | null
+          id?: string
+          injuries?: string | null
+          lifting_since?: string | null
+          meals_per_day?: number | null
+          occupation?: string | null
+          past_failures?: string | null
+          photo_consent?: string | null
+          primary_goal?: string | null
+          progress_photo_back_path?: string | null
+          progress_photo_front_path?: string | null
+          progress_photo_side_path?: string | null
+          sleep_hours?: number | null
+          smokes?: string | null
+          step_tracker_screenshot_path?: string | null
+          supplements?: string | null
+          target_outcome?: string | null
+          tracks_macros?: boolean | null
+          train_days?: string[] | null
+          train_freq_current?: number | null
+          train_freq_target?: number | null
+          train_location?: string | null
+          train_location_other?: string | null
+          typical_day_food?: string | null
+          updated_at?: string
+          user_id?: string
+          waist_cm?: number | null
+          water_liters?: number | null
+          weekly_training_hours?: number | null
+          weeks_committed?: number | null
+          weight_kg?: number | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -230,6 +383,10 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      is_coach_of: {
+        Args: { _client_id: string; _coach_id: string }
         Returns: boolean
       }
     }
