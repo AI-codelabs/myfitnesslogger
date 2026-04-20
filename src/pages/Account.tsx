@@ -2,13 +2,15 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { LogOut, User as UserIcon, Mail, Shield } from "lucide-react";
+import { GmailConnectionCard } from "@/components/GmailConnectionCard";
 
 const Account = () => {
   const { user, role, signOut } = useAuth();
+  const isCoach = role === "coach";
 
   return (
-    <div className="px-4 py-6 sm:px-8 sm:py-8 max-w-2xl mx-auto w-full">
-      <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-6">Account</h1>
+    <div className="px-4 py-6 sm:px-8 sm:py-8 max-w-2xl mx-auto w-full space-y-6">
+      <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Account</h1>
       <Card className="p-6 space-y-5">
         <div className="flex items-center gap-4">
           <div className="w-14 h-14 rounded-full gradient-brand flex items-center justify-center flex-shrink-0">
