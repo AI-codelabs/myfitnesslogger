@@ -125,7 +125,7 @@ const ClientProfile = () => {
           </h1>
           <p className="text-sm text-muted-foreground">{invite?.email}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap justify-end">
           <Badge variant={statusVariant as any} className="capitalize">{invite?.status}</Badge>
           <div className="flex items-center gap-1 rounded-md border p-0.5">
             {(["nl", "en"] as Lang[]).map((l) => (
@@ -141,6 +141,55 @@ const ClientProfile = () => {
               </button>
             ))}
           </div>
+          {invite && invite.status !== "inactive" ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => updateStatus("inactive")}
+              disabled={actionLoading}
+              className="gap-1"
+            >
+              <UserX className="h-4 w-4" />
+              {lang === "nl" ? "Op inactief" : "Set inactive"}
+            </Button>
+          ) : invite ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => updateStatus("active")}
+              disabled={actionLoading}
+              className="gap-1"
+            >
+              <UserCheck className="h-4 w-4" />
+              {lang === "nl" ? "Heractiveer" : "Reactivate"}
+            </Button>
+          ) : null}
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" size="sm" disabled={actionLoading} className="gap-1">
+                <Trash2 className="h-4 w-4" />
+                {lang === "nl" ? "Verwijder" : "Delete"}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  {lang === "nl" ? "Klant verwijderen?" : "Delete client?"}
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  {lang === "nl"
+                    ? "Hierdoor wordt deze klant uit jouw lijst verwijderd. Hun account blijft bestaan, maar je hebt geen toegang meer tot hun gegevens."
+                    : "This removes the client from your list. Their account stays, but you'll lose access to their data."}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>{lang === "nl" ? "Annuleer" : "Cancel"}</AlertDialogCancel>
+                <AlertDialogAction onClick={deleteClient} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  {lang === "nl" ? "Verwijder" : "Delete"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
 
