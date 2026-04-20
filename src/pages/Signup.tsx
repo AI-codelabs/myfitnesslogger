@@ -32,21 +32,18 @@ const Signup = () => {
   );
   const [inviteId, setInviteId] = useState<string | null>(null);
 
-  // Validate invitation token
+  // Validate invitation token via SECURITY DEFINER RPC (works for unauthenticated invitees)
   useEffect(() => {
     if (!token) return;
     (async () => {
-      const { data, error } = await supabase
-        .from("invitations")
-        .select("id, email, status")
-        .eq("token", token)
-        .maybeSingle();
-      if (error || !data || data.status !== "pending") {
+      const { data, error } = await supabase.rpc("get_invitation_by_token", { _token: token });
+      const row = Array.isArray(data) ? data[0] : data;
+      if (error || !row || row.status !== "pending") {
         setInviteState("invalid");
         return;
       }
-      setInviteId(data.id);
-      setEmail(data.email);
+      setInviteId(row.id);
+      setEmail(row.email);
       setInviteState("valid");
     })();
   }, [token]);
