@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      coach_email_connections: {
+        Row: {
+          access_token: string | null
+          coach_id: string
+          connected_at: string
+          email: string
+          id: string
+          refresh_token: string
+          scope: string | null
+          token_expires_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          access_token?: string | null
+          coach_id: string
+          connected_at?: string
+          email: string
+          id?: string
+          refresh_token: string
+          scope?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          access_token?: string | null
+          coach_id?: string
+          connected_at?: string
+          email?: string
+          id?: string
+          refresh_token?: string
+          scope?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       invitations: {
         Row: {
           accepted_at: string | null
@@ -71,6 +107,24 @@ export type Database = {
           mfp_username?: string | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      oauth_states: {
+        Row: {
+          coach_id: string
+          created_at: string
+          state: string
+        }
+        Insert: {
+          coach_id: string
+          created_at?: string
+          state: string
+        }
+        Update: {
+          coach_id?: string
+          created_at?: string
+          state?: string
         }
         Relationships: []
       }
