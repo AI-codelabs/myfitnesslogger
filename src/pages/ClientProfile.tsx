@@ -28,6 +28,30 @@ const ClientProfile = () => {
   const [invite, setInvite] = useState<any>(null);
   const [response, setResponse] = useState<any>(null);
   const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({});
+  const [actionLoading, setActionLoading] = useState(false);
+
+  const updateStatus = async (status: "active" | "inactive") => {
+    if (!invite) return;
+    setActionLoading(true);
+    const { error } = await supabase
+      .from("invitations")
+      .update({ status })
+      .eq("id", invite.id);
+    setActionLoading(false);
+    if (error) return toast.error(error.message);
+    setInvite({ ...invite, status });
+    toast.success(status === "inactive" ? "Client set to inactive" : "Client reactivated");
+  };
+
+  const deleteClient = async () => {
+    if (!invite) return;
+    setActionLoading(true);
+    const { error } = await supabase.from("invitations").delete().eq("id", invite.id);
+    setActionLoading(false);
+    if (error) return toast.error(error.message);
+    toast.success("Client removed");
+    navigate("/");
+  };
 
   useEffect(() => {
     if (!clientId) return;
