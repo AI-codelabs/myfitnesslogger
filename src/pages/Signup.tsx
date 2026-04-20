@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,16 +20,40 @@ type Tab = "user" | "coach";
 const Signup = () => {
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const [tab, setTab] = useState<Tab>((params.get("as") as Tab) || "user");
+  const token = params.get("token");
+  const [tab, setTab] = useState<Tab>(token ? "user" : ((params.get("as") as Tab) || "user"));
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [inviteState, setInviteState] = useState<"checking" | "valid" | "invalid" | "none">(
+    token ? "checking" : "none",
+  );
+  const [inviteId, setInviteId] = useState<string | null>(null);
+
+  // Validate invitation token
+  useEffect(() => {
+    if (!token) return;
+    (async () => {
+      const { data, error } = await supabase
+        .from("invitations")
+        .select("id, email, status")
+        .eq("token", token)
+        .maybeSingle();
+      if (error || !data || data.status !== "pending") {
+        setInviteState("invalid");
+        return;
+      }
+      setInviteId(data.id);
+      setEmail(data.email);
+      setInviteState("valid");
+    })();
+  }, [token]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (tab === "user") {
+    if (tab === "user" && !token) {
       toast.error("Users must be invited by a coach.");
       return;
     }
@@ -39,12 +63,12 @@ const Signup = () => {
       return;
     }
     setLoading(true);
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         emailRedirectTo: `${window.location.origin}/`,
-        data: { display_name: displayName, role: "coach" },
+        data: { display_name: displayName, role: tab },
       },
     });
     if (error) {
@@ -52,10 +76,103 @@ const Signup = () => {
       setLoading(false);
       return;
     }
+
+    // Mark invite accepted
+    if (token && inviteId && data.user) {
+      await supabase
+        .from("invitations")
+        .update({
+          status: "accepted",
+          accepted_at: new Date().toISOString(),
+          accepted_user_id: data.user.id,
+        })
+        .eq("id", inviteId);
+    }
+
     toast.success("Account created");
     navigate("/");
   };
 
+  // Token-based invite signup
+  if (token) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background px-4 py-8">
+        <div className="w-full max-w-md space-y-6">
+          <div className="text-center space-y-2">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">You're invited</h1>
+            <p className="text-sm text-muted-foreground">
+              Set up your account to get started with your coach.
+            </p>
+          </div>
+
+          {inviteState === "checking" && (
+            <div className="flex justify-center py-10">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          )}
+
+          {inviteState === "invalid" && (
+            <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-6 text-center space-y-2">
+              <p className="font-medium text-destructive">Invalid or used invitation</p>
+              <p className="text-sm text-muted-foreground">
+                This invite link is no longer valid. Ask your coach for a new one.
+              </p>
+              <Link to="/login" className="text-sm text-primary font-medium hover:underline inline-block mt-2">
+                Already have an account? Sign in
+              </Link>
+            </div>
+          )}
+
+          {inviteState === "valid" && (
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="displayName">Full name</Label>
+                <Input
+                  id="displayName"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  required
+                  autoFocus
+                  className="h-11"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input id="email" type="email" value={email} readOnly className="h-11 bg-muted/40" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    autoComplete="new-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    className="h-11 pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((s) => !s)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+              <Button type="submit" disabled={loading} className="w-full h-11">
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create account"}
+              </Button>
+            </form>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Standard signup (coach self-signup, or info that users need invite)
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4 py-8">
       <div className="w-full max-w-md space-y-6">
@@ -85,25 +202,11 @@ const Signup = () => {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="displayName">Full name</Label>
-              <Input
-                id="displayName"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                required
-                className="h-11"
-              />
+              <Input id="displayName" value={displayName} onChange={(e) => setDisplayName(e.target.value)} required className="h-11" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="h-11"
-              />
+              <Input id="email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="h-11" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
@@ -127,7 +230,6 @@ const Signup = () => {
                 </button>
               </div>
             </div>
-
             <Button type="submit" disabled={loading} className="w-full h-11">
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create coach account"}
             </Button>
