@@ -104,12 +104,8 @@ function htmlRedirect(returnTo: string, errorCode: string | null) {
     ? `${safe}${safe.includes("?") ? "&" : "?"}gmail_error=${encodeURIComponent(errorCode)}`
     : `${safe}${safe.includes("?") ? "&" : "?"}gmail_connected=1`;
 
-  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Redirecting…</title>
-<meta http-equiv="refresh" content="0;url=${target}">
-</head><body style="font-family:system-ui;padding:40px;text-align:center;">
-<p>Redirecting back to your app…</p>
-<p><a href="${target}">Click here if you're not redirected automatically</a></p>
-</body></html>`;
-
-  return new Response(html, { headers: { "Content-Type": "text/html" } });
+  return new Response(null, {
+    status: 302,
+    headers: { Location: target },
+  });
 }
