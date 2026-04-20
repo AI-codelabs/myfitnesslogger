@@ -44,12 +44,16 @@ const ClientProfile = () => {
   };
 
   const deleteClient = async () => {
-    if (!invite) return;
+    if (!clientId) return;
     setActionLoading(true);
-    const { error } = await supabase.from("invitations").delete().eq("id", invite.id);
+    const { data, error } = await supabase.functions.invoke("delete-client", {
+      body: { clientId },
+    });
     setActionLoading(false);
-    if (error) return toast.error(error.message);
-    toast.success("Client removed");
+    if (error || (data as any)?.error) {
+      return toast.error(error?.message || (data as any)?.error || "Failed to delete");
+    }
+    toast.success("Client account deleted");
     navigate("/");
   };
 
