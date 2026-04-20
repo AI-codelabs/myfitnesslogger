@@ -132,7 +132,7 @@ const Onboarding = () => {
 
     const { error } = await supabase
       .from("onboarding_responses")
-      .upsert(row, { onConflict: "user_id" });
+      .upsert(row as any, { onConflict: "user_id" });
 
     setSubmitting(false);
     if (error) {
