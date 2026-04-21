@@ -249,8 +249,20 @@ const ClientProfile = () => {
       <Tabs defaultValue="overview">
         <TabsList>
           <TabsTrigger value="overview">{lang === "nl" ? "Overzicht" : "Overview"}</TabsTrigger>
+          <TabsTrigger value="workouts">{lang === "nl" ? "Workouts" : "Workouts"}</TabsTrigger>
           <TabsTrigger value="nutrition">{lang === "nl" ? "Voeding" : "Nutrition"}</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="workouts" className="mt-4">
+          {coachId && clientId ? (
+            <ClientWorkouts
+              clientId={clientId}
+              coachId={coachId}
+              preferredFrequency={response?.train_freq_target ?? response?.train_freq_current ?? null}
+              lang={lang}
+            />
+          ) : null}
+        </TabsContent>
 
         <TabsContent value="overview" className="mt-4 space-y-4">
           <Card className="p-5 space-y-2">
