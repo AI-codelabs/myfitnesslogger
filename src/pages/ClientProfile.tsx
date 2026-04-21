@@ -259,6 +259,7 @@ const ClientProfile = () => {
               clientId={clientId}
               coachId={coachId}
               preferredFrequency={response?.train_freq_target ?? response?.train_freq_current ?? null}
+              preferredDays={response?.train_days ?? null}
               lang={lang}
             />
           ) : null}
