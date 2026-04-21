@@ -392,6 +392,7 @@ const ClientProfile = () => {
                 supplements: response.supplements,
               } : undefined}
               existing={nutrition}
+              onCancel={editingNutrition ? () => setEditingNutrition(false) : undefined}
               onCompleted={async () => {
                 setEditingNutrition(false);
                 await loadNutrition();

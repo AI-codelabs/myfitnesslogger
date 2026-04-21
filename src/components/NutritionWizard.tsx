@@ -23,6 +23,7 @@ type Props = {
   prefill?: Record<string, any>;
   existing?: any | null;
   onCompleted?: () => void;
+  onCancel?: () => void;
 };
 
 type Values = Record<string, any>;
@@ -44,6 +45,7 @@ export const NutritionWizard = ({
   prefill,
   existing,
   onCompleted,
+  onCancel,
 }: Props) => {
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -260,18 +262,25 @@ export const NutritionWizard = ({
           <ChevronLeft className="h-4 w-4" />
           {t("Terug", "Back", lang)}
         </Button>
-        {step < labels.length - 1 ? (
-          <Button onClick={next} disabled={saving} className="gap-1">
-            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            {t("Volgende", "Next", lang)}
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        ) : (
-          <Button onClick={finish} disabled={saving} className="gap-1">
-            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-            {t("Opslaan", "Save", lang)}
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {onCancel && (
+            <Button variant="ghost" onClick={onCancel} disabled={saving}>
+              {t("Annuleer", "Cancel", lang)}
+            </Button>
+          )}
+          {step < labels.length - 1 ? (
+            <Button onClick={next} disabled={saving} className="gap-1">
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {t("Volgende", "Next", lang)}
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          ) : (
+            <Button onClick={finish} disabled={saving} className="gap-1">
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+              {t("Opslaan", "Save", lang)}
+            </Button>
+          )}
+        </div>
       </div>
     </Card>
   );
