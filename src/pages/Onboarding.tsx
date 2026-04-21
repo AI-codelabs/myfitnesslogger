@@ -162,6 +162,7 @@ const Onboarding = () => {
             inputMode="decimal"
             value={v ?? ""}
             onChange={(e) => setField(f.name, e.target.value)}
+            onWheel={(e) => e.currentTarget.blur()}
             className="h-11"
           />
         );
