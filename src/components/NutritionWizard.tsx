@@ -45,6 +45,7 @@ export const NutritionWizard = ({
   prefill,
   existing,
   onCompleted,
+  onCancel,
 }: Props) => {
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
