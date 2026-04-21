@@ -22,6 +22,7 @@ import { Lang, onboardingSections, t } from "@/lib/onboardingSchema";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 
 import { NutritionWizard } from "@/components/NutritionWizard";
+import { ClientWorkouts } from "@/components/ClientWorkouts";
 
 const ClientProfile = () => {
   const { clientId } = useParams<{ clientId: string }>();
