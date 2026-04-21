@@ -12,6 +12,7 @@ import { Loader2, Search, X, Sparkles, User as UserIcon, ExternalLink } from "lu
 import { toast } from "sonner";
 import { Lang } from "@/lib/onboardingSchema";
 import { ScheduleWorkoutDialog, ScheduleData } from "@/components/ScheduleWorkoutDialog";
+import { WorkoutActivityCalendar } from "@/components/WorkoutActivityCalendar";
 
 interface Plan {
   id: string;
