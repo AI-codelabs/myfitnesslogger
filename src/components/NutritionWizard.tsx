@@ -32,7 +32,7 @@ const stepLabels = (lang: Lang) => [
   { nl: "Jouw levensstijl", en: "Your lifestyle" },
   { nl: "Persoonlijk doel", en: "Personal goal" },
   { nl: "Voedingssamenstelling", en: "Nutrition composition" },
-  { nl: "Voltooid", en: "Done" },
+  { nl: "Macro's", en: "Macros" },
 ].map((s) => s[lang]);
 
 const t = (nl: string, en: string, lang: Lang) => (lang === "nl" ? nl : en);
