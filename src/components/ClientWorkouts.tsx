@@ -48,6 +48,7 @@ export function ClientWorkouts({ clientId, coachId, preferredFrequency, preferre
   const [category, setCategory] = useState("all");
   const [showAll, setShowAll] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [scheduling, setScheduling] = useState<Plan | null>(null);
 
   const tx = (nl: string, en: string) => (lang === "nl" ? nl : en);
 
