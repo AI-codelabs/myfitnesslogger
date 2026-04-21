@@ -241,13 +241,6 @@ const ClientTraining = () => {
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
-          {!sameDay(currentDate, today) && (
-            <div className="flex justify-center">
-              <Button variant="ghost" size="sm" onClick={goToday}>
-                {tx("Ga naar vandaag", "Go to today")}
-              </Button>
-            </div>
-          )}
         </div>
 
         {loading ? (
