@@ -36,10 +36,11 @@ interface Props {
   clientId: string;
   coachId: string;
   preferredFrequency: number | null;
+  preferredDays?: string[] | null;
   lang: Lang;
 }
 
-export function ClientWorkouts({ clientId, coachId, preferredFrequency, lang }: Props) {
+export function ClientWorkouts({ clientId, coachId, preferredFrequency, preferredDays, lang }: Props) {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(true);
