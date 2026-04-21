@@ -40,7 +40,7 @@ export function DashboardNotifications() {
       .select("id, type, title, body, link, read_at, created_at")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
-      .limit(20);
+      .limit(3);
     setItems(data ?? []);
     setLoading(false);
   };
