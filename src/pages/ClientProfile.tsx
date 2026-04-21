@@ -20,6 +20,8 @@ import {
 import { toast } from "sonner";
 import { Lang, onboardingSections, t } from "@/lib/onboardingSchema";
 
+import { NutritionWizard } from "@/components/NutritionWizard";
+
 const ClientProfile = () => {
   const { clientId } = useParams<{ clientId: string }>();
   const navigate = useNavigate();
@@ -29,6 +31,9 @@ const ClientProfile = () => {
   const [response, setResponse] = useState<any>(null);
   const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({});
   const [actionLoading, setActionLoading] = useState(false);
+  const [nutrition, setNutrition] = useState<any>(null);
+  const [editingNutrition, setEditingNutrition] = useState(false);
+  const [coachId, setCoachId] = useState<string | null>(null);
 
   const updateStatus = async (status: "active" | "inactive") => {
     if (!invite) return;
@@ -57,11 +62,23 @@ const ClientProfile = () => {
     navigate("/");
   };
 
+  const loadNutrition = async () => {
+    if (!clientId) return;
+    const { data } = await supabase
+      .from("nutrition_plans")
+      .select("*")
+      .eq("client_id", clientId)
+      .maybeSingle();
+    setNutrition(data);
+  };
+
   useEffect(() => {
     if (!clientId) return;
     (async () => {
       setLoading(true);
-      const [invQ, respQ] = await Promise.all([
+      const { data: u } = await supabase.auth.getUser();
+      setCoachId(u.user?.id ?? null);
+      const [invQ, respQ, nutQ] = await Promise.all([
         supabase
           .from("invitations")
           .select("id, email, status, accepted_at, created_at")
@@ -72,9 +89,15 @@ const ClientProfile = () => {
           .select("*")
           .eq("user_id", clientId)
           .maybeSingle(),
+        supabase
+          .from("nutrition_plans")
+          .select("*")
+          .eq("client_id", clientId)
+          .maybeSingle(),
       ]);
       setInvite(invQ.data);
       setResponse(respQ.data);
+      setNutrition(nutQ.data);
       setLoading(false);
 
       // Sign URLs for any uploaded photos
@@ -224,7 +247,7 @@ const ClientProfile = () => {
       <Tabs defaultValue="overview">
         <TabsList>
           <TabsTrigger value="overview">{lang === "nl" ? "Overzicht" : "Overview"}</TabsTrigger>
-          <TabsTrigger value="food">{lang === "nl" ? "Voedingslog" : "Food log"}</TabsTrigger>
+          <TabsTrigger value="nutrition">{lang === "nl" ? "Voeding" : "Nutrition"}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="mt-4 space-y-4">
@@ -300,14 +323,59 @@ const ClientProfile = () => {
           )}
         </TabsContent>
 
-        <TabsContent value="food" className="mt-4">
-          <Card className="p-10 text-center text-sm text-muted-foreground">
-            {lang === "nl" ? "Voedingslog komt binnenkort." : "Food log coming soon."}
-          </Card>
+        <TabsContent value="nutrition" className="mt-4 space-y-4">
+          {coachId && clientId && (nutrition && !editingNutrition && nutrition.completed_at ? (
+            <Card className="p-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-semibold">
+                    {lang === "nl" ? "Voedingsschema" : "Nutrition plan"}
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    {lang === "nl" ? "Laatst bijgewerkt" : "Last updated"}:{" "}
+                    {new Date(nutrition.updated_at).toLocaleDateString()}
+                  </p>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => setEditingNutrition(true)}>
+                  {lang === "nl" ? "Bewerken" : "Edit"}
+                </Button>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                <Stat label={lang === "nl" ? "Geslacht" : "Gender"} value={nutrition.gender} />
+                <Stat label={lang === "nl" ? "Leeftijd" : "Age"} value={nutrition.age} />
+                <Stat label={lang === "nl" ? "Lengte" : "Height"} value={nutrition.height_cm ? `${nutrition.height_cm} cm` : null} />
+                <Stat label={lang === "nl" ? "Gewicht" : "Weight"} value={nutrition.weight_kg ? `${nutrition.weight_kg} kg` : null} />
+              </div>
+            </Card>
+          ) : (
+            <NutritionWizard
+              clientId={clientId}
+              coachId={coachId}
+              lang={lang}
+              prefill={response ? {
+                gender: null,
+                age: response.age,
+                height_cm: response.height_cm,
+                weight_kg: response.weight_kg,
+              } : undefined}
+              existing={nutrition}
+              onCompleted={async () => {
+                setEditingNutrition(false);
+                await loadNutrition();
+              }}
+            />
+          ))}
         </TabsContent>
       </Tabs>
     </div>
   );
 };
+
+const Stat = ({ label, value }: { label: string; value: any }) => (
+  <div className="rounded-md border p-3">
+    <p className="text-xs text-muted-foreground">{label}</p>
+    <p className="text-sm font-medium mt-0.5">{value || "—"}</p>
+  </div>
+);
 
 export default ClientProfile;
