@@ -20,12 +20,7 @@ type Props = {
   clientId: string;
   coachId: string;
   lang: Lang;
-  prefill?: {
-    gender?: string | null;
-    age?: number | null;
-    height_cm?: number | null;
-    weight_kg?: number | null;
-  };
+  prefill?: Record<string, any>;
   existing?: any | null;
   onCompleted?: () => void;
 };
