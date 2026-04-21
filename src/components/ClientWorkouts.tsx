@@ -344,6 +344,15 @@ export function ClientWorkouts({ clientId, coachId, preferredFrequency, preferre
           </div>
         </Card>
       )}
+
+      <ScheduleWorkoutDialog
+        open={!!scheduling}
+        onOpenChange={(o) => !o && setScheduling(null)}
+        prefillDays={preferredDays ?? null}
+        lang={lang}
+        busy={busyId === scheduling?.id}
+        onConfirm={confirmSchedule}
+      />
     </div>
   );
 }
