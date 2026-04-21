@@ -161,6 +161,9 @@ export default function Workouts() {
                 <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
                   <Sparkles className="h-4 w-4 text-secondary" /> Predefined templates
                 </h2>
+                {templates.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No templates match your filters.</p>
+                ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {templates.map((p) => (
                     <Link key={p.id} to={`/workouts/${p.id}`} className="flex">
@@ -191,6 +194,7 @@ export default function Workouts() {
                     </Link>
                   ))}
                 </div>
+                )}
               </section>
 
               <section>
