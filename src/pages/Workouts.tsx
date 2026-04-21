@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dumbbell, Sparkles, User as UserIcon } from "lucide-react";
+import { CreatePlanDialog } from "@/components/CreatePlanDialog";
 
 interface Plan {
   id: string;
@@ -32,13 +33,21 @@ export default function Workouts() {
   const [exFilter, setExFilter] = useState("");
   const [loading, setLoading] = useState(true);
 
+  async function loadPlans() {
+    const { data: p } = await supabase
+      .from("workout_plans")
+      .select("*")
+      .order("is_template", { ascending: false })
+      .order("name");
+    setPlans(p ?? []);
+  }
+
   useEffect(() => {
     (async () => {
-      const [{ data: p }, { data: e }] = await Promise.all([
-        supabase.from("workout_plans").select("*").order("is_template", { ascending: false }).order("name"),
+      const [, { data: e }] = await Promise.all([
+        loadPlans(),
         supabase.from("exercises").select("*").order("muscle_group").order("name"),
       ]);
-      setPlans(p ?? []);
       setExercises(e ?? []);
       setLoading(false);
     })();
@@ -56,9 +65,12 @@ export default function Workouts() {
 
   return (
     <div className="space-y-6 p-4 md:p-8">
-      <header>
-        <h1 className="text-3xl font-semibold tracking-tight">Workouts</h1>
-        <p className="text-muted-foreground">Manage workout plan templates and the exercise library.</p>
+      <header className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-semibold tracking-tight">Workouts</h1>
+          <p className="text-muted-foreground">Manage workout plan templates and the exercise library.</p>
+        </div>
+        <CreatePlanDialog onCreated={loadPlans} />
       </header>
 
       <Tabs defaultValue="plans">
