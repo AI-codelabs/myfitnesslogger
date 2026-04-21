@@ -20,6 +20,8 @@ import {
 import { toast } from "sonner";
 import { Lang, onboardingSections, t } from "@/lib/onboardingSchema";
 
+import { NutritionWizard } from "@/components/NutritionWizard";
+
 const ClientProfile = () => {
   const { clientId } = useParams<{ clientId: string }>();
   const navigate = useNavigate();
@@ -29,6 +31,9 @@ const ClientProfile = () => {
   const [response, setResponse] = useState<any>(null);
   const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({});
   const [actionLoading, setActionLoading] = useState(false);
+  const [nutrition, setNutrition] = useState<any>(null);
+  const [editingNutrition, setEditingNutrition] = useState(false);
+  const [coachId, setCoachId] = useState<string | null>(null);
 
   const updateStatus = async (status: "active" | "inactive") => {
     if (!invite) return;
