@@ -5,8 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dumbbell, Sparkles, User as UserIcon } from "lucide-react";
+import { Dumbbell, Sparkles, User as UserIcon, Search, X } from "lucide-react";
 import { CreatePlanDialog } from "@/components/CreatePlanDialog";
 import { CreateExerciseDialog } from "@/components/CreateExerciseDialog";
 
@@ -32,6 +34,9 @@ export default function Workouts() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [exFilter, setExFilter] = useState("");
+  const [planSearch, setPlanSearch] = useState("");
+  const [planCategory, setPlanCategory] = useState<string>("all");
+  const [planFreq, setPlanFreq] = useState<string>("all");
   const [loading, setLoading] = useState(true);
 
   async function loadPlans() {
@@ -61,9 +66,20 @@ export default function Workouts() {
       (e.equipment ?? "").toLowerCase().includes(exFilter.toLowerCase())
   );
 
-  const templates = plans.filter((p) => p.is_template);
-  const myPlans = plans.filter((p) => !p.is_template);
+  const matchesPlanFilters = (p: Plan) => {
+    if (planSearch && !p.name.toLowerCase().includes(planSearch.toLowerCase()) &&
+        !(p.description ?? "").toLowerCase().includes(planSearch.toLowerCase())) return false;
+    if (planCategory !== "all" && p.category !== planCategory) return false;
+    if (planFreq !== "all" && String(p.frequency_per_week ?? "") !== planFreq) return false;
+    return true;
+  };
 
+  const templates = plans.filter((p) => p.is_template).filter(matchesPlanFilters);
+  const myPlans = plans.filter((p) => !p.is_template).filter(matchesPlanFilters);
+
+  const allCategories = Array.from(new Set(plans.map((p) => p.category).filter(Boolean))) as string[];
+  const allFreqs = Array.from(new Set(plans.map((p) => p.frequency_per_week).filter(Boolean) as number[])).sort((a, b) => a - b);
+  const filtersActive = planSearch !== "" || planCategory !== "all" || planFreq !== "all";
   return (
     <div className="space-y-6 p-4 md:p-8">
       <header className="flex items-start justify-between gap-4">
@@ -89,10 +105,65 @@ export default function Workouts() {
             <p className="text-muted-foreground text-sm">Loading…</p>
           ) : (
             <>
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="relative flex-1 min-w-[200px] max-w-sm">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search plans…"
+                    value={planSearch}
+                    onChange={(e) => setPlanSearch(e.target.value)}
+                    className="pl-8"
+                  />
+                </div>
+                <Select value={planCategory} onValueChange={setPlanCategory}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All categories</SelectItem>
+                    {allCategories.map((c) => (
+                      <SelectItem key={c} value={c} className="capitalize">
+                        {c.replace("_", " ")}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={planFreq} onValueChange={setPlanFreq}>
+                  <SelectTrigger className="w-[160px]">
+                    <SelectValue placeholder="Frequency" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Any frequency</SelectItem>
+                    {allFreqs.map((f) => (
+                      <SelectItem key={f} value={String(f)}>
+                        {f}x / week
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {filtersActive && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gap-1"
+                    onClick={() => {
+                      setPlanSearch("");
+                      setPlanCategory("all");
+                      setPlanFreq("all");
+                    }}
+                  >
+                    <X className="h-3.5 w-3.5" /> Clear
+                  </Button>
+                )}
+              </div>
+
               <section>
                 <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
                   <Sparkles className="h-4 w-4 text-secondary" /> Predefined templates
                 </h2>
+                {templates.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No templates match your filters.</p>
+                ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {templates.map((p) => (
                     <Link key={p.id} to={`/workouts/${p.id}`} className="flex">
@@ -123,6 +194,7 @@ export default function Workouts() {
                     </Link>
                   ))}
                 </div>
+                )}
               </section>
 
               <section>
