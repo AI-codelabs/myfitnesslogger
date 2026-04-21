@@ -62,11 +62,23 @@ const ClientProfile = () => {
     navigate("/");
   };
 
+  const loadNutrition = async () => {
+    if (!clientId) return;
+    const { data } = await supabase
+      .from("nutrition_plans")
+      .select("*")
+      .eq("client_id", clientId)
+      .maybeSingle();
+    setNutrition(data);
+  };
+
   useEffect(() => {
     if (!clientId) return;
     (async () => {
       setLoading(true);
-      const [invQ, respQ] = await Promise.all([
+      const { data: u } = await supabase.auth.getUser();
+      setCoachId(u.user?.id ?? null);
+      const [invQ, respQ, nutQ] = await Promise.all([
         supabase
           .from("invitations")
           .select("id, email, status, accepted_at, created_at")
@@ -77,9 +89,15 @@ const ClientProfile = () => {
           .select("*")
           .eq("user_id", clientId)
           .maybeSingle(),
+        supabase
+          .from("nutrition_plans")
+          .select("*")
+          .eq("client_id", clientId)
+          .maybeSingle(),
       ]);
       setInvite(invQ.data);
       setResponse(respQ.data);
+      setNutrition(nutQ.data);
       setLoading(false);
 
       // Sign URLs for any uploaded photos
