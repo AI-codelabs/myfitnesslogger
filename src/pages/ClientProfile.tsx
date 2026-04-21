@@ -359,6 +359,12 @@ const ClientProfile = () => {
                     <Stat label={lang === "nl" ? "Koolhydraten" : "Carbs"} value={`${nutrition.details.carbs_g} g`} />
                     <Stat label={lang === "nl" ? "Vet" : "Fat"} value={`${nutrition.details.fat_g} g`} />
                   </div>
+                  <MacroPie
+                    lang={lang}
+                    protein={nutrition.details.protein_g}
+                    carbs={nutrition.details.carbs_g}
+                    fat={nutrition.details.fat_g}
+                  />
                 </>
               ) : null}
             </Card>
