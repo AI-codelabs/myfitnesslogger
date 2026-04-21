@@ -66,9 +66,20 @@ export default function Workouts() {
       (e.equipment ?? "").toLowerCase().includes(exFilter.toLowerCase())
   );
 
-  const templates = plans.filter((p) => p.is_template);
-  const myPlans = plans.filter((p) => !p.is_template);
+  const matchesPlanFilters = (p: Plan) => {
+    if (planSearch && !p.name.toLowerCase().includes(planSearch.toLowerCase()) &&
+        !(p.description ?? "").toLowerCase().includes(planSearch.toLowerCase())) return false;
+    if (planCategory !== "all" && p.category !== planCategory) return false;
+    if (planFreq !== "all" && String(p.frequency_per_week ?? "") !== planFreq) return false;
+    return true;
+  };
 
+  const templates = plans.filter((p) => p.is_template).filter(matchesPlanFilters);
+  const myPlans = plans.filter((p) => !p.is_template).filter(matchesPlanFilters);
+
+  const allCategories = Array.from(new Set(plans.map((p) => p.category).filter(Boolean))) as string[];
+  const allFreqs = Array.from(new Set(plans.map((p) => p.frequency_per_week).filter(Boolean) as number[])).sort((a, b) => a - b);
+  const filtersActive = planSearch !== "" || planCategory !== "all" || planFreq !== "all";
   return (
     <div className="space-y-6 p-4 md:p-8">
       <header className="flex items-start justify-between gap-4">
