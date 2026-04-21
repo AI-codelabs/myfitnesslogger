@@ -32,7 +32,7 @@ const stepLabels = (lang: Lang) => [
   { nl: "Jouw levensstijl", en: "Your lifestyle" },
   { nl: "Persoonlijk doel", en: "Personal goal" },
   { nl: "Voedingssamenstelling", en: "Nutrition composition" },
-  { nl: "Voltooid", en: "Done" },
+  { nl: "Macro's", en: "Macros" },
 ].map((s) => s[lang]);
 
 const t = (nl: string, en: string, lang: Lang) => (lang === "nl" ? nl : en);
@@ -253,23 +253,7 @@ export const NutritionWizard = ({
         </div>
       )}
 
-      {step === 4 && (
-        <div className="text-center py-6 space-y-3">
-          <div className="mx-auto h-12 w-12 rounded-full bg-primary/10 text-primary flex items-center justify-center">
-            <Check className="h-6 w-6" />
-          </div>
-          <h3 className="text-lg font-semibold">
-            {t("Alles ingevuld!", "All set!", lang)}
-          </h3>
-          <p className="text-sm text-muted-foreground max-w-md mx-auto">
-            {t(
-              "Klik op opslaan om het voedingsschema te bewaren. Je kunt het later altijd nog aanpassen.",
-              "Click save to store the nutrition plan. You can edit it later anytime.",
-              lang,
-            )}
-          </p>
-        </div>
-      )}
+      {step === 4 && <MacroStep v={v} set={set} lang={lang} />}
 
       <div className="flex items-center justify-between gap-3 mt-6 pt-4 border-t">
         <Button variant="outline" onClick={prev} disabled={step === 0 || saving} className="gap-1">
@@ -332,4 +316,204 @@ const NumberInput = ({
     onWheel={(e) => e.currentTarget.blur()}
     className="h-11"
   />
+);
+
+// --- Macro calculator (Mifflin-St Jeor) ----------------------------------
+const ACTIVITY_MULT: Record<string, number> = {
+  sedentary: 1.2,
+  light: 1.375,
+  moderate: 1.55,
+  very: 1.725,
+  extra: 1.9,
+};
+
+const GOAL_ADJUST: Record<string, number> = {
+  cut: -0.2,
+  mild_cut: -0.1,
+  maintain: 0,
+  mild_bulk: 0.1,
+  bulk: 0.2,
+  recomp: -0.05,
+};
+
+const computeMacros = (v: Values) => {
+  const age = Number(v.age);
+  const h = Number(v.height_cm);
+  const w = Number(v.weight_kg);
+  const gender = v.gender;
+  const activity = v.activity_level || "moderate";
+  const goal = v.macro_goal || v.goal || "maintain";
+  if (!age || !h || !w) return null;
+  const bmr =
+    gender === "female"
+      ? 10 * w + 6.25 * h - 5 * age - 161
+      : 10 * w + 6.25 * h - 5 * age + 5;
+  const tdee = bmr * (ACTIVITY_MULT[activity] ?? 1.55);
+  const adj = GOAL_ADJUST[goal] ?? 0;
+  const calories = Math.round(tdee * (1 + adj));
+  const pPct = Number(v.macro_p_pct ?? 30);
+  const cPct = Number(v.macro_c_pct ?? 40);
+  const fPct = Number(v.macro_f_pct ?? 30);
+  const protein_g = Math.round((calories * pPct / 100) / 4);
+  const carbs_g = Math.round((calories * cPct / 100) / 4);
+  const fat_g = Math.round((calories * fPct / 100) / 9);
+  return { bmr: Math.round(bmr), tdee: Math.round(tdee), calories, protein_g, carbs_g, fat_g };
+};
+
+const MacroStep = ({
+  v,
+  set,
+  lang,
+}: {
+  v: Values;
+  set: (k: string, val: any) => void;
+  lang: Lang;
+}) => {
+  useEffect(() => {
+    if (!v.macro_goal && v.goal) {
+      set("macro_goal", v.goal);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const result = computeMacros(v);
+  const totalPct =
+    Number(v.macro_p_pct ?? 30) + Number(v.macro_c_pct ?? 40) + Number(v.macro_f_pct ?? 30);
+  const overrideMode = !!v.macro_override;
+  const finalCalories = overrideMode ? Number(v.calories || 0) : result?.calories ?? 0;
+  const finalProtein = overrideMode ? Number(v.protein_g || 0) : result?.protein_g ?? 0;
+  const finalCarbs = overrideMode ? Number(v.carbs_g || 0) : result?.carbs_g ?? 0;
+  const finalFat = overrideMode ? Number(v.fat_g || 0) : result?.fat_g ?? 0;
+
+  useEffect(() => {
+    if (!overrideMode && result) {
+      set("calories", result.calories);
+      set("protein_g", result.protein_g);
+      set("carbs_g", result.carbs_g);
+      set("fat_g", result.fat_g);
+      set("bmr", result.bmr);
+      set("tdee", result.tdee);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    v.age, v.gender, v.height_cm, v.weight_kg, v.activity_level,
+    v.macro_goal, v.macro_p_pct, v.macro_c_pct, v.macro_f_pct, overrideMode,
+  ]);
+
+  const tt = (nl: string, en: string) => (lang === "nl" ? nl : en);
+
+  return (
+    <div className="space-y-6">
+      <p className="text-sm text-muted-foreground">
+        {tt(
+          "Berekend met de Mifflin-St Jeor formule. Pas waarden aan of zet 'Handmatig overschrijven' aan voor eigen getallen.",
+          "Calculated with the Mifflin-St Jeor formula. Adjust values or toggle 'Manual override' for custom numbers.",
+        )}
+      </p>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <Field label={tt("Activiteitsniveau", "Activity level")}>
+          <Select value={v.activity_level || "moderate"} onValueChange={(val) => set("activity_level", val)}>
+            <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="sedentary">{tt("Zittend (geen sport)", "Sedentary")} · ×1.2</SelectItem>
+              <SelectItem value="light">{tt("Licht: 1-3x/week", "Light: 1-3×/week")} · ×1.375</SelectItem>
+              <SelectItem value="moderate">{tt("Matig: 4-5x/week", "Moderate: 4-5×/week")} · ×1.55</SelectItem>
+              <SelectItem value="very">{tt("Zwaar: 6-7x/week", "Heavy: 6-7×/week")} · ×1.725</SelectItem>
+              <SelectItem value="extra">{tt("Zeer zwaar: 2x per dag", "Very heavy: 2×/day")} · ×1.9</SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field label={tt("Doel (calorie-aanpassing)", "Goal (calorie adjustment)")}>
+          <Select value={v.macro_goal || "maintain"} onValueChange={(val) => set("macro_goal", val)}>
+            <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="cut">{tt("Vetverlies", "Fat loss")} · −20%</SelectItem>
+              <SelectItem value="mild_cut">{tt("Rustig afvallen", "Mild fat loss")} · −10%</SelectItem>
+              <SelectItem value="maintain">{tt("Onderhouden", "Maintain")} · 0%</SelectItem>
+              <SelectItem value="mild_bulk">{tt("Rustig opbouwen", "Mild bulk")} · +10%</SelectItem>
+              <SelectItem value="bulk">{tt("Spier opbouwen", "Bulk")} · +20%</SelectItem>
+              <SelectItem value="recomp">{tt("Recomp", "Recomp")} · −5%</SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
+      </div>
+
+      {result ? (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <Stat2 label="BMR" value={`${result.bmr} kcal`} />
+          <Stat2 label="TDEE" value={`${result.tdee} kcal`} />
+          <Stat2
+            label={tt("Aanpassing", "Adjustment")}
+            value={`${Math.round((GOAL_ADJUST[v.macro_goal || "maintain"] ?? 0) * 100)}%`}
+          />
+          <Stat2 label={tt("Doel calorieën", "Target calories")} value={`${finalCalories} kcal`} highlight />
+        </div>
+      ) : (
+        <Card className="p-4 text-sm text-muted-foreground">
+          {tt(
+            "Vul leeftijd, geslacht, lengte en gewicht in (stap 1) om macro's te berekenen.",
+            "Fill in age, gender, height, and weight (step 1) to compute macros.",
+          )}
+        </Card>
+      )}
+
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h4 className="text-sm font-semibold">{tt("Macroverdeling", "Macro split")}</h4>
+          <span className={`text-xs ${totalPct === 100 ? "text-muted-foreground" : "text-destructive"}`}>
+            {tt("Totaal", "Total")}: {totalPct}%
+          </span>
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          <Field label={tt("Eiwit %", "Protein %")}>
+            <NumberInput value={v.macro_p_pct ?? 30} onChange={(val) => set("macro_p_pct", val)} />
+          </Field>
+          <Field label={tt("Koolhydraten %", "Carbs %")}>
+            <NumberInput value={v.macro_c_pct ?? 40} onChange={(val) => set("macro_c_pct", val)} />
+          </Field>
+          <Field label={tt("Vet %", "Fat %")}>
+            <NumberInput value={v.macro_f_pct ?? 30} onChange={(val) => set("macro_f_pct", val)} />
+          </Field>
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          <Stat2 label={tt("Eiwit", "Protein")} value={`${finalProtein} g`} />
+          <Stat2 label={tt("Koolhydraten", "Carbs")} value={`${finalCarbs} g`} />
+          <Stat2 label={tt("Vet", "Fat")} value={`${finalFat} g`} />
+        </div>
+      </div>
+
+      <div className="rounded-md border p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-semibold">{tt("Handmatig overschrijven", "Manual override")}</p>
+            <p className="text-xs text-muted-foreground">
+              {tt("Negeer berekening en gebruik eigen getallen.", "Ignore calculation and use custom numbers.")}
+            </p>
+          </div>
+          <input
+            type="checkbox"
+            className="h-4 w-4"
+            checked={overrideMode}
+            onChange={(e) => set("macro_override", e.target.checked)}
+          />
+        </div>
+        {overrideMode && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <Field label="kcal"><NumberInput value={v.calories} onChange={(val) => set("calories", val)} /></Field>
+            <Field label={tt("Eiwit (g)", "Protein (g)")}><NumberInput value={v.protein_g} onChange={(val) => set("protein_g", val)} /></Field>
+            <Field label={tt("KH (g)", "Carbs (g)")}><NumberInput value={v.carbs_g} onChange={(val) => set("carbs_g", val)} /></Field>
+            <Field label={tt("Vet (g)", "Fat (g)")}><NumberInput value={v.fat_g} onChange={(val) => set("fat_g", val)} /></Field>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const Stat2 = ({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) => (
+  <div className={`rounded-md border p-3 ${highlight ? "border-primary bg-primary/5" : ""}`}>
+    <p className="text-xs text-muted-foreground">{label}</p>
+    <p className={`text-sm font-semibold mt-0.5 ${highlight ? "text-primary" : ""}`}>{value}</p>
+  </div>
 );
