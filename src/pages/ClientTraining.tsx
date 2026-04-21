@@ -290,10 +290,13 @@ const ClientTraining = () => {
                         {tx("Training", "Workout")} #{occ.occurrenceIndex}
                       </p>
                     </div>
-                    <Button variant="ghost" size="sm" asChild>
-                      <Link to={`/workouts/${occ.planId}`} className="gap-1">
-                        {tx("Bekijk schema", "View plan")}
-                        <ExternalLink className="h-3.5 w-3.5" />
+                    <Button variant="default" size="sm" asChild>
+                      <Link
+                        to={`/training/log/new?plan=${occ.planId}&day=${dayForToday?.id ?? ""}&date=${dateKey}`}
+                        className="gap-1"
+                      >
+                        <Dumbbell className="h-3.5 w-3.5" />
+                        {tx("Log workout", "Log workout")}
                       </Link>
                     </Button>
                   </div>
