@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dumbbell, Sparkles, User as UserIcon } from "lucide-react";
+import { CreatePlanDialog } from "@/components/CreatePlanDialog";
 
 interface Plan {
   id: string;
