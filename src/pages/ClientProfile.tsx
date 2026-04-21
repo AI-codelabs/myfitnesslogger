@@ -411,4 +411,70 @@ const Stat = ({ label, value }: { label: string; value: any }) => (
   </div>
 );
 
+const MacroPie = ({
+  lang,
+  protein,
+  carbs,
+  fat,
+}: {
+  lang: Lang;
+  protein: number;
+  carbs: number;
+  fat: number;
+}) => {
+  const data = [
+    { name: lang === "nl" ? "Koolhydraten" : "Carbs", value: Number(carbs) || 0, color: "hsl(340 75% 60%)" },
+    { name: lang === "nl" ? "Eiwitten" : "Protein", value: Number(protein) || 0, color: "hsl(210 80% 60%)" },
+    { name: lang === "nl" ? "Vetten" : "Fat", value: Number(fat) || 0, color: "hsl(25 85% 60%)" },
+  ];
+  if (data.every((d) => d.value === 0)) return null;
+  return (
+    <div className="mt-2 rounded-md border p-4">
+      <p className="text-xs uppercase tracking-wider text-muted-foreground mb-3">
+        {lang === "nl" ? "Verdeling" : "Distribution"}
+      </p>
+      <div className="h-64 w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie
+              data={data}
+              dataKey="value"
+              nameKey="name"
+              innerRadius={50}
+              outerRadius={90}
+              paddingAngle={2}
+              stroke="hsl(var(--background))"
+            >
+              {data.map((d) => (
+                <Cell key={d.name} fill={d.color} />
+              ))}
+            </Pie>
+            <Tooltip
+              formatter={(val: any, name: any) => [`${val} g`, name]}
+              contentStyle={{
+                background: "hsl(var(--popover))",
+                border: "1px solid hsl(var(--border))",
+                borderRadius: 6,
+                fontSize: 12,
+              }}
+            />
+            <Legend
+              verticalAlign="bottom"
+              iconType="circle"
+              formatter={(value: any) => {
+                const item = data.find((d) => d.name === value);
+                return (
+                  <span className="text-xs text-foreground">
+                    {value} ({item?.value} g)
+                  </span>
+                );
+              }}
+            />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+};
+
 export default ClientProfile;
