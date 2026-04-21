@@ -371,4 +371,11 @@ const ClientProfile = () => {
   );
 };
 
+const Stat = ({ label, value }: { label: string; value: any }) => (
+  <div className="rounded-md border p-3">
+    <p className="text-xs text-muted-foreground">{label}</p>
+    <p className="text-sm font-medium mt-0.5">{value || "—"}</p>
+  </div>
+);
+
 export default ClientProfile;
