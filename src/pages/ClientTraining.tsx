@@ -196,9 +196,9 @@ const ClientTraining = () => {
   const goToday = () => setCurrentDate(startOfDay(new Date()));
 
   return (
-    <div className="container max-w-3xl py-6 space-y-4">
+    <div className="w-full max-w-3xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">
+        <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">
           {tx("Training", "Training")}
         </h1>
         <p className="text-sm text-muted-foreground">
@@ -209,42 +209,45 @@ const ClientTraining = () => {
         </p>
       </div>
 
-      <Card className="p-5 space-y-4">
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div>
-            <p className="text-xs uppercase tracking-wider text-muted-foreground">
-              {sameDay(currentDate, today)
-                ? tx("Vandaag", "Today")
-                : tx("Geplande dag", "Scheduled day")}
-            </p>
-            <h2 className="text-lg font-semibold capitalize">{dateLabel}</h2>
-          </div>
-          <div className="flex items-center gap-2">
+      <Card className="p-3 sm:p-5 space-y-4">
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-2">
             <Button
               variant="outline"
               size="icon"
               onClick={goPrev}
               aria-label={tx("Vorige dag", "Previous day")}
+              className="shrink-0"
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={goToday}
-              disabled={sameDay(currentDate, today)}
-            >
-              {tx("Vandaag", "Today")}
-            </Button>
+            <div className="text-center min-w-0 flex-1">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                {sameDay(currentDate, today)
+                  ? tx("Vandaag", "Today")
+                  : tx("Geplande dag", "Scheduled day")}
+              </p>
+              <h2 className="text-sm sm:text-base font-semibold capitalize truncate">
+                {dateLabel}
+              </h2>
+            </div>
             <Button
               variant="outline"
               size="icon"
               onClick={goNext}
               aria-label={tx("Volgende dag", "Next day")}
+              className="shrink-0"
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
+          {!sameDay(currentDate, today) && (
+            <div className="flex justify-center">
+              <Button variant="ghost" size="sm" onClick={goToday}>
+                {tx("Ga naar vandaag", "Go to today")}
+              </Button>
+            </div>
+          )}
         </div>
 
         {loading ? (
