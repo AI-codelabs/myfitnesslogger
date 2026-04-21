@@ -49,7 +49,7 @@ export function AppSidebar() {
               <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={isActive("/")}>
                   <NavLink to="/" className={linkCls(isActive("/"))}>
-                    <LayoutDashboard className="h-4 w-4" />
+                    <LayoutDashboard className="h-4 w-4 shrink-0" />
                     {!collapsed && <span>Dashboard</span>}
                   </NavLink>
                 </SidebarMenuButton>
@@ -57,7 +57,7 @@ export function AppSidebar() {
               <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={isActive("/clients")}>
                   <NavLink to="/clients" className={linkCls(isActive("/clients"))}>
-                    <Users className="h-4 w-4" />
+                    <Users className="h-4 w-4 shrink-0" />
                     {!collapsed && <span>Clients</span>}
                   </NavLink>
                 </SidebarMenuButton>
@@ -66,7 +66,7 @@ export function AppSidebar() {
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild isActive={isActive("/workouts") || location.pathname.startsWith("/workouts/")}>
                     <NavLink to="/workouts" className={linkCls(isActive("/workouts") || location.pathname.startsWith("/workouts/"))}>
-                      <Dumbbell className="h-4 w-4" />
+                      <Dumbbell className="h-4 w-4 shrink-0" />
                       {!collapsed && <span>Workouts</span>}
                     </NavLink>
                   </SidebarMenuButton>
@@ -93,7 +93,7 @@ export function AppSidebar() {
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
                   <NavLink to="/account" className={linkCls(isActive("/account"))}>
-                    <UserIcon className="h-4 w-4" />
+                    <UserIcon className="h-4 w-4 shrink-0" />
                     {!collapsed && <span>Profile</span>}
                   </NavLink>
                 </SidebarMenuButton>
