@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      client_workout_assignments: {
+        Row: {
+          assigned_at: string
+          client_id: string
+          coach_id: string
+          created_at: string
+          id: string
+          is_active: boolean
+          notes: string | null
+          plan_id: string
+          unassigned_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          assigned_at?: string
+          client_id: string
+          coach_id: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          plan_id: string
+          unassigned_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          assigned_at?: string
+          client_id?: string
+          coach_id?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          plan_id?: string
+          unassigned_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       coach_email_connections: {
         Row: {
           access_token: string | null
