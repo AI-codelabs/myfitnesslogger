@@ -266,87 +266,98 @@ const ClientTraining = () => {
               return (
                 <div
                   key={occ.assignmentId}
-                  className="rounded-md border p-4 space-y-3"
+                  className="rounded-xl border bg-card overflow-hidden"
                 >
-                  <div className="flex items-start justify-between gap-3 flex-wrap">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <Dumbbell className="h-4 w-4 text-primary" />
-                        <h4 className="font-semibold">{occ.planName}</h4>
-                        {dayForToday && (
-                          <Badge variant="secondary" className="text-[10px]">
-                            {dayForToday.name}
-                          </Badge>
-                        )}
+                  <div className="p-4 space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                        <Dumbbell className="h-5 w-5 text-primary" />
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {tx("Training", "Workout")} #{occ.occurrenceIndex}
-                      </p>
+                      <div className="min-w-0 flex-1">
+                        <h4 className="font-semibold text-sm truncate">
+                          {occ.planName || tx("Training", "Workout")}
+                        </h4>
+                        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                          {dayForToday && (
+                            <Badge variant="secondary" className="text-[10px] font-normal">
+                              {dayForToday.name}
+                            </Badge>
+                          )}
+                          <span className="text-[11px] text-muted-foreground">
+                            {tx("Training", "Workout")} #{occ.occurrenceIndex}
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                    <Button variant="default" size="sm" asChild>
-                      <Link
-                        to={`/training/log/new?plan=${occ.planId}&day=${dayForToday?.id ?? ""}&date=${dateKey}`}
-                        className="gap-1"
-                      >
-                        <Dumbbell className="h-3.5 w-3.5" />
-                        {tx("Log workout", "Log workout")}
-                      </Link>
-                    </Button>
+
+                    {!dayForToday ? (
+                      <p className="text-xs text-muted-foreground">
+                        {tx(
+                          "Geen oefeningen geconfigureerd.",
+                          "No exercises configured."
+                        )}
+                      </p>
+                    ) : dayForToday.exercises.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">
+                        {tx(
+                          "Geen oefeningen voor deze dag.",
+                          "No exercises for this day."
+                        )}
+                      </p>
+                    ) : (
+                      <>
+                        <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
+                          {dayForToday.exercises.length}{" "}
+                          {tx("oefeningen", "exercises")}
+                        </p>
+                        <ol className="space-y-1.5">
+                          {dayForToday.exercises.map((e, i) => (
+                            <li
+                              key={e.id}
+                              className="flex items-start gap-3 py-1"
+                            >
+                              <span className="text-xs font-semibold text-muted-foreground w-5 shrink-0 pt-0.5 tabular-nums">
+                                {String(i + 1).padStart(2, "0")}
+                              </span>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="font-medium text-sm">
+                                    {e.exercise?.name ?? "—"}
+                                  </span>
+                                  {e.exercise?.muscle_group && (
+                                    <Badge
+                                      variant="outline"
+                                      className="text-[10px] capitalize font-normal"
+                                    >
+                                      {e.exercise.muscle_group}
+                                    </Badge>
+                                  )}
+                                </div>
+                                {e.sets_reps && (
+                                  <p className="text-xs text-muted-foreground mt-0.5">
+                                    {e.sets_reps}
+                                  </p>
+                                )}
+                              </div>
+                            </li>
+                          ))}
+                        </ol>
+                      </>
+                    )}
                   </div>
 
-                  {!dayForToday ? (
-                    <p className="text-sm text-muted-foreground">
-                      {tx(
-                        "Geen oefeningen geconfigureerd.",
-                        "No exercises configured."
-                      )}
-                    </p>
-                  ) : dayForToday.exercises.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">
-                      {tx(
-                        "Geen oefeningen voor deze dag.",
-                        "No exercises for this day."
-                      )}
-                    </p>
-                  ) : (
-                    <ol className="space-y-2">
-                      {dayForToday.exercises.map((e, i) => (
-                        <li
-                          key={e.id}
-                          className="flex items-start gap-3 rounded-md bg-muted/40 p-2.5"
-                        >
-                          <span className="text-xs font-semibold text-muted-foreground w-5 shrink-0 pt-0.5">
-                            {i + 1}.
-                          </span>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-medium text-sm">
-                                {e.exercise?.name ?? "—"}
-                              </span>
-                              {e.exercise?.muscle_group && (
-                                <Badge
-                                  variant="outline"
-                                  className="text-[10px] capitalize"
-                                >
-                                  {e.exercise.muscle_group}
-                                </Badge>
-                              )}
-                            </div>
-                            {e.sets_reps && (
-                              <p className="text-xs text-muted-foreground mt-0.5">
-                                {e.sets_reps}
-                              </p>
-                            )}
-                            {e.notes && (
-                              <p className="text-xs text-muted-foreground italic mt-0.5">
-                                {e.notes}
-                              </p>
-                            )}
-                          </div>
-                        </li>
-                      ))}
-                    </ol>
-                  )}
+                  <Button
+                    variant="default"
+                    asChild
+                    className="w-full rounded-none h-12 gap-2"
+                  >
+                    <Link
+                      to={`/training/log/new?plan=${occ.planId}&day=${dayForToday?.id ?? ""}&date=${dateKey}`}
+                    >
+                      <Dumbbell className="h-4 w-4" />
+                      {tx("Log workout", "Log workout")}
+                    </Link>
+                  </Button>
                 </div>
               );
             })}
