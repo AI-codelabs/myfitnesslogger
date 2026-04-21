@@ -176,6 +176,48 @@ export type Database = {
         }
         Relationships: []
       }
+      nutrition_plans: {
+        Row: {
+          age: number | null
+          client_id: string
+          coach_id: string
+          completed_at: string | null
+          created_at: string
+          details: Json
+          gender: string | null
+          height_cm: number | null
+          id: string
+          updated_at: string
+          weight_kg: number | null
+        }
+        Insert: {
+          age?: number | null
+          client_id: string
+          coach_id: string
+          completed_at?: string | null
+          created_at?: string
+          details?: Json
+          gender?: string | null
+          height_cm?: number | null
+          id?: string
+          updated_at?: string
+          weight_kg?: number | null
+        }
+        Update: {
+          age?: number | null
+          client_id?: string
+          coach_id?: string
+          completed_at?: string | null
+          created_at?: string
+          details?: Json
+          gender?: string | null
+          height_cm?: number | null
+          id?: string
+          updated_at?: string
+          weight_kg?: number | null
+        }
+        Relationships: []
+      }
       oauth_states: {
         Row: {
           coach_id: string
