@@ -34,6 +34,9 @@ export default function Workouts() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [exFilter, setExFilter] = useState("");
+  const [planSearch, setPlanSearch] = useState("");
+  const [planCategory, setPlanCategory] = useState<string>("all");
+  const [planFreq, setPlanFreq] = useState<string>("all");
   const [loading, setLoading] = useState(true);
 
   async function loadPlans() {
