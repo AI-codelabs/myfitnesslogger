@@ -155,7 +155,7 @@ const ClientProfile = () => {
         </div>
         <div className="flex items-center gap-2 flex-wrap justify-end">
           <Badge variant={statusVariant as any} className="capitalize h-8 px-3 rounded-md text-xs flex items-center">{invite?.status}</Badge>
-          <div className="flex items-center gap-1 rounded-md border p-0.5">
+          <div className="flex items-center gap-1 rounded-md border h-8 p-0.5">
             {(["nl", "en"] as Lang[]).map((l) => (
               <button
                 key={l}
@@ -163,7 +163,7 @@ const ClientProfile = () => {
                   setLang(l);
                   localStorage.setItem("onbLang", l);
                 }}
-                className={`px-2 py-0.5 text-xs rounded ${lang === l ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
+                className={`h-full px-2.5 text-xs rounded-sm flex items-center ${lang === l ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
               >
                 {l.toUpperCase()}
               </button>
