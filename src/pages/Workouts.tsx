@@ -65,9 +65,12 @@ export default function Workouts() {
 
   return (
     <div className="space-y-6 p-4 md:p-8">
-      <header>
-        <h1 className="text-3xl font-semibold tracking-tight">Workouts</h1>
-        <p className="text-muted-foreground">Manage workout plan templates and the exercise library.</p>
+      <header className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-semibold tracking-tight">Workouts</h1>
+          <p className="text-muted-foreground">Manage workout plan templates and the exercise library.</p>
+        </div>
+        <CreatePlanDialog onCreated={loadPlans} />
       </header>
 
       <Tabs defaultValue="plans">
