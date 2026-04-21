@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, Search, X, Sparkles, User as UserIcon, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { Lang } from "@/lib/onboardingSchema";
+import { ScheduleWorkoutDialog, ScheduleData } from "@/components/ScheduleWorkoutDialog";
 
 interface Plan {
   id: string;
