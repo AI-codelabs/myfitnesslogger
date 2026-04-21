@@ -253,23 +253,7 @@ export const NutritionWizard = ({
         </div>
       )}
 
-      {step === 4 && (
-        <div className="text-center py-6 space-y-3">
-          <div className="mx-auto h-12 w-12 rounded-full bg-primary/10 text-primary flex items-center justify-center">
-            <Check className="h-6 w-6" />
-          </div>
-          <h3 className="text-lg font-semibold">
-            {t("Alles ingevuld!", "All set!", lang)}
-          </h3>
-          <p className="text-sm text-muted-foreground max-w-md mx-auto">
-            {t(
-              "Klik op opslaan om het voedingsschema te bewaren. Je kunt het later altijd nog aanpassen.",
-              "Click save to store the nutrition plan. You can edit it later anytime.",
-              lang,
-            )}
-          </p>
-        </div>
-      )}
+      {step === 4 && <MacroStep v={v} set={set} lang={lang} />}
 
       <div className="flex items-center justify-between gap-3 mt-6 pt-4 border-t">
         <Button variant="outline" onClick={prev} disabled={step === 0 || saving} className="gap-1">
