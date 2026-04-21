@@ -601,6 +601,89 @@ export type Database = {
         }
         Relationships: []
       }
+      workout_sessions: {
+        Row: {
+          client_id: string
+          completed_at: string | null
+          created_at: string
+          day_id: string | null
+          id: string
+          notes: string | null
+          plan_id: string
+          scheduled_date: string | null
+          started_at: string
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          completed_at?: string | null
+          created_at?: string
+          day_id?: string | null
+          id?: string
+          notes?: string | null
+          plan_id: string
+          scheduled_date?: string | null
+          started_at?: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          completed_at?: string | null
+          created_at?: string
+          day_id?: string | null
+          id?: string
+          notes?: string | null
+          plan_id?: string
+          scheduled_date?: string | null
+          started_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      workout_set_logs: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          plan_exercise_id: string
+          reps: number | null
+          session_id: string
+          set_number: number
+          updated_at: string
+          weight_kg: number | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          plan_exercise_id: string
+          reps?: number | null
+          session_id: string
+          set_number: number
+          updated_at?: string
+          weight_kg?: number | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          plan_exercise_id?: string
+          reps?: number | null
+          session_id?: string
+          set_number?: number
+          updated_at?: string
+          weight_kg?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workout_set_logs_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "workout_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
