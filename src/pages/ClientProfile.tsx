@@ -353,10 +353,22 @@ const ClientProfile = () => {
               coachId={coachId}
               lang={lang}
               prefill={response ? {
-                gender: null,
+                // Step 1
                 age: response.age,
                 height_cm: response.height_cm,
                 weight_kg: response.weight_kg,
+                // Step 2 — lifestyle
+                activity_level: response.activity_level,
+                workouts_per_week: response.train_freq_current ?? response.train_freq_target,
+                sleep_hours: response.sleep_hours,
+                occupation: response.occupation,
+                // Step 3 — goal
+                goal: response.primary_goal,
+                motivation: response.goal_reason,
+                // Step 4 — nutrition
+                meals_per_day: response.meals_per_day,
+                diet: response.diet_preferences,
+                supplements: response.supplements,
               } : undefined}
               existing={nutrition}
               onCompleted={async () => {
