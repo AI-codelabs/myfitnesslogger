@@ -95,25 +95,29 @@ export default function Workouts() {
                 </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {templates.map((p) => (
-                    <Link key={p.id} to={`/workouts/${p.id}`}>
-                      <Card className="h-full hover:border-primary transition-colors">
-                        <CardHeader>
-                          <div className="flex items-start justify-between gap-2">
-                            <CardTitle className="text-base leading-snug">{p.name}</CardTitle>
+                    <Link key={p.id} to={`/workouts/${p.id}`} className="flex">
+                      <Card className="flex flex-col w-full hover:border-primary transition-colors">
+                        <CardHeader className="pb-3 space-y-3">
+                          <div className="flex items-center justify-between gap-2 min-h-6">
+                            {p.category ? (
+                              <Badge variant="outline" className="text-[10px] capitalize font-normal">
+                                {p.category.replace("_", " ")}
+                              </Badge>
+                            ) : <span />}
                             {p.frequency_per_week && (
-                              <Badge variant="secondary">{p.frequency_per_week}x/wk</Badge>
+                              <Badge variant="secondary" className="text-[10px]">
+                                {p.frequency_per_week}x / week
+                              </Badge>
                             )}
                           </div>
-                          {p.description && (
-                            <CardDescription className="line-clamp-2">{p.description}</CardDescription>
-                          )}
+                          <CardTitle className="text-base leading-snug line-clamp-2 min-h-[2.75rem]">
+                            {p.name}
+                          </CardTitle>
                         </CardHeader>
-                        <CardContent>
-                          {p.category && (
-                            <Badge variant="outline" className="text-xs">
-                              {p.category.replace("_", " ")}
-                            </Badge>
-                          )}
+                        <CardContent className="pt-0 mt-auto">
+                          <CardDescription className="line-clamp-2 min-h-[2.5rem]">
+                            {p.description || "—"}
+                          </CardDescription>
                         </CardContent>
                       </Card>
                     </Link>
