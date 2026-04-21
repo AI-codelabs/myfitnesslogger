@@ -223,7 +223,12 @@ export function ClientWorkouts({ clientId, coachId, preferredFrequency, preferre
         )}
       </Card>
 
-      {/* Browser */}
+      {/* Activity calendar */}
+      <WorkoutActivityCalendar
+        assignments={assignments as any}
+        plans={plans}
+        lang={lang}
+      />
       <Card className="p-5 space-y-4">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <h3 className="font-semibold">{tx("Schema toewijzen", "Assign a plan")}</h3>
