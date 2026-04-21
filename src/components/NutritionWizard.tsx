@@ -48,12 +48,7 @@ export const NutritionWizard = ({
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [v, setV] = useState<Values>(() => {
-    const base: Values = {
-      gender: prefill?.gender ?? "",
-      age: prefill?.age ?? "",
-      height_cm: prefill?.height_cm ?? "",
-      weight_kg: prefill?.weight_kg ?? "",
-    };
+    const base: Values = { ...(prefill ?? {}) };
     if (existing) {
       Object.assign(base, {
         gender: existing.gender ?? base.gender,
