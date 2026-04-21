@@ -224,12 +224,12 @@ const ClientProfile = () => {
       <Tabs defaultValue="overview">
         <TabsList>
           <TabsTrigger value="overview">{lang === "nl" ? "Overzicht" : "Overview"}</TabsTrigger>
-          <TabsTrigger value="onboarding">{lang === "nl" ? "Intakeformulier" : "Onboarding"}</TabsTrigger>
           <TabsTrigger value="food">{lang === "nl" ? "Voedingslog" : "Food log"}</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="overview" className="mt-4">
+        <TabsContent value="overview" className="mt-4 space-y-4">
           <Card className="p-5 space-y-2">
+            <h3 className="font-semibold mb-2">{lang === "nl" ? "Samenvatting" : "Summary"}</h3>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Email</span>
               <span>{invite?.email}</span>
@@ -247,9 +247,7 @@ const ClientProfile = () => {
               <span>{response?.completed_at ? new Date(response.completed_at).toLocaleDateString() : "—"}</span>
             </div>
           </Card>
-        </TabsContent>
 
-        <TabsContent value="onboarding" className="mt-4 space-y-4">
           {!response ? (
             <Card className="p-10 text-center text-sm text-muted-foreground">
               {lang === "nl"
