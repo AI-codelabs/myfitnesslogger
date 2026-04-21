@@ -346,6 +346,20 @@ const ClientProfile = () => {
                 <Stat label={lang === "nl" ? "Lengte" : "Height"} value={nutrition.height_cm ? `${nutrition.height_cm} cm` : null} />
                 <Stat label={lang === "nl" ? "Gewicht" : "Weight"} value={nutrition.weight_kg ? `${nutrition.weight_kg} kg` : null} />
               </div>
+              {nutrition.details?.calories ? (
+                <>
+                  <div className="h-px bg-border my-1" />
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground">
+                    {lang === "nl" ? "Dagelijkse macro's" : "Daily macros"}
+                  </p>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                    <Stat label={lang === "nl" ? "Calorieën" : "Calories"} value={`${nutrition.details.calories} kcal`} />
+                    <Stat label={lang === "nl" ? "Eiwit" : "Protein"} value={`${nutrition.details.protein_g} g`} />
+                    <Stat label={lang === "nl" ? "Koolhydraten" : "Carbs"} value={`${nutrition.details.carbs_g} g`} />
+                    <Stat label={lang === "nl" ? "Vet" : "Fat"} value={`${nutrition.details.fat_g} g`} />
+                  </div>
+                </>
+              ) : null}
             </Card>
           ) : (
             <NutritionWizard
