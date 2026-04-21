@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, Search, X, Sparkles, User as UserIcon, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { Lang } from "@/lib/onboardingSchema";
+import { ScheduleWorkoutDialog, ScheduleData } from "@/components/ScheduleWorkoutDialog";
 
 interface Plan {
   id: string;
@@ -35,10 +36,11 @@ interface Props {
   clientId: string;
   coachId: string;
   preferredFrequency: number | null;
+  preferredDays?: string[] | null;
   lang: Lang;
 }
 
-export function ClientWorkouts({ clientId, coachId, preferredFrequency, lang }: Props) {
+export function ClientWorkouts({ clientId, coachId, preferredFrequency, preferredDays, lang }: Props) {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,6 +48,7 @@ export function ClientWorkouts({ clientId, coachId, preferredFrequency, lang }: 
   const [category, setCategory] = useState("all");
   const [showAll, setShowAll] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [scheduling, setScheduling] = useState<Plan | null>(null);
 
   const tx = (nl: string, en: string) => (lang === "nl" ? nl : en);
 
@@ -68,17 +71,24 @@ export function ClientWorkouts({ clientId, coachId, preferredFrequency, lang }: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientId]);
 
-  const assign = async (plan: Plan) => {
-    setBusyId(plan.id);
+  const openSchedule = (plan: Plan) => setScheduling(plan);
+
+  const confirmSchedule = async (data: ScheduleData) => {
+    if (!scheduling) return;
+    setBusyId(scheduling.id);
     const { error } = await supabase.from("client_workout_assignments").insert({
       coach_id: coachId,
       client_id: clientId,
-      plan_id: plan.id,
+      plan_id: scheduling.id,
       is_active: true,
+      start_date: data.start_date,
+      weeks: data.weeks,
+      days: data.days,
     });
     setBusyId(null);
     if (error) return toast.error(error.message);
-    toast.success(tx("Schema toegewezen", "Plan assigned"));
+    toast.success(tx("Schema ingepland", "Plan scheduled"));
+    setScheduling(null);
     load();
   };
 
@@ -273,7 +283,7 @@ export function ClientWorkouts({ clientId, coachId, preferredFrequency, lang }: 
                 {tx("Geen schema's met deze frequentie.", "No plans with this frequency.")}
               </p>
             ) : (
-              <PlanList plans={matching} onAssign={assign} busyId={busyId} lang={lang} />
+              <PlanList plans={matching} onAssign={openSchedule} busyId={busyId} lang={lang} />
             )}
           </section>
         )}
@@ -286,7 +296,7 @@ export function ClientWorkouts({ clientId, coachId, preferredFrequency, lang }: 
                 ? tx("Andere schema's", "Other plans")
                 : tx("Alle schema's", "All plans")}
             </h4>
-            <PlanList plans={others} onAssign={assign} busyId={busyId} lang={lang} />
+            <PlanList plans={others} onAssign={openSchedule} busyId={busyId} lang={lang} />
           </section>
         )}
       </Card>
@@ -334,6 +344,15 @@ export function ClientWorkouts({ clientId, coachId, preferredFrequency, lang }: 
           </div>
         </Card>
       )}
+
+      <ScheduleWorkoutDialog
+        open={!!scheduling}
+        onOpenChange={(o) => !o && setScheduling(null)}
+        prefillDays={preferredDays ?? null}
+        lang={lang}
+        busy={busyId === scheduling?.id}
+        onConfirm={confirmSchedule}
+      />
     </div>
   );
 }

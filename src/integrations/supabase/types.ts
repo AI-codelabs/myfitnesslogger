@@ -20,36 +20,45 @@ export type Database = {
           client_id: string
           coach_id: string
           created_at: string
+          days: string[] | null
           id: string
           is_active: boolean
           notes: string | null
           plan_id: string
+          start_date: string | null
           unassigned_at: string | null
           updated_at: string
+          weeks: number | null
         }
         Insert: {
           assigned_at?: string
           client_id: string
           coach_id: string
           created_at?: string
+          days?: string[] | null
           id?: string
           is_active?: boolean
           notes?: string | null
           plan_id: string
+          start_date?: string | null
           unassigned_at?: string | null
           updated_at?: string
+          weeks?: number | null
         }
         Update: {
           assigned_at?: string
           client_id?: string
           coach_id?: string
           created_at?: string
+          days?: string[] | null
           id?: string
           is_active?: boolean
           notes?: string | null
           plan_id?: string
+          start_date?: string | null
           unassigned_at?: string | null
           updated_at?: string
+          weeks?: number | null
         }
         Relationships: []
       }
