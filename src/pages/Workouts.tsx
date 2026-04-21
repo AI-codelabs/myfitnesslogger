@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dumbbell, Sparkles, User as UserIcon } from "lucide-react";
 import { CreatePlanDialog } from "@/components/CreatePlanDialog";
+import { CreateExerciseDialog } from "@/components/CreateExerciseDialog";
 
 interface Plan {
   id: string;
