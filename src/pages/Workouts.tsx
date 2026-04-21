@@ -105,6 +105,58 @@ export default function Workouts() {
             <p className="text-muted-foreground text-sm">Loading…</p>
           ) : (
             <>
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="relative flex-1 min-w-[200px] max-w-sm">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search plans…"
+                    value={planSearch}
+                    onChange={(e) => setPlanSearch(e.target.value)}
+                    className="pl-8"
+                  />
+                </div>
+                <Select value={planCategory} onValueChange={setPlanCategory}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All categories</SelectItem>
+                    {allCategories.map((c) => (
+                      <SelectItem key={c} value={c} className="capitalize">
+                        {c.replace("_", " ")}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={planFreq} onValueChange={setPlanFreq}>
+                  <SelectTrigger className="w-[160px]">
+                    <SelectValue placeholder="Frequency" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Any frequency</SelectItem>
+                    {allFreqs.map((f) => (
+                      <SelectItem key={f} value={String(f)}>
+                        {f}x / week
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {filtersActive && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gap-1"
+                    onClick={() => {
+                      setPlanSearch("");
+                      setPlanCategory("all");
+                      setPlanFreq("all");
+                    }}
+                  >
+                    <X className="h-3.5 w-3.5" /> Clear
+                  </Button>
+                )}
+              </div>
+
               <section>
                 <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
                   <Sparkles className="h-4 w-4 text-secondary" /> Predefined templates
