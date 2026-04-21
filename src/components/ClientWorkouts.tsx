@@ -283,7 +283,7 @@ export function ClientWorkouts({ clientId, coachId, preferredFrequency, preferre
                 {tx("Geen schema's met deze frequentie.", "No plans with this frequency.")}
               </p>
             ) : (
-              <PlanList plans={matching} onAssign={assign} busyId={busyId} lang={lang} />
+              <PlanList plans={matching} onAssign={openSchedule} busyId={busyId} lang={lang} />
             )}
           </section>
         )}
