@@ -4,6 +4,10 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Dumbbell } from "lucide-react";
 import { Lang } from "@/lib/onboardingSchema";
 import { cn } from "@/lib/utils";
+import {
+  WorkoutDayDetailsDialog,
+  ScheduledOccurrence,
+} from "@/components/WorkoutDayDetailsDialog";
 
 interface PlannedAssignment {
   id: string;
@@ -59,23 +63,31 @@ export function WorkoutActivityCalendar({ assignments, plans, lang }: Props) {
   const tx = (nl: string, en: string) => (lang === "nl" ? nl : en);
   const today = startOfDay(new Date());
   const [cursor, setCursor] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
   const planName = (id: string) => plans.find((p) => p.id === id)?.name ?? "";
 
-  // Build map: dateKey -> array of plan names planned that day
+  // Build map: dateKey -> ScheduledOccurrence[] (with occurrence index per assignment)
   const planned = useMemo(() => {
-    const map = new Map<string, string[]>();
+    const map = new Map<string, ScheduledOccurrence[]>();
     for (const a of assignments) {
       if (!a.is_active || !a.start_date || !a.weeks || !a.days || a.days.length === 0) continue;
       const start = startOfDay(new Date(a.start_date));
       const totalDays = a.weeks * 7;
+      let occurrence = 0;
       for (let i = 0; i < totalDays; i++) {
         const d = addDays(start, i);
         const key = DAY_KEYS[d.getDay()];
         if (a.days.includes(key)) {
+          occurrence++;
           const k = d.toISOString().slice(0, 10);
           const arr = map.get(k) ?? [];
-          arr.push(planName(a.plan_id));
+          arr.push({
+            assignmentId: a.id,
+            planId: a.plan_id,
+            planName: planName(a.plan_id),
+            occurrenceIndex: occurrence,
+          });
           map.set(k, arr);
         }
       }
@@ -89,7 +101,6 @@ export function WorkoutActivityCalendar({ assignments, plans, lang }: Props) {
   const month = cursor.getMonth();
   const firstOfMonth = new Date(year, month, 1);
   const lastOfMonth = new Date(year, month + 1, 0);
-  // 0=Sun..6=Sat -> convert so Mon=0
   const startOffset = (firstOfMonth.getDay() + 6) % 7;
   const gridStart = addDays(firstOfMonth, -startOffset);
   const totalCells = Math.ceil((startOffset + lastOfMonth.getDate()) / 7) * 7;
@@ -104,6 +115,9 @@ export function WorkoutActivityCalendar({ assignments, plans, lang }: Props) {
   cells.forEach((d) => {
     if (d.getMonth() === month && planned.has(d.toISOString().slice(0, 10))) plannedCount++;
   });
+
+  const selectedKey = selectedDate ? selectedDate.toISOString().slice(0, 10) : null;
+  const selectedOccurrences = selectedKey ? planned.get(selectedKey) ?? [] : [];
 
   return (
     <Card className="p-5 space-y-4">
@@ -163,15 +177,18 @@ export function WorkoutActivityCalendar({ assignments, plans, lang }: Props) {
           const dayPlans = planned.get(key);
           const hasPlan = !!dayPlans?.length;
           return (
-            <div
+            <button
               key={idx}
-              title={hasPlan ? dayPlans!.join(", ") : ""}
+              type="button"
+              onClick={() => setSelectedDate(d)}
+              title={hasPlan ? dayPlans!.map((p) => p.planName).join(", ") : ""}
               className={cn(
-                "relative aspect-square rounded-md border p-1.5 text-xs flex flex-col",
+                "relative aspect-square rounded-md border p-1.5 text-xs flex flex-col text-left",
+                "transition-colors hover:bg-accent hover:border-accent-foreground/20 focus:outline-none focus:ring-2 focus:ring-primary/40",
                 !inMonth && "opacity-40",
                 isToday && "ring-2 ring-primary",
                 hasPlan
-                  ? "bg-primary/10 border-primary/40"
+                  ? "bg-primary/10 border-primary/40 hover:bg-primary/20"
                   : "bg-card border-border"
               )}
             >
@@ -186,7 +203,7 @@ export function WorkoutActivityCalendar({ assignments, plans, lang }: Props) {
                   )}
                 </div>
               )}
-            </div>
+            </button>
           );
         })}
       </div>
@@ -201,6 +218,14 @@ export function WorkoutActivityCalendar({ assignments, plans, lang }: Props) {
           {tx("Vandaag", "Today")}
         </div>
       </div>
+
+      <WorkoutDayDetailsDialog
+        open={!!selectedDate}
+        onOpenChange={(o) => !o && setSelectedDate(null)}
+        date={selectedDate}
+        occurrences={selectedOccurrences}
+        lang={lang}
+      />
     </Card>
   );
 }
