@@ -1,4 +1,4 @@
-import { LayoutDashboard, User as UserIcon, LogOut, Users } from "lucide-react";
+import { LayoutDashboard, User as UserIcon, LogOut, Users, Dumbbell } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   Sidebar,
@@ -20,7 +20,7 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
-  const { user, signOut } = useAuth();
+  const { user, signOut, role } = useAuth();
 
   const isActive = (path: string) => location.pathname === path;
   const linkCls = (active: boolean) =>
@@ -62,6 +62,16 @@ export function AppSidebar() {
                   </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              {role === "coach" && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={isActive("/workouts") || location.pathname.startsWith("/workouts/")}>
+                    <NavLink to="/workouts" className={linkCls(isActive("/workouts") || location.pathname.startsWith("/workouts/"))}>
+                      <Dumbbell className="h-4 w-4" />
+                      {!collapsed && <span>Workouts</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
