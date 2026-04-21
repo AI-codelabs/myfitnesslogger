@@ -154,7 +154,7 @@ const ClientProfile = () => {
           <p className="text-sm text-muted-foreground">{invite?.email}</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap justify-end">
-          <Badge variant={statusVariant as any} className="capitalize">{invite?.status}</Badge>
+          <Badge variant={statusVariant as any} className="capitalize h-8 px-3 rounded-md text-xs flex items-center">{invite?.status}</Badge>
           <div className="flex items-center gap-1 rounded-md border p-0.5">
             {(["nl", "en"] as Lang[]).map((l) => (
               <button
