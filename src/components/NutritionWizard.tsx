@@ -23,6 +23,7 @@ type Props = {
   prefill?: Record<string, any>;
   existing?: any | null;
   onCompleted?: () => void;
+  onCancel?: () => void;
 };
 
 type Values = Record<string, any>;
