@@ -71,17 +71,24 @@ export function ClientWorkouts({ clientId, coachId, preferredFrequency, preferre
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientId]);
 
-  const assign = async (plan: Plan) => {
-    setBusyId(plan.id);
+  const openSchedule = (plan: Plan) => setScheduling(plan);
+
+  const confirmSchedule = async (data: ScheduleData) => {
+    if (!scheduling) return;
+    setBusyId(scheduling.id);
     const { error } = await supabase.from("client_workout_assignments").insert({
       coach_id: coachId,
       client_id: clientId,
-      plan_id: plan.id,
+      plan_id: scheduling.id,
       is_active: true,
+      start_date: data.start_date,
+      weeks: data.weeks,
+      days: data.days,
     });
     setBusyId(null);
     if (error) return toast.error(error.message);
-    toast.success(tx("Schema toegewezen", "Plan assigned"));
+    toast.success(tx("Schema ingepland", "Plan scheduled"));
+    setScheduling(null);
     load();
   };
 
