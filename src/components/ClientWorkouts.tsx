@@ -296,7 +296,7 @@ export function ClientWorkouts({ clientId, coachId, preferredFrequency, preferre
                 ? tx("Andere schema's", "Other plans")
                 : tx("Alle schema's", "All plans")}
             </h4>
-            <PlanList plans={others} onAssign={assign} busyId={busyId} lang={lang} />
+            <PlanList plans={others} onAssign={openSchedule} busyId={busyId} lang={lang} />
           </section>
         )}
       </Card>
