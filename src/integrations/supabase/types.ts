@@ -50,6 +50,39 @@ export type Database = {
         }
         Relationships: []
       }
+      exercises: {
+        Row: {
+          created_at: string
+          equipment: string | null
+          id: string
+          is_pro: boolean
+          muscle_group: string | null
+          name: string
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          equipment?: string | null
+          id?: string
+          is_pro?: boolean
+          muscle_group?: string | null
+          name: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          equipment?: string | null
+          id?: string
+          is_pro?: boolean
+          muscle_group?: string | null
+          name?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       invitations: {
         Row: {
           accepted_at: string | null
@@ -362,6 +395,119 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      workout_plan_days: {
+        Row: {
+          created_at: string
+          day_index: number
+          id: string
+          name: string
+          plan_id: string
+        }
+        Insert: {
+          created_at?: string
+          day_index: number
+          id?: string
+          name: string
+          plan_id: string
+        }
+        Update: {
+          created_at?: string
+          day_index?: number
+          id?: string
+          name?: string
+          plan_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workout_plan_days_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "workout_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workout_plan_exercises: {
+        Row: {
+          created_at: string
+          day_id: string
+          exercise_id: string
+          id: string
+          notes: string | null
+          order_index: number
+          sets_reps: string | null
+        }
+        Insert: {
+          created_at?: string
+          day_id: string
+          exercise_id: string
+          id?: string
+          notes?: string | null
+          order_index: number
+          sets_reps?: string | null
+        }
+        Update: {
+          created_at?: string
+          day_id?: string
+          exercise_id?: string
+          id?: string
+          notes?: string | null
+          order_index?: number
+          sets_reps?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workout_plan_exercises_day_id_fkey"
+            columns: ["day_id"]
+            isOneToOne: false
+            referencedRelation: "workout_plan_days"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workout_plan_exercises_exercise_id_fkey"
+            columns: ["exercise_id"]
+            isOneToOne: false
+            referencedRelation: "exercises"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workout_plans: {
+        Row: {
+          category: string | null
+          coach_id: string | null
+          created_at: string
+          description: string | null
+          frequency_per_week: number | null
+          id: string
+          is_template: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          coach_id?: string | null
+          created_at?: string
+          description?: string | null
+          frequency_per_week?: number | null
+          id?: string
+          is_template?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          coach_id?: string | null
+          created_at?: string
+          description?: string | null
+          frequency_per_week?: number | null
+          id?: string
+          is_template?: boolean
+          name?: string
+          updated_at?: string
         }
         Relationships: []
       }
