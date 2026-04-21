@@ -14,6 +14,7 @@ import ClientProfile from "./pages/ClientProfile.tsx";
 import Clients from "./pages/Clients.tsx";
 import Workouts from "./pages/Workouts.tsx";
 import WorkoutPlan from "./pages/WorkoutPlan.tsx";
+import ClientNutrition from "./pages/ClientNutrition.tsx";
 import { AppLayout } from "./components/AppLayout";
 
 const queryClient = new QueryClient();
@@ -57,6 +58,7 @@ const App = () => (
             <Route path="/clients/:clientId" element={<Protected><AppLayout><ClientProfile /></AppLayout></Protected>} />
             <Route path="/workouts" element={<Protected><AppLayout><Workouts /></AppLayout></Protected>} />
             <Route path="/workouts/:planId" element={<Protected><AppLayout><WorkoutPlan /></AppLayout></Protected>} />
+            <Route path="/nutrition" element={<Protected><AppLayout><ClientNutrition /></AppLayout></Protected>} />
             <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
             <Route path="/signup" element={<Signup />} />
             <Route path="*" element={<NotFound />} />
