@@ -136,48 +136,31 @@ export const NutritionWizard = ({
       {Header}
 
       {step === 0 && (
-        <div className="grid gap-5 md:grid-cols-[1fr,1fr]">
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              {t(
-                "Controleer je persoonlijke gegevens en pas deze zo nodig aan.",
-                "Review the personal details and adjust if needed.",
-                lang,
-              )}
-            </p>
-            <Field label={t("Geslacht", "Gender", lang)}>
-              <Select value={v.gender || ""} onValueChange={(val) => set("gender", val)}>
-                <SelectTrigger className="h-11">
-                  <SelectValue placeholder={t("Kies", "Select", lang)} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="male">{t("Man", "Male", lang)}</SelectItem>
-                  <SelectItem value="female">{t("Vrouw", "Female", lang)}</SelectItem>
-                  <SelectItem value="other">{t("Anders", "Other", lang)}</SelectItem>
-                  <SelectItem value="prefer_not">{t("Zeg ik liever niet", "Prefer not to say", lang)}</SelectItem>
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field label={t("Leeftijd", "Age", lang)} suffix={t("jaar", "years", lang)}>
-              <NumberInput value={v.age} onChange={(val) => set("age", val)} />
-            </Field>
-            <Field label={t("Lengte", "Height", lang)} suffix="cm">
-              <NumberInput value={v.height_cm} onChange={(val) => set("height_cm", val)} />
-            </Field>
-            <Field label={t("Gewicht", "Weight", lang)} suffix="kg">
-              <NumberInput value={v.weight_kg} onChange={(val) => set("weight_kg", val)} />
-            </Field>
-          </div>
-          <div className="text-sm text-muted-foreground leading-relaxed">
-            {t(
-              "Gezonde en juiste voeding is van groot belang voor een gezonde levensstijl en om het beste trainingsresultaat te behalen. Aan de hand van deze gegevens, je levensstijl en je persoonlijke doel stellen we een voedingsplan op maat samen.",
-              "Healthy nutrition is key for a healthy lifestyle and the best training results. Based on these details, your lifestyle, and your personal goal we'll build a tailored plan.",
-              lang,
-            )}
-          </div>
+        <div className="grid gap-5 md:grid-cols-2 max-w-xl">
+          <Field label={t("Geslacht", "Gender", lang)} className="md:col-span-2">
+            <Select value={v.gender || ""} onValueChange={(val) => set("gender", val)}>
+              <SelectTrigger className="h-11">
+                <SelectValue placeholder={t("Kies", "Select", lang)} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="male">{t("Man", "Male", lang)}</SelectItem>
+                <SelectItem value="female">{t("Vrouw", "Female", lang)}</SelectItem>
+                <SelectItem value="other">{t("Anders", "Other", lang)}</SelectItem>
+                <SelectItem value="prefer_not">{t("Zeg ik liever niet", "Prefer not to say", lang)}</SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field label={t("Leeftijd", "Age", lang)} suffix={t("jaar", "years", lang)}>
+            <NumberInput value={v.age} onChange={(val) => set("age", val)} />
+          </Field>
+          <Field label={t("Lengte", "Height", lang)} suffix="cm">
+            <NumberInput value={v.height_cm} onChange={(val) => set("height_cm", val)} />
+          </Field>
+          <Field label={t("Gewicht", "Weight", lang)} suffix="kg">
+            <NumberInput value={v.weight_kg} onChange={(val) => set("weight_kg", val)} />
+          </Field>
         </div>
       )}
-
       {step === 1 && (
         <div className="grid gap-5 md:grid-cols-2">
           <Field label={t("Activiteitsniveau", "Activity level", lang)}>
