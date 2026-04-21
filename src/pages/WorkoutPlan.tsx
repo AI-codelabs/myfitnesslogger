@@ -76,39 +76,58 @@ export default function WorkoutPlan() {
         {plan.description && <p className="text-muted-foreground mt-2">{plan.description}</p>}
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
         {days.map((d) => {
           const dayItems = items.filter((i) => i.day_id === d.id);
           return (
-            <Card key={d.id}>
-              <CardHeader className="border-b">
-                <CardTitle className="text-base">{d.name}</CardTitle>
+            <Card key={d.id} className="overflow-hidden">
+              <CardHeader className="bg-muted/40 border-b py-3">
+                <div className="flex items-center justify-between gap-2">
+                  <CardTitle className="text-base">{d.name}</CardTitle>
+                  <Badge variant="outline" className="text-[10px] font-normal">
+                    {dayItems.length} {dayItems.length === 1 ? "exercise" : "exercises"}
+                  </Badge>
+                </div>
               </CardHeader>
               <CardContent className="p-0">
-                <ul className="divide-y">
-                  {dayItems.map((it) => (
-                    <li key={it.id} className="px-4 py-3 flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="font-medium flex items-center gap-2 flex-wrap">
-                          <span className="truncate">{it.exercise?.name}</span>
+                <ol className="divide-y">
+                  {dayItems.map((it, idx) => (
+                    <li key={it.id} className="px-4 py-3 flex items-start gap-3">
+                      <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-medium text-muted-foreground">
+                        {idx + 1}
+                      </span>
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <div className="flex items-start justify-between gap-3">
+                          <span className="font-medium leading-snug break-words">
+                            {it.exercise?.name}
+                          </span>
+                          {it.sets_reps && (
+                            <span className="text-sm font-medium text-foreground/80 whitespace-nowrap tabular-nums">
+                              {it.sets_reps}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          {it.exercise?.muscle_group && (
+                            <span className="text-xs text-muted-foreground capitalize">
+                              {it.exercise.muscle_group}
+                            </span>
+                          )}
                           {it.exercise?.is_pro && (
-                            <Badge className="bg-secondary text-secondary-foreground text-[10px] py-0 px-1.5">
+                            <Badge className="bg-secondary text-secondary-foreground text-[10px] py-0 px-1.5 h-4">
                               PRO
                             </Badge>
                           )}
                         </div>
-                        {it.exercise?.muscle_group && (
-                          <p className="text-xs text-muted-foreground capitalize">
-                            {it.exercise.muscle_group}
-                          </p>
-                        )}
                       </div>
-                      <span className="text-sm text-muted-foreground whitespace-nowrap">
-                        {it.sets_reps}
-                      </span>
                     </li>
                   ))}
-                </ul>
+                  {dayItems.length === 0 && (
+                    <li className="px-4 py-6 text-center text-sm text-muted-foreground">
+                      No exercises yet.
+                    </li>
+                  )}
+                </ol>
               </CardContent>
             </Card>
           );
