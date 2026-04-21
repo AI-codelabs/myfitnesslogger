@@ -149,12 +149,24 @@ export default function Workouts() {
         </TabsContent>
 
         <TabsContent value="exercises" className="mt-6 space-y-4">
-          <Input
-            placeholder="Filter by name, muscle group, equipment…"
-            value={exFilter}
-            onChange={(e) => setExFilter(e.target.value)}
-            className="max-w-sm"
-          />
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <Input
+              placeholder="Filter by name, muscle group, equipment…"
+              value={exFilter}
+              onChange={(e) => setExFilter(e.target.value)}
+              className="max-w-sm"
+            />
+            <CreateExerciseDialog
+              onCreated={async () => {
+                const { data } = await supabase
+                  .from("exercises")
+                  .select("*")
+                  .order("muscle_group")
+                  .order("name");
+                setExercises(data ?? []);
+              }}
+            />
+          </div>
           <Card>
             <Table>
               <TableHeader>
