@@ -323,10 +323,48 @@ const ClientProfile = () => {
           )}
         </TabsContent>
 
-        <TabsContent value="food" className="mt-4">
-          <Card className="p-10 text-center text-sm text-muted-foreground">
-            {lang === "nl" ? "Voedingslog komt binnenkort." : "Food log coming soon."}
-          </Card>
+        <TabsContent value="nutrition" className="mt-4 space-y-4">
+          {coachId && clientId && (nutrition && !editingNutrition && nutrition.completed_at ? (
+            <Card className="p-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-semibold">
+                    {lang === "nl" ? "Voedingsschema" : "Nutrition plan"}
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    {lang === "nl" ? "Laatst bijgewerkt" : "Last updated"}:{" "}
+                    {new Date(nutrition.updated_at).toLocaleDateString()}
+                  </p>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => setEditingNutrition(true)}>
+                  {lang === "nl" ? "Bewerken" : "Edit"}
+                </Button>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                <Stat label={lang === "nl" ? "Geslacht" : "Gender"} value={nutrition.gender} />
+                <Stat label={lang === "nl" ? "Leeftijd" : "Age"} value={nutrition.age} />
+                <Stat label={lang === "nl" ? "Lengte" : "Height"} value={nutrition.height_cm ? `${nutrition.height_cm} cm` : null} />
+                <Stat label={lang === "nl" ? "Gewicht" : "Weight"} value={nutrition.weight_kg ? `${nutrition.weight_kg} kg` : null} />
+              </div>
+            </Card>
+          ) : (
+            <NutritionWizard
+              clientId={clientId}
+              coachId={coachId}
+              lang={lang}
+              prefill={response ? {
+                gender: null,
+                age: response.age,
+                height_cm: response.height_cm,
+                weight_kg: response.weight_kg,
+              } : undefined}
+              existing={nutrition}
+              onCompleted={async () => {
+                setEditingNutrition(false);
+                await loadNutrition();
+              }}
+            />
+          ))}
         </TabsContent>
       </Tabs>
     </div>
