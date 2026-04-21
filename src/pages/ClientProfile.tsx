@@ -247,7 +247,7 @@ const ClientProfile = () => {
       <Tabs defaultValue="overview">
         <TabsList>
           <TabsTrigger value="overview">{lang === "nl" ? "Overzicht" : "Overview"}</TabsTrigger>
-          <TabsTrigger value="food">{lang === "nl" ? "Voedingslog" : "Food log"}</TabsTrigger>
+          <TabsTrigger value="nutrition">{lang === "nl" ? "Voeding" : "Nutrition"}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="mt-4 space-y-4">
