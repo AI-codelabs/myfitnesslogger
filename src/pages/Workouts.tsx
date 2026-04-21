@@ -33,13 +33,21 @@ export default function Workouts() {
   const [exFilter, setExFilter] = useState("");
   const [loading, setLoading] = useState(true);
 
+  async function loadPlans() {
+    const { data: p } = await supabase
+      .from("workout_plans")
+      .select("*")
+      .order("is_template", { ascending: false })
+      .order("name");
+    setPlans(p ?? []);
+  }
+
   useEffect(() => {
     (async () => {
-      const [{ data: p }, { data: e }] = await Promise.all([
-        supabase.from("workout_plans").select("*").order("is_template", { ascending: false }).order("name"),
+      const [, { data: e }] = await Promise.all([
+        loadPlans(),
         supabase.from("exercises").select("*").order("muscle_group").order("name"),
       ]);
-      setPlans(p ?? []);
       setExercises(e ?? []);
       setLoading(false);
     })();
