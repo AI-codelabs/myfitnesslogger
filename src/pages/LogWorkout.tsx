@@ -71,24 +71,48 @@ const LogWorkout = () => {
           navigate("/training");
           return;
         }
-        const { data, error } = await supabase
+
+        // Try to resume an existing (uncompleted) session for the same plan/day/date
+        let existingQuery = supabase
           .from("workout_sessions")
-          .insert({
-            client_id: user.id,
-            plan_id: planId,
-            day_id: dayId,
-            scheduled_date: date,
-          })
           .select("id, plan_id, day_id, scheduled_date, completed_at")
-          .single();
-        if (error || !data) {
-          toast({ title: tx("Kon sessie niet starten", "Could not start session"), variant: "destructive" });
-          navigate("/training");
-          return;
+          .eq("client_id", user.id)
+          .eq("plan_id", planId)
+          .is("completed_at", null);
+        if (date) existingQuery = existingQuery.eq("scheduled_date", date);
+        else existingQuery = existingQuery.is("scheduled_date", null);
+        if (dayId) existingQuery = existingQuery.eq("day_id", dayId);
+        else existingQuery = existingQuery.is("day_id", null);
+
+        const { data: existing } = await existingQuery
+          .order("started_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (existing) {
+          session = existing;
+          sid = existing.id;
+          navigate(`/training/log/${sid}`, { replace: true });
+        } else {
+          const { data, error } = await supabase
+            .from("workout_sessions")
+            .insert({
+              client_id: user.id,
+              plan_id: planId,
+              day_id: dayId,
+              scheduled_date: date,
+            })
+            .select("id, plan_id, day_id, scheduled_date, completed_at")
+            .single();
+          if (error || !data) {
+            toast({ title: tx("Kon sessie niet starten", "Could not start session"), variant: "destructive" });
+            navigate("/training");
+            return;
+          }
+          session = data;
+          sid = data.id;
+          navigate(`/training/log/${sid}`, { replace: true });
         }
-        session = data;
-        sid = data.id;
-        navigate(`/training/log/${sid}`, { replace: true });
       }
 
       if (!session) {
