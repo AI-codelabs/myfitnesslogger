@@ -143,8 +143,17 @@ const LogWorkout = () => {
     })();
   }, [user?.id, sessionId]);
 
-  const activeExercise = exercises[activeIdx];
+  const activeExercise = activeIdx !== null ? exercises[activeIdx] : null;
   const activeSets = activeExercise ? setsByExercise[activeExercise.id] ?? [] : [];
+
+  const isExerciseLogged = (exId: string) => {
+    const rows = setsByExercise[exId] ?? [];
+    return rows.some((r) => r.id || (r.reps && r.reps !== "") || (r.weight_kg && r.weight_kg !== ""));
+  };
+  const completedCount = useMemo(
+    () => exercises.filter((e) => isExerciseLogged(e.id)).length,
+    [exercises, setsByExercise]
+  );
 
   const updateSet = (idx: number, patch: Partial<SetRow>) => {
     if (!activeExercise) return;
