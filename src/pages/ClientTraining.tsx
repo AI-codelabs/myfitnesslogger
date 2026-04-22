@@ -346,18 +346,29 @@ const ClientTraining = () => {
                     )}
                   </div>
 
-                  <Button
-                    variant="default"
-                    asChild
-                    className="w-full rounded-none h-12 gap-2"
-                  >
-                    <Link
-                      to={`/training/log/new?plan=${occ.planId}&day=${dayForToday?.id ?? ""}&date=${dateKey}`}
+                  {dayForToday ? (
+                    <Button
+                      variant="default"
+                      asChild
+                      className="w-full rounded-none h-12 gap-2"
+                    >
+                      <Link
+                        to={`/training/log/new?plan=${occ.planId}&day=${dayForToday.id}&date=${dateKey}`}
+                      >
+                        <Dumbbell className="h-4 w-4" />
+                        {tx("Log workout", "Log workout")}
+                      </Link>
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="secondary"
+                      disabled
+                      className="w-full rounded-none h-12 gap-2"
                     >
                       <Dumbbell className="h-4 w-4" />
-                      {tx("Log workout", "Log workout")}
-                    </Link>
-                  </Button>
+                      {tx("Schema nog niet ingevuld", "Plan not yet configured")}
+                    </Button>
+                  )}
                 </div>
               );
             })}
