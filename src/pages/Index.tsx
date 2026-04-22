@@ -1,8 +1,9 @@
 import { useAuth } from "@/hooks/useAuth";
 import { AppLayout } from "@/components/AppLayout";
 import { Card } from "@/components/ui/card";
-import { Loader2, BarChart3, TrendingUp, Users } from "lucide-react";
+import { Loader2, BarChart3, TrendingUp, Users, Dumbbell, Apple, ArrowRight } from "lucide-react";
 import { DashboardNotifications } from "@/components/DashboardNotifications";
+import { useNavigate } from "react-router-dom";
 
 const Index = () => {
   const { role, loading } = useAuth();
