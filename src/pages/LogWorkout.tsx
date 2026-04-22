@@ -236,19 +236,15 @@ const LogWorkout = () => {
     }
   };
 
-  const goPrev = async () => {
+  const backToOverview = async () => {
     await saveActive();
-    setActiveIdx((i) => Math.max(0, i - 1));
-  };
-  const goNext = async () => {
-    await saveActive();
-    setActiveIdx((i) => Math.min(exercises.length - 1, i + 1));
+    setActiveIdx(null);
   };
 
   const progress = useMemo(() => {
     const total = exercises.length || 1;
-    return Math.round(((activeIdx + 1) / total) * 100);
-  }, [activeIdx, exercises.length]);
+    return Math.round((completedCount / total) * 100);
+  }, [completedCount, exercises.length]);
 
   if (loading) {
     return (
