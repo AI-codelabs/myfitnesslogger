@@ -233,6 +233,86 @@ const ClientTraining = () => {
         </p>
       </div>
 
+      <Card className="p-3 sm:p-4 space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={goPrevWeek}
+            aria-label={tx("Vorige week", "Previous week")}
+            className="shrink-0"
+          >
+            <ChevronsLeft className="h-4 w-4" />
+          </Button>
+          <div className="text-center min-w-0 flex-1">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              {tx("Week", "Week")}
+            </p>
+            <p className="text-sm font-medium capitalize truncate">{weekRangeLabel}</p>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={goNextWeek}
+            aria-label={tx("Volgende week", "Next week")}
+            className="shrink-0"
+          >
+            <ChevronsRight className="h-4 w-4" />
+          </Button>
+        </div>
+        <div className="grid grid-cols-7 gap-1">
+          {weekDays.map((d, i) => {
+            const k = d.toISOString().slice(0, 10);
+            const hasPlan = planned.has(k);
+            const isSelected = sameDay(d, currentDate);
+            const isToday = sameDay(d, today);
+            return (
+              <button
+                key={k}
+                type="button"
+                onClick={() => setCurrentDate(d)}
+                className={cn(
+                  "relative aspect-square rounded-lg border flex flex-col items-center justify-center gap-0.5 text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40",
+                  isSelected
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : hasPlan
+                    ? "bg-primary/10 border-primary/40 hover:bg-primary/20"
+                    : "bg-card border-border hover:bg-accent",
+                  isToday && !isSelected && "ring-1 ring-primary/60"
+                )}
+              >
+                <span className={cn(
+                  "text-[10px] uppercase",
+                  isSelected ? "text-primary-foreground/80" : "text-muted-foreground"
+                )}>
+                  {weekdayShort[i]}
+                </span>
+                <span className="text-sm font-semibold leading-none">{d.getDate()}</span>
+                {hasPlan && (
+                  <span className={cn(
+                    "absolute bottom-1 h-1 w-1 rounded-full",
+                    isSelected ? "bg-primary-foreground" : "bg-primary"
+                  )} />
+                )}
+              </button>
+            );
+          })}
+        </div>
+        <div className="flex items-center justify-between gap-2 pt-1">
+          <Button variant="outline" size="sm" onClick={goPrev} className="gap-1">
+            <ChevronLeft className="h-3.5 w-3.5" />
+            {tx("Dag", "Day")}
+          </Button>
+          <Button variant="ghost" size="sm" onClick={goToday}>
+            {tx("Vandaag", "Today")}
+          </Button>
+          <Button variant="outline" size="sm" onClick={goNext} className="gap-1">
+            {tx("Dag", "Day")}
+            <ChevronRight className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      </Card>
+
       <Card className="p-3 sm:p-5 space-y-4">
         <div className="space-y-3">
           <div className="flex items-center justify-between gap-2">
