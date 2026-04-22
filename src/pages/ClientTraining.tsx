@@ -196,6 +196,28 @@ const ClientTraining = () => {
   const goPrev = () => setCurrentDate((d) => addDays(d, -1));
   const goNext = () => setCurrentDate((d) => addDays(d, 1));
   const goToday = () => setCurrentDate(startOfDay(new Date()));
+  const goPrevWeek = () => setCurrentDate((d) => addDays(d, -7));
+  const goNextWeek = () => setCurrentDate((d) => addDays(d, 7));
+
+  // Week strip: Monday-start week containing currentDate
+  const weekStart = useMemo(() => {
+    const offset = (currentDate.getDay() + 6) % 7; // 0 = Mon
+    return addDays(currentDate, -offset);
+  }, [currentDate]);
+  const weekDays = useMemo(
+    () => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
+    [weekStart]
+  );
+  const weekdayShort = lang === "nl"
+    ? ["ma", "di", "wo", "do", "vr", "za", "zo"]
+    : ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
+  const weekRangeLabel = `${weekStart.toLocaleDateString(
+    lang === "nl" ? "nl-NL" : "en-US",
+    { day: "numeric", month: "short" }
+  )} – ${addDays(weekStart, 6).toLocaleDateString(
+    lang === "nl" ? "nl-NL" : "en-US",
+    { day: "numeric", month: "short" }
+  )}`;
 
   return (
     <div className="w-full max-w-3xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4">
