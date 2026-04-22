@@ -260,7 +260,7 @@ const ClientTraining = () => {
             <ChevronsRight className="h-4 w-4" />
           </Button>
         </div>
-        <div className="grid grid-cols-7 gap-1">
+        <div className="grid grid-cols-7 gap-1.5">
           {weekDays.map((d, i) => {
             const k = d.toISOString().slice(0, 10);
             const hasPlan = planned.has(k);
@@ -272,7 +272,7 @@ const ClientTraining = () => {
                 type="button"
                 onClick={() => setCurrentDate(d)}
                 className={cn(
-                  "relative aspect-square rounded-lg border flex flex-col items-center justify-center gap-0.5 text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40",
+                  "flex flex-col items-center justify-between py-2 rounded-lg border text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40",
                   isSelected
                     ? "bg-primary text-primary-foreground border-primary"
                     : hasPlan
@@ -281,19 +281,27 @@ const ClientTraining = () => {
                   isToday && !isSelected && "ring-1 ring-primary/60"
                 )}
               >
-                <span className={cn(
-                  "text-[10px] uppercase",
-                  isSelected ? "text-primary-foreground/80" : "text-muted-foreground"
-                )}>
+                <span
+                  className={cn(
+                    "text-[10px] font-medium uppercase tracking-wider leading-none",
+                    isSelected ? "text-primary-foreground/80" : "text-muted-foreground"
+                  )}
+                >
                   {weekdayShort[i]}
                 </span>
-                <span className="text-sm font-semibold leading-none">{d.getDate()}</span>
-                {hasPlan && (
-                  <span className={cn(
-                    "absolute bottom-1 h-1 w-1 rounded-full",
-                    isSelected ? "bg-primary-foreground" : "bg-primary"
-                  )} />
-                )}
+                <span className="text-sm font-semibold leading-none mt-1.5 tabular-nums">
+                  {d.getDate()}
+                </span>
+                <span
+                  className={cn(
+                    "h-1.5 w-1.5 rounded-full mt-1.5",
+                    hasPlan
+                      ? isSelected
+                        ? "bg-primary-foreground"
+                        : "bg-primary"
+                      : "bg-transparent"
+                  )}
+                />
               </button>
             );
           })}
