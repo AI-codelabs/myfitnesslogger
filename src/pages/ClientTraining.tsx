@@ -298,19 +298,6 @@ const ClientTraining = () => {
             );
           })}
         </div>
-        <div className="flex items-center justify-between gap-2 pt-1">
-          <Button variant="outline" size="sm" onClick={goPrev} className="gap-1">
-            <ChevronLeft className="h-3.5 w-3.5" />
-            {tx("Dag", "Day")}
-          </Button>
-          <Button variant="ghost" size="sm" onClick={goToday}>
-            {tx("Vandaag", "Today")}
-          </Button>
-          <Button variant="outline" size="sm" onClick={goNext} className="gap-1">
-            {tx("Dag", "Day")}
-            <ChevronRight className="h-3.5 w-3.5" />
-          </Button>
-        </div>
       </Card>
 
       <Card className="p-3 sm:p-5 space-y-4">
