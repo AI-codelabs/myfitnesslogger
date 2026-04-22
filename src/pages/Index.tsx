@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 
 const Index = () => {
   const { role, loading } = useAuth();
+  const navigate = useNavigate();
 
   if (loading) {
     return (
