@@ -1,12 +1,40 @@
+import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { LogOut, User as UserIcon, Mail, Shield } from "lucide-react";
 import { GmailConnectionCard } from "@/components/GmailConnectionCard";
+import { supabase } from "@/integrations/supabase/client";
+
+type PersonalInfo = {
+  full_name: string | null;
+  age: number | null;
+  height_cm: number | null;
+  weight_kg: number | null;
+  occupation: string | null;
+  primary_goal: string | null;
+};
 
 const Account = () => {
   const { user, role, signOut } = useAuth();
   const isCoach = role === "coach";
+  const isClient = role === "user";
+  const [info, setInfo] = useState<PersonalInfo | null>(null);
+  const [loadingInfo, setLoadingInfo] = useState(false);
+
+  useEffect(() => {
+    if (!isClient || !user) return;
+    setLoadingInfo(true);
+    supabase
+      .from("onboarding_responses")
+      .select("full_name, age, height_cm, weight_kg, occupation, primary_goal")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        setInfo(data as PersonalInfo | null);
+        setLoadingInfo(false);
+      });
+  }, [isClient, user]);
 
   return (
     <div className="px-4 py-6 sm:px-8 sm:py-8 max-w-2xl mx-auto w-full space-y-6">
