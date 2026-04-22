@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import {
   ChevronLeft,
   ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
   Dumbbell,
   ExternalLink,
   Loader2,
