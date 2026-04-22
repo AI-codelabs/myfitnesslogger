@@ -43,7 +43,7 @@ const LogWorkout = () => {
   const [planName, setPlanName] = useState("");
   const [dayName, setDayName] = useState<string | null>(null);
   const [exercises, setExercises] = useState<PlanExercise[]>([]);
-  const [activeIdx, setActiveIdx] = useState(0);
+  const [activeIdx, setActiveIdx] = useState<number | null>(null);
   const [setsByExercise, setSetsByExercise] = useState<Record<string, SetRow[]>>({});
   const [completedAt, setCompletedAt] = useState<string | null>(null);
 
