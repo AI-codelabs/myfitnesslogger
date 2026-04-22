@@ -502,15 +502,28 @@ const LogWorkout = () => {
 
           <Button
             onClick={finishWorkout}
-            disabled={saving || completedCount === 0}
+            disabled={saving || !canFinish}
             className="w-full h-12"
           >
             {saving ? (
               <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
+            ) : canFinish ? (
               tx("Workout voltooien", "Finish workout")
+            ) : (
+              tx(
+                `Nog ${Math.max(0, requiredCount - completedCount)} oefening(en) nodig`,
+                `${Math.max(0, requiredCount - completedCount)} more exercise(s) needed`
+              )
             )}
           </Button>
+          {exercises.length > 0 && !canFinish && (
+            <p className="text-[11px] text-center text-muted-foreground">
+              {tx(
+                `Je voortgang wordt automatisch opgeslagen. Voltooi minstens 80% (${requiredCount}/${exercises.length}) om af te ronden.`,
+                `Your progress is saved automatically. Complete at least 80% (${requiredCount}/${exercises.length}) to finish.`
+              )}
+            </p>
+          )}
         </>
       )}
     </div>
