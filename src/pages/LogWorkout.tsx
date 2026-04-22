@@ -282,7 +282,7 @@ const LogWorkout = () => {
         <div className="pt-2">
           <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
             <span>
-              {tx("Oefening", "Exercise")} {activeIdx + 1} / {exercises.length || 0}
+              {completedCount} / {exercises.length || 0} {tx("voltooid", "completed")}
             </span>
             <span>{progress}%</span>
           </div>
