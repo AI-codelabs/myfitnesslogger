@@ -295,136 +295,196 @@ const LogWorkout = () => {
         </div>
       </Card>
 
-      {!activeExercise ? (
+      {exercises.length === 0 ? (
         <Card className="p-6 text-center text-sm text-muted-foreground">
           {tx("Geen oefeningen voor deze dag.", "No exercises for this day.")}
         </Card>
-      ) : (
-        <Card className="p-4 sm:p-5 space-y-4">
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-base sm:text-lg font-semibold">
-                {activeExercise.exercise?.name ?? "—"}
-              </h2>
-              {activeExercise.exercise?.muscle_group && (
-                <Badge variant="outline" className="text-[10px] capitalize">
-                  {activeExercise.exercise.muscle_group}
-                </Badge>
+      ) : activeExercise ? (
+        <>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={backToOverview}
+            className="-ml-2 gap-1"
+          >
+            <ChevronLeft className="h-4 w-4" />
+            {tx("Terug naar overzicht", "Back to overview")}
+          </Button>
+
+          <Card className="p-4 sm:p-5 space-y-4">
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-base sm:text-lg font-semibold">
+                  {activeExercise.exercise?.name ?? "—"}
+                </h2>
+                {activeExercise.exercise?.muscle_group && (
+                  <Badge variant="outline" className="text-[10px] capitalize">
+                    {activeExercise.exercise.muscle_group}
+                  </Badge>
+                )}
+              </div>
+              {activeExercise.sets_reps && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  {tx("Doel", "Target")}: {activeExercise.sets_reps}
+                </p>
+              )}
+              {activeExercise.notes && (
+                <p className="text-xs text-muted-foreground italic mt-1">
+                  {activeExercise.notes}
+                </p>
               )}
             </div>
-            {activeExercise.sets_reps && (
-              <p className="text-xs text-muted-foreground mt-1">
-                {tx("Doel", "Target")}: {activeExercise.sets_reps}
-              </p>
-            )}
-            {activeExercise.notes && (
-              <p className="text-xs text-muted-foreground italic mt-1">
-                {activeExercise.notes}
-              </p>
-            )}
-          </div>
 
-          <div className="space-y-2">
-            <div className="grid grid-cols-[2rem_1fr_1fr_auto] gap-2 text-[10px] uppercase tracking-wider text-muted-foreground px-1">
-              <span>{tx("Set", "Set")}</span>
-              <span>{tx("Herh.", "Reps")}</span>
-              <span>{tx("Kg", "Kg")}</span>
-              <span></span>
-            </div>
-            {activeSets.map((s, i) => (
-              <div
-                key={i}
-                className="grid grid-cols-[2rem_1fr_1fr_auto] gap-2 items-center"
-              >
-                <span className="text-sm font-semibold text-muted-foreground text-center">
-                  {s.set_number}
-                </span>
-                <Input
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  placeholder="0"
-                  value={s.reps}
-                  onChange={(e) => updateSet(i, { reps: e.target.value })}
-                  className="h-10 text-center"
-                />
-                <Input
-                  inputMode="decimal"
-                  placeholder="0"
-                  value={s.weight_kg}
-                  onChange={(e) => updateSet(i, { weight_kg: e.target.value })}
-                  className="h-10 text-center"
-                />
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => removeSet(i)}
-                  aria-label={tx("Verwijder set", "Remove set")}
-                  className="h-9 w-9 text-muted-foreground"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+            <div className="space-y-2">
+              <div className="grid grid-cols-[2rem_1fr_1fr_auto] gap-2 text-[10px] uppercase tracking-wider text-muted-foreground px-1">
+                <span>{tx("Set", "Set")}</span>
+                <span>{tx("Herh.", "Reps")}</span>
+                <span>{tx("Kg", "Kg")}</span>
+                <span></span>
               </div>
-            ))}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={addSet}
-              className="w-full gap-1"
-            >
-              <Plus className="h-4 w-4" />
-              {tx("Set toevoegen", "Add set")}
-            </Button>
-          </div>
+              {activeSets.map((s, i) => (
+                <div
+                  key={i}
+                  className="grid grid-cols-[2rem_1fr_1fr_auto] gap-2 items-center"
+                >
+                  <span className="text-sm font-semibold text-muted-foreground text-center">
+                    {s.set_number}
+                  </span>
+                  <Input
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    placeholder="0"
+                    value={s.reps}
+                    onChange={(e) => updateSet(i, { reps: e.target.value })}
+                    className="h-10 text-center"
+                  />
+                  <Input
+                    inputMode="decimal"
+                    placeholder="0"
+                    value={s.weight_kg}
+                    onChange={(e) => updateSet(i, { weight_kg: e.target.value })}
+                    className="h-10 text-center"
+                  />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => removeSet(i)}
+                    aria-label={tx("Verwijder set", "Remove set")}
+                    className="h-9 w-9 text-muted-foreground"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={addSet}
+                className="w-full gap-1"
+              >
+                <Plus className="h-4 w-4" />
+                {tx("Set toevoegen", "Add set")}
+              </Button>
+            </div>
 
-          <div className="space-y-1.5">
-            <label className="text-xs uppercase tracking-wider text-muted-foreground">
-              {tx("Notitie", "Note")}
-            </label>
-            <Textarea
-              placeholder={tx("Hoe ging het?", "How did it go?")}
-              value={activeSets[0]?.notes ?? ""}
-              onChange={(e) =>
-                activeSets[0] && updateSet(0, { notes: e.target.value })
-              }
-              rows={2}
-            />
-          </div>
+            <div className="space-y-1.5">
+              <label className="text-xs uppercase tracking-wider text-muted-foreground">
+                {tx("Notitie", "Note")}
+              </label>
+              <Textarea
+                placeholder={tx("Hoe ging het?", "How did it go?")}
+                value={activeSets[0]?.notes ?? ""}
+                onChange={(e) =>
+                  activeSets[0] && updateSet(0, { notes: e.target.value })
+                }
+                rows={2}
+              />
+            </div>
+
+            <Button
+              onClick={async () => {
+                await saveActive();
+                setActiveIdx(null);
+              }}
+              disabled={saving}
+              className="w-full h-11"
+            >
+              {saving ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <>
+                  <Check className="h-4 w-4 mr-1" />
+                  {tx("Opslaan & terug", "Save & back")}
+                </>
+              )}
+            </Button>
+          </Card>
+        </>
+      ) : (
+        <>
+          <Card className="p-3 sm:p-4 space-y-2">
+            <div className="flex items-center gap-2 px-1 pb-1">
+              <ListChecks className="h-4 w-4 text-muted-foreground" />
+              <span className="text-xs uppercase tracking-wider text-muted-foreground">
+                {tx("Kies een oefening", "Pick an exercise")}
+              </span>
+            </div>
+            {exercises.map((ex, idx) => {
+              const done = isExerciseLogged(ex.id);
+              const setCount = (setsByExercise[ex.id] ?? []).filter(
+                (r) => r.id || r.reps || r.weight_kg
+              ).length;
+              return (
+                <button
+                  key={ex.id}
+                  onClick={() => setActiveIdx(idx)}
+                  className="w-full flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-accent transition-colors text-left"
+                >
+                  <div
+                    className={`h-9 w-9 rounded-lg flex items-center justify-center shrink-0 ${
+                      done
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {done ? (
+                      <Check className="h-4 w-4" />
+                    ) : (
+                      <span className="text-xs font-semibold tabular-nums">
+                        {String(idx + 1).padStart(2, "0")}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-sm truncate">
+                      {ex.exercise?.name ?? "—"}
+                    </div>
+                    <div className="text-xs text-muted-foreground truncate">
+                      {ex.sets_reps || tx("Geen doel", "No target")}
+                      {done && setCount > 0 && (
+                        <> · {setCount} {tx("sets gelogd", "sets logged")}</>
+                      )}
+                    </div>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                </button>
+              );
+            })}
+          </Card>
 
           <Button
-            variant="secondary"
-            size="sm"
-            onClick={saveActive}
-            disabled={saving}
-            className="w-full"
+            onClick={finishWorkout}
+            disabled={saving || completedCount === 0}
+            className="w-full h-12"
           >
             {saving ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              tx("Opslaan", "Save")
+              tx("Workout voltooien", "Finish workout")
             )}
           </Button>
-        </Card>
+        </>
       )}
-
-      <div className="flex items-center gap-2">
-        <Button
-          variant="outline"
-          onClick={goPrev}
-          disabled={activeIdx === 0 || saving}
-          className="flex-1"
-        >
-          {tx("Vorige", "Previous")}
-        </Button>
-        {activeIdx < exercises.length - 1 ? (
-          <Button onClick={goNext} disabled={saving} className="flex-1">
-            {tx("Volgende", "Next")}
-          </Button>
-        ) : (
-          <Button onClick={finishWorkout} disabled={saving} className="flex-1">
-            {tx("Voltooi", "Finish")}
-          </Button>
-        )}
-      </div>
     </div>
   );
 };
