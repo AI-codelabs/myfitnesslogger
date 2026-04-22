@@ -263,90 +263,76 @@ const ClientTraining = () => {
                 days.length > 0
                   ? days[(occ.occurrenceIndex - 1) % days.length]
                   : null;
+              const exCount = dayForToday?.exercises.length ?? 0;
+              const muscleGroups = Array.from(
+                new Set(
+                  (dayForToday?.exercises ?? [])
+                    .map((e) => e.exercise?.muscle_group)
+                    .filter(Boolean) as string[]
+                )
+              );
               return (
                 <div
                   key={occ.assignmentId}
-                  className="rounded-xl border bg-card overflow-hidden"
+                  className="rounded-2xl border bg-card overflow-hidden shadow-sm"
                 >
-                  <div className="p-4 space-y-3">
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                  <div className="p-5 space-y-4">
+                    <div className="flex items-start gap-3">
+                      <div className="h-11 w-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
                         <Dumbbell className="h-5 w-5 text-primary" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <h4 className="font-semibold text-sm truncate">
-                          {occ.planName || tx("Training", "Workout")}
+                        <h4 className="font-semibold text-base leading-tight truncate">
+                          {dayForToday?.name || occ.planName || tx("Training", "Workout")}
                         </h4>
-                        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                          {dayForToday && (
-                            <Badge variant="secondary" className="text-[10px] font-normal">
-                              {dayForToday.name}
-                            </Badge>
-                          )}
-                          <span className="text-[11px] text-muted-foreground">
-                            {tx("Training", "Workout")} #{occ.occurrenceIndex}
-                          </span>
-                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                          {occ.planName}
+                        </p>
                       </div>
                     </div>
 
-                    {!dayForToday ? (
-                      <p className="text-xs text-muted-foreground">
-                        {tx(
-                          "Geen oefeningen geconfigureerd.",
-                          "No exercises configured."
+                    {dayForToday && exCount > 0 && (
+                      <div className="flex items-center gap-4 text-xs">
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-lg font-semibold tabular-nums">
+                            {exCount}
+                          </span>
+                          <span className="text-muted-foreground">
+                            {tx("oefeningen", "exercises")}
+                          </span>
+                        </div>
+                        {muscleGroups.length > 0 && (
+                          <div className="flex items-center gap-1 flex-wrap">
+                            {muscleGroups.slice(0, 3).map((m) => (
+                              <Badge
+                                key={m}
+                                variant="secondary"
+                                className="text-[10px] capitalize font-normal"
+                              >
+                                {m}
+                              </Badge>
+                            ))}
+                            {muscleGroups.length > 3 && (
+                              <span className="text-[10px] text-muted-foreground">
+                                +{muscleGroups.length - 3}
+                              </span>
+                            )}
+                          </div>
                         )}
-                      </p>
-                    ) : dayForToday.exercises.length === 0 ? (
+                      </div>
+                    )}
+
+                    {!dayForToday || exCount === 0 ? (
                       <p className="text-xs text-muted-foreground">
                         {tx(
                           "Geen oefeningen voor deze dag.",
                           "No exercises for this day."
                         )}
                       </p>
-                    ) : (
-                      <>
-                        <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
-                          {dayForToday.exercises.length}{" "}
-                          {tx("oefeningen", "exercises")}
-                        </p>
-                        <ol className="space-y-1.5">
-                          {dayForToday.exercises.map((e, i) => (
-                            <li
-                              key={e.id}
-                              className="flex items-start gap-3 py-1"
-                            >
-                              <span className="text-xs font-semibold text-muted-foreground w-5 shrink-0 pt-0.5 tabular-nums">
-                                {String(i + 1).padStart(2, "0")}
-                              </span>
-                              <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <span className="font-medium text-sm">
-                                    {e.exercise?.name ?? "—"}
-                                  </span>
-                                  {e.exercise?.muscle_group && (
-                                    <Badge
-                                      variant="outline"
-                                      className="text-[10px] capitalize font-normal"
-                                    >
-                                      {e.exercise.muscle_group}
-                                    </Badge>
-                                  )}
-                                </div>
-                                {e.sets_reps && (
-                                  <p className="text-xs text-muted-foreground mt-0.5">
-                                    {e.sets_reps}
-                                  </p>
-                                )}
-                              </div>
-                            </li>
-                          ))}
-                        </ol>
-                      </>
-                    )}
+                    ) : null}
                   </div>
 
-                  {dayForToday ? (
+                  {dayForToday && exCount > 0 ? (
                     <Button
                       variant="default"
                       asChild
