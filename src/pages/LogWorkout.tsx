@@ -71,24 +71,48 @@ const LogWorkout = () => {
           navigate("/training");
           return;
         }
-        const { data, error } = await supabase
+
+        // Try to resume an existing (uncompleted) session for the same plan/day/date
+        let existingQuery = supabase
           .from("workout_sessions")
-          .insert({
-            client_id: user.id,
-            plan_id: planId,
-            day_id: dayId,
-            scheduled_date: date,
-          })
           .select("id, plan_id, day_id, scheduled_date, completed_at")
-          .single();
-        if (error || !data) {
-          toast({ title: tx("Kon sessie niet starten", "Could not start session"), variant: "destructive" });
-          navigate("/training");
-          return;
+          .eq("client_id", user.id)
+          .eq("plan_id", planId)
+          .is("completed_at", null);
+        if (date) existingQuery = existingQuery.eq("scheduled_date", date);
+        else existingQuery = existingQuery.is("scheduled_date", null);
+        if (dayId) existingQuery = existingQuery.eq("day_id", dayId);
+        else existingQuery = existingQuery.is("day_id", null);
+
+        const { data: existing } = await existingQuery
+          .order("started_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (existing) {
+          session = existing;
+          sid = existing.id;
+          navigate(`/training/log/${sid}`, { replace: true });
+        } else {
+          const { data, error } = await supabase
+            .from("workout_sessions")
+            .insert({
+              client_id: user.id,
+              plan_id: planId,
+              day_id: dayId,
+              scheduled_date: date,
+            })
+            .select("id, plan_id, day_id, scheduled_date, completed_at")
+            .single();
+          if (error || !data) {
+            toast({ title: tx("Kon sessie niet starten", "Could not start session"), variant: "destructive" });
+            navigate("/training");
+            return;
+          }
+          session = data;
+          sid = data.id;
+          navigate(`/training/log/${sid}`, { replace: true });
         }
-        session = data;
-        sid = data.id;
-        navigate(`/training/log/${sid}`, { replace: true });
       }
 
       if (!session) {
@@ -245,6 +269,10 @@ const LogWorkout = () => {
     const total = exercises.length || 1;
     return Math.round((completedCount / total) * 100);
   }, [completedCount, exercises.length]);
+
+  const FINISH_THRESHOLD = 0.8;
+  const requiredCount = Math.ceil(exercises.length * FINISH_THRESHOLD);
+  const canFinish = exercises.length > 0 && completedCount >= requiredCount;
 
   if (loading) {
     return (
@@ -474,15 +502,28 @@ const LogWorkout = () => {
 
           <Button
             onClick={finishWorkout}
-            disabled={saving || completedCount === 0}
+            disabled={saving || !canFinish}
             className="w-full h-12"
           >
             {saving ? (
               <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
+            ) : canFinish ? (
               tx("Workout voltooien", "Finish workout")
+            ) : (
+              tx(
+                `Nog ${Math.max(0, requiredCount - completedCount)} oefening(en) nodig`,
+                `${Math.max(0, requiredCount - completedCount)} more exercise(s) needed`
+              )
             )}
           </Button>
+          {exercises.length > 0 && !canFinish && (
+            <p className="text-[11px] text-center text-muted-foreground">
+              {tx(
+                `Je voortgang wordt automatisch opgeslagen. Voltooi minstens 80% (${requiredCount}/${exercises.length}) om af te ronden.`,
+                `Your progress is saved automatically. Complete at least 80% (${requiredCount}/${exercises.length}) to finish.`
+              )}
+            </p>
+          )}
         </>
       )}
     </div>
