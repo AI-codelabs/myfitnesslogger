@@ -270,6 +270,10 @@ const LogWorkout = () => {
     return Math.round((completedCount / total) * 100);
   }, [completedCount, exercises.length]);
 
+  const FINISH_THRESHOLD = 0.8;
+  const requiredCount = Math.ceil(exercises.length * FINISH_THRESHOLD);
+  const canFinish = exercises.length > 0 && completedCount >= requiredCount;
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
