@@ -63,7 +63,8 @@ const LogWorkout = () => {
         session = data;
       } else {
         const planId = params.get("plan");
-        const dayId = params.get("day");
+        const dayIdRaw = params.get("day");
+        const dayId = dayIdRaw && dayIdRaw.length > 0 ? dayIdRaw : null;
         const date = params.get("date");
         if (!planId) {
           toast({ title: tx("Geen schema", "No plan"), variant: "destructive" });
