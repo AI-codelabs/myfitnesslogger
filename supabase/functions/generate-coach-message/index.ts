@@ -174,8 +174,6 @@ Deno.serve(async (req) => {
 
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY missing");
 
     // Verify caller is the coach
     const userResp = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
@@ -237,78 +235,75 @@ Deno.serve(async (req) => {
 
     const userPrompt = buildUserPrompt(ctx);
 
-    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+    if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY missing");
+
+    const aiResp = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "x-api-key": ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-pro",
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: userPrompt },
-        ],
+        model: "claude-sonnet-4-5",
+        max_tokens: 4096,
+        system: SYSTEM_PROMPT,
+        messages: [{ role: "user", content: userPrompt }],
         tools: [
           {
-            type: "function",
-            function: {
-              name: "coach_start_message",
-              description: "Het gestructureerde startbericht voor de klant.",
-              parameters: {
-                type: "object",
-                properties: {
-                  voice_memo: {
-                    type: "string",
-                    description:
-                      "De volledige spraakmemo tekst die de coach zal voorlezen. Lange lopende tekst, in het Nederlands, geen emoji's of bulletpoints.",
-                  },
-                  client_positive: {
-                    type: "array",
-                    items: { type: "string" },
-                    description: "Korte positieve punten voor de klant (1 zin per item).",
-                  },
-                  client_attention: {
-                    type: "array",
-                    items: { type: "string" },
-                    description: "Aandachtspunten voor de klant (1 zin per item).",
-                  },
-                  client_actions: {
-                    type: "array",
-                    items: { type: "string" },
-                    description: "Concrete actiepunten voor deze week (max 5).",
-                  },
+            name: "coach_start_message",
+            description: "Het gestructureerde startbericht voor de klant.",
+            input_schema: {
+              type: "object",
+              properties: {
+                voice_memo: {
+                  type: "string",
+                  description:
+                    "De volledige spraakmemo tekst die de coach zal voorlezen. Lange lopende tekst, in het Nederlands, geen emoji's of bulletpoints.",
                 },
-                required: [
-                  "voice_memo",
-                  "client_positive",
-                  "client_attention",
-                  "client_actions",
-                ],
-                additionalProperties: false,
+                client_positive: {
+                  type: "array",
+                  items: { type: "string" },
+                  description: "Korte positieve punten voor de klant (1 zin per item).",
+                },
+                client_attention: {
+                  type: "array",
+                  items: { type: "string" },
+                  description: "Aandachtspunten voor de klant (1 zin per item).",
+                },
+                client_actions: {
+                  type: "array",
+                  items: { type: "string" },
+                  description: "Concrete actiepunten voor deze week (max 5).",
+                },
               },
+              required: [
+                "voice_memo",
+                "client_positive",
+                "client_attention",
+                "client_actions",
+              ],
             },
           },
         ],
-        tool_choice: { type: "function", function: { name: "coach_start_message" } },
+        tool_choice: { type: "tool", name: "coach_start_message" },
       }),
     });
 
     if (!aiResp.ok) {
       const txt = await aiResp.text();
-      console.error("AI gateway error", aiResp.status, txt);
+      console.error("Anthropic error", aiResp.status, txt);
       if (aiResp.status === 429) {
         return new Response(
           JSON.stringify({ error: "Rate limit bereikt, probeer het zo opnieuw." }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
-      if (aiResp.status === 402) {
+      if (aiResp.status === 401) {
         return new Response(
-          JSON.stringify({
-            error: "AI credits zijn op. Voeg credits toe in Settings > Workspace > Usage.",
-          }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          JSON.stringify({ error: "Ongeldige Anthropic API key." }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
       return new Response(JSON.stringify({ error: "AI generatie mislukt" }), {
@@ -318,15 +313,15 @@ Deno.serve(async (req) => {
     }
 
     const aiData = await aiResp.json();
-    const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
-    if (!toolCall) {
-      console.error("No tool call in response", JSON.stringify(aiData));
+    const toolUse = (aiData.content ?? []).find((b: any) => b.type === "tool_use");
+    if (!toolUse) {
+      console.error("No tool use in response", JSON.stringify(aiData));
       return new Response(
         JSON.stringify({ error: "Onverwacht AI antwoord" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
-    const args = JSON.parse(toolCall.function.arguments);
+    const args = toolUse.input ?? {};
 
     return new Response(
       JSON.stringify({
