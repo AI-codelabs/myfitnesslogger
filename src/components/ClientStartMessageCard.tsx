@@ -16,6 +16,7 @@ interface Msg {
 export function ClientStartMessageCard({ lang }: { lang: "nl" | "en" }) {
   const { user } = useAuth();
   const [msg, setMsg] = useState<Msg | null>(null);
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     if (!user) return;
