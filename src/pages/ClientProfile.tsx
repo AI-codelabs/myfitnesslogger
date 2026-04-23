@@ -250,10 +250,11 @@ const ClientProfile = () => {
       </div>
 
       <Tabs defaultValue={new URLSearchParams(window.location.search).get("tab") || "overview"}>
-        <TabsList>
+        <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="overview">{lang === "nl" ? "Overzicht" : "Overview"}</TabsTrigger>
           <TabsTrigger value="workouts">{lang === "nl" ? "Workouts" : "Workouts"}</TabsTrigger>
           <TabsTrigger value="nutrition">{lang === "nl" ? "Voeding" : "Nutrition"}</TabsTrigger>
+          <TabsTrigger value="progression">{lang === "nl" ? "Progressie" : "Progress"}</TabsTrigger>
           <TabsTrigger value="message">{lang === "nl" ? "Bericht" : "Message"}</TabsTrigger>
           <TabsTrigger value="checkins">{lang === "nl" ? "Check-ins" : "Check-ins"}</TabsTrigger>
         </TabsList>
@@ -266,6 +267,10 @@ const ClientProfile = () => {
 
         <TabsContent value="checkins" className="mt-4">
           {clientId ? <WeeklyCheckinsTab clientId={clientId} lang={lang} /> : null}
+        </TabsContent>
+
+        <TabsContent value="progression" className="mt-4">
+          {clientId ? <ClientProgressionTab clientId={clientId} lang={lang} /> : null}
         </TabsContent>
 
         <TabsContent value="workouts" className="mt-4">
