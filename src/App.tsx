@@ -20,6 +20,7 @@ import ClientTraining from "./pages/ClientTraining.tsx";
 import LogWorkout from "./pages/LogWorkout.tsx";
 import ClientWorkoutSession from "./pages/ClientWorkoutSession.tsx";
 import WeeklyCheckin from "./pages/WeeklyCheckin.tsx";
+import Progression from "./pages/Progression.tsx";
 import { AppLayout } from "./components/AppLayout";
 
 const queryClient = new QueryClient();
@@ -70,6 +71,7 @@ const App = () => (
             <Route path="/training/log/new" element={<Protected><AppLayout><LogWorkout /></AppLayout></Protected>} />
             <Route path="/training/log/:sessionId" element={<Protected><AppLayout><LogWorkout /></AppLayout></Protected>} />
             <Route path="/check-in" element={<Protected><AppLayout><WeeklyCheckin /></AppLayout></Protected>} />
+            <Route path="/progression" element={<Protected><AppLayout><Progression /></AppLayout></Protected>} />
             <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
             <Route path="/signup" element={<Signup />} />
             <Route path="*" element={<NotFound />} />
