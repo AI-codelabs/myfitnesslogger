@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Loader2, ExternalLink, Dumbbell, CheckCircle2, Eye } from "lucide-react";
 import { Lang } from "@/lib/onboardingSchema";
+import { cn } from "@/lib/utils";
 
 export interface ScheduledOccurrence {
   assignmentId: string;
