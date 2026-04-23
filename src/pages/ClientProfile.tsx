@@ -23,6 +23,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recha
 
 import { NutritionWizard } from "@/components/NutritionWizard";
 import { ClientWorkouts } from "@/components/ClientWorkouts";
+import { CoachMessageTab } from "@/components/CoachMessageTab";
 
 const ClientProfile = () => {
   const { clientId } = useParams<{ clientId: string }>();
@@ -251,7 +252,14 @@ const ClientProfile = () => {
           <TabsTrigger value="overview">{lang === "nl" ? "Overzicht" : "Overview"}</TabsTrigger>
           <TabsTrigger value="workouts">{lang === "nl" ? "Workouts" : "Workouts"}</TabsTrigger>
           <TabsTrigger value="nutrition">{lang === "nl" ? "Voeding" : "Nutrition"}</TabsTrigger>
+          <TabsTrigger value="message">{lang === "nl" ? "Bericht" : "Message"}</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="message" className="mt-4">
+          {coachId && clientId ? (
+            <CoachMessageTab clientId={clientId} coachId={coachId} lang={lang} />
+          ) : null}
+        </TabsContent>
 
         <TabsContent value="workouts" className="mt-4">
           {coachId && clientId ? (
