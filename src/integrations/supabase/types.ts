@@ -98,6 +98,48 @@ export type Database = {
         }
         Relationships: []
       }
+      coach_messages: {
+        Row: {
+          client_actions: string[]
+          client_attention: string[]
+          client_id: string
+          client_positive: string[]
+          coach_id: string
+          created_at: string
+          generated_at: string
+          id: string
+          published_at: string | null
+          updated_at: string
+          voice_memo: string
+        }
+        Insert: {
+          client_actions?: string[]
+          client_attention?: string[]
+          client_id: string
+          client_positive?: string[]
+          coach_id: string
+          created_at?: string
+          generated_at?: string
+          id?: string
+          published_at?: string | null
+          updated_at?: string
+          voice_memo?: string
+        }
+        Update: {
+          client_actions?: string[]
+          client_attention?: string[]
+          client_id?: string
+          client_positive?: string[]
+          coach_id?: string
+          created_at?: string
+          generated_at?: string
+          id?: string
+          published_at?: string | null
+          updated_at?: string
+          voice_memo?: string
+        }
+        Relationships: []
+      }
       exercises: {
         Row: {
           created_at: string

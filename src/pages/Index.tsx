@@ -3,6 +3,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { Card } from "@/components/ui/card";
 import { Loader2, BarChart3, TrendingUp, Users, Dumbbell, Apple, ArrowRight } from "lucide-react";
 import { DashboardNotifications } from "@/components/DashboardNotifications";
+import { ClientStartMessageCard } from "@/components/ClientStartMessageCard";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { Lang } from "@/lib/onboardingSchema";
@@ -133,6 +134,8 @@ const Index = () => {
           </div>
           <LangToggle lang={lang} setLang={setLang} />
         </div>
+
+        <ClientStartMessageCard lang={lang} />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Card
