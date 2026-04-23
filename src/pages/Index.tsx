@@ -196,6 +196,11 @@ const Index = () => {
 
         <ProgressionSummary lang={lang} />
       </div>
+      <CronometerConnectDialog
+        open={showCronometerDialog}
+        onOpenChange={handleDialogChange}
+        lang={lang}
+      />
     </AppLayout>
   );
 };
