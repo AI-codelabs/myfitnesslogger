@@ -1,30 +1,89 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Loader2, RefreshCw, Plug, AlertTriangle } from "lucide-react";
 import { Lang } from "@/lib/onboardingSchema";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
+import { CronometerConnectDialog } from "@/components/CronometerConnectDialog";
+import { hasCronometerSession, syncCronometer } from "@/lib/cronometer";
+import { toast } from "sonner";
+
+interface NutritionLog {
+  id: string;
+  log_date: string;
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  fiber_g: number;
+  synced_at: string;
+}
 
 const ClientNutrition = () => {
   const { user } = useAuth();
   const [lang] = useState<Lang>(() => (localStorage.getItem("onbLang") as Lang) || "nl");
   const [loading, setLoading] = useState(true);
   const [nutrition, setNutrition] = useState<any>(null);
+  const [connected, setConnected] = useState(false);
+  const [logs, setLogs] = useState<NutritionLog[]>([]);
+  const [syncing, setSyncing] = useState(false);
+  const [connectOpen, setConnectOpen] = useState(false);
+  const [reauth, setReauth] = useState(false);
+  const t = (nl: string, en: string) => (lang === "nl" ? nl : en);
+
+  const loadAll = useCallback(async () => {
+    if (!user?.id) return;
+    setLoading(true);
+    const [planRes, sessionOk, logsRes] = await Promise.all([
+      supabase.from("nutrition_plans").select("*").eq("client_id", user.id).maybeSingle(),
+      hasCronometerSession(user.id),
+      supabase
+        .from("cronometer_nutrition_logs")
+        .select("id, log_date, calories, protein_g, carbs_g, fat_g, fiber_g, synced_at")
+        .eq("client_id", user.id)
+        .order("log_date", { ascending: false })
+        .limit(14),
+    ]);
+    setNutrition(planRes.data);
+    setConnected(sessionOk);
+    setLogs((logsRes.data as NutritionLog[]) || []);
+    setLoading(false);
+  }, [user?.id]);
 
   useEffect(() => {
-    if (!user?.id) return;
-    (async () => {
-      setLoading(true);
-      const { data } = await supabase
-        .from("nutrition_plans")
-        .select("*")
-        .eq("client_id", user.id)
-        .maybeSingle();
-      setNutrition(data);
-      setLoading(false);
-    })();
-  }, [user?.id]);
+    loadAll();
+  }, [loadAll]);
+
+  const handleSync = async () => {
+    setSyncing(true);
+    const res = await syncCronometer();
+    setSyncing(false);
+    if (res.sessionExpired) {
+      setReauth(true);
+      return;
+    }
+    if (!res.success) {
+      if (res.error === "no_session") {
+        setConnectOpen(true);
+      } else {
+        toast.error(res.error || t("Synchroniseren mislukt", "Sync failed"));
+      }
+      return;
+    }
+    if (res.upToDate) {
+      toast.success(t("Al up-to-date!", "Already up to date!"));
+    } else {
+      toast.success(
+        t(
+          `Gesynchroniseerd: ${res.daysSynced} dag(en)`,
+          `Synced ${res.daysSynced} day(s)`,
+        ),
+      );
+    }
+    await loadAll();
+  };
 
   if (loading) {
     return (
@@ -38,42 +97,123 @@ const ClientNutrition = () => {
     <div className="container max-w-4xl py-6 space-y-4">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
-          {lang === "nl" ? "Voeding" : "Nutrition"}
+          {t("Voeding", "Nutrition")}
         </h1>
         <p className="text-sm text-muted-foreground">
-          {lang === "nl"
-            ? "Het voedingsschema dat je coach voor je heeft samengesteld."
-            : "The nutrition plan your coach has set up for you."}
+          {t(
+            "Het voedingsschema dat je coach voor je heeft samengesteld.",
+            "The nutrition plan your coach has set up for you.",
+          )}
         </p>
       </div>
 
+      {/* Cronometer connection card */}
+      <Card className="p-4 sm:p-5">
+        <div className="flex items-start sm:items-center justify-between gap-3 flex-col sm:flex-row">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${connected ? "bg-emerald-500/10 text-emerald-600" : "bg-muted text-muted-foreground"}`}>
+              <Plug className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <p className="font-medium">
+                {t("Cronometer", "Cronometer")}{" "}
+                <span className={`ml-1 text-xs ${connected ? "text-emerald-600" : "text-muted-foreground"}`}>
+                  {connected ? t("verbonden", "connected") : t("niet verbonden", "not connected")}
+                </span>
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {connected
+                  ? t(
+                      "Klik op Log om nieuwe dagen te synchroniseren.",
+                      "Click Log to sync new days.",
+                    )
+                  : t(
+                      "Verbind om je voedingsdata bij te houden.",
+                      "Connect to track your nutrition data.",
+                    )}
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-2 w-full sm:w-auto">
+            {connected ? (
+              <Button onClick={handleSync} disabled={syncing} className="flex-1 sm:flex-none">
+                {syncing ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                )}
+                {t("Log", "Log")}
+              </Button>
+            ) : (
+              <Button onClick={() => setConnectOpen(true)} className="flex-1 sm:flex-none">
+                <Plug className="h-4 w-4 mr-2" />
+                {t("Verbinden", "Connect")}
+              </Button>
+            )}
+          </div>
+        </div>
+      </Card>
+
+      {/* Recent daily logs */}
+      {logs.length > 0 && (
+        <Card className="p-4 sm:p-5 space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold">{t("Recente dagen", "Recent days")}</h3>
+            <span className="text-xs text-muted-foreground">
+              {t("Laatste 14 dagen", "Last 14 days")}
+            </span>
+          </div>
+          <div className="divide-y">
+            {logs.map((log) => (
+              <div key={log.id} className="py-2.5 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium">
+                    {new Date(log.log_date).toLocaleDateString(lang === "nl" ? "nl-NL" : "en-US", {
+                      weekday: "short",
+                      day: "numeric",
+                      month: "short",
+                    })}
+                  </p>
+                  <p className="text-xs text-muted-foreground tabular-nums">
+                    P {Math.round(log.protein_g)}g · C {Math.round(log.carbs_g)}g · F{" "}
+                    {Math.round(log.fat_g)}g
+                  </p>
+                </div>
+                <p className="text-sm font-semibold tabular-nums">
+                  {Math.round(log.calories)} kcal
+                </p>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
       {!nutrition || !nutrition.completed_at ? (
         <Card className="p-8 text-center text-sm text-muted-foreground">
-          {lang === "nl"
-            ? "Je coach heeft nog geen voedingsschema voor je opgesteld."
-            : "Your coach hasn't set up a nutrition plan for you yet."}
+          {t(
+            "Je coach heeft nog geen voedingsschema voor je opgesteld.",
+            "Your coach hasn't set up a nutrition plan for you yet.",
+          )}
         </Card>
       ) : (
         <Card className="p-5 space-y-3">
           <div>
-            <h3 className="font-semibold">
-              {lang === "nl" ? "Voedingsschema" : "Nutrition plan"}
-            </h3>
+            <h3 className="font-semibold">{t("Voedingsschema", "Nutrition plan")}</h3>
             <p className="text-xs text-muted-foreground">
-              {lang === "nl" ? "Laatst bijgewerkt" : "Last updated"}:{" "}
+              {t("Laatst bijgewerkt", "Last updated")}:{" "}
               {new Date(nutrition.updated_at).toLocaleDateString()}
             </p>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-            <Stat label={lang === "nl" ? "Geslacht" : "Gender"} value={nutrition.gender} />
-            <Stat label={lang === "nl" ? "Leeftijd" : "Age"} value={nutrition.age} />
+            <Stat label={t("Geslacht", "Gender")} value={nutrition.gender} />
+            <Stat label={t("Leeftijd", "Age")} value={nutrition.age} />
             <Stat
-              label={lang === "nl" ? "Lengte" : "Height"}
+              label={t("Lengte", "Height")}
               value={nutrition.height_cm ? `${nutrition.height_cm} cm` : null}
             />
             <Stat
-              label={lang === "nl" ? "Gewicht" : "Weight"}
+              label={t("Gewicht", "Weight")}
               value={nutrition.weight_kg ? `${nutrition.weight_kg} kg` : null}
             />
           </div>
@@ -82,25 +222,13 @@ const ClientNutrition = () => {
             <>
               <div className="h-px bg-border my-1" />
               <p className="text-xs uppercase tracking-wider text-muted-foreground">
-                {lang === "nl" ? "Dagelijkse macro's" : "Daily macros"}
+                {t("Dagelijkse macro's", "Daily macros")}
               </p>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-                <Stat
-                  label={lang === "nl" ? "Calorieën" : "Calories"}
-                  value={`${nutrition.details.calories} kcal`}
-                />
-                <Stat
-                  label={lang === "nl" ? "Eiwit" : "Protein"}
-                  value={`${nutrition.details.protein_g} g`}
-                />
-                <Stat
-                  label={lang === "nl" ? "Koolhydraten" : "Carbs"}
-                  value={`${nutrition.details.carbs_g} g`}
-                />
-                <Stat
-                  label={lang === "nl" ? "Vet" : "Fat"}
-                  value={`${nutrition.details.fat_g} g`}
-                />
+                <Stat label={t("Calorieën", "Calories")} value={`${nutrition.details.calories} kcal`} />
+                <Stat label={t("Eiwit", "Protein")} value={`${nutrition.details.protein_g} g`} />
+                <Stat label={t("Koolhydraten", "Carbs")} value={`${nutrition.details.carbs_g} g`} />
+                <Stat label={t("Vet", "Fat")} value={`${nutrition.details.fat_g} g`} />
               </div>
               <MacroPie
                 lang={lang}
@@ -111,6 +239,29 @@ const ClientNutrition = () => {
             </>
           ) : null}
         </Card>
+      )}
+
+      <CronometerConnectDialog
+        open={connectOpen}
+        onOpenChange={setConnectOpen}
+        lang={lang}
+        onConnected={() => loadAll()}
+      />
+      <CronometerConnectDialog
+        open={reauth}
+        onOpenChange={setReauth}
+        lang={lang}
+        onConnected={() => {
+          loadAll();
+          // auto-resync after re-auth
+          handleSync();
+        }}
+      />
+      {reauth && (
+        <div className="hidden">
+          {/* Re-auth prompt is the dialog above; show toast for context */}
+          <AlertTriangle />
+        </div>
       )}
     </div>
   );
@@ -148,18 +299,8 @@ const MacroPie = ({
       <div className="h-64 w-full">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
-            <Pie
-              data={data}
-              dataKey="value"
-              nameKey="name"
-              innerRadius={50}
-              outerRadius={90}
-              paddingAngle={2}
-              stroke="hsl(var(--background))"
-            >
-              {data.map((d) => (
-                <Cell key={d.name} fill={d.color} />
-              ))}
+            <Pie data={data} dataKey="value" nameKey="name" innerRadius={50} outerRadius={90} paddingAngle={2} stroke="hsl(var(--background))">
+              {data.map((d) => (<Cell key={d.name} fill={d.color} />))}
             </Pie>
             <Tooltip
               formatter={(val: any, name: any) => [`${val} g`, name]}
