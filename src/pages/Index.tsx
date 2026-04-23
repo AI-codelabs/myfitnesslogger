@@ -140,9 +140,7 @@ const Index = () => {
         <WeeklyCheckinCard lang={lang} />
         <ClientStartMessageCard lang={lang} />
 
-        <ProgressionSummary lang={lang} />
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
           <Card
             className="p-6 flex items-center gap-4 cursor-pointer hover:bg-muted/50 transition-colors group"
             onClick={() => navigate("/training")}
@@ -171,6 +169,8 @@ const Index = () => {
             <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-emerald-500 transition-colors shrink-0" />
           </Card>
         </div>
+
+        <ProgressionSummary lang={lang} />
       </div>
     </AppLayout>
   );
