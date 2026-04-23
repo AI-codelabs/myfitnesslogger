@@ -533,6 +533,99 @@ export type Database = {
         }
         Relationships: []
       }
+      weekly_checkins: {
+        Row: {
+          body_fat_pct: number | null
+          client_id: string
+          cravings: string | null
+          created_at: string
+          details: Json
+          energy: number | null
+          feeling: number | null
+          hydration: number | null
+          id: string
+          intensity_rpe: number | null
+          measurements: string | null
+          nutrition_deviations: string | null
+          nutrition_stars: number | null
+          obstacles: string | null
+          other_notes: string | null
+          progress_feeling: string | null
+          progression: number | null
+          sleep_cycle: string | null
+          sleep_cycle_other: string | null
+          soreness: number | null
+          structure_planning: string | null
+          submitted_at: string
+          supplements_consistency: number | null
+          training_count: string | null
+          training_count_other: string | null
+          updated_at: string
+          week_start: string
+          weight_kg: number | null
+        }
+        Insert: {
+          body_fat_pct?: number | null
+          client_id: string
+          cravings?: string | null
+          created_at?: string
+          details?: Json
+          energy?: number | null
+          feeling?: number | null
+          hydration?: number | null
+          id?: string
+          intensity_rpe?: number | null
+          measurements?: string | null
+          nutrition_deviations?: string | null
+          nutrition_stars?: number | null
+          obstacles?: string | null
+          other_notes?: string | null
+          progress_feeling?: string | null
+          progression?: number | null
+          sleep_cycle?: string | null
+          sleep_cycle_other?: string | null
+          soreness?: number | null
+          structure_planning?: string | null
+          submitted_at?: string
+          supplements_consistency?: number | null
+          training_count?: string | null
+          training_count_other?: string | null
+          updated_at?: string
+          week_start: string
+          weight_kg?: number | null
+        }
+        Update: {
+          body_fat_pct?: number | null
+          client_id?: string
+          cravings?: string | null
+          created_at?: string
+          details?: Json
+          energy?: number | null
+          feeling?: number | null
+          hydration?: number | null
+          id?: string
+          intensity_rpe?: number | null
+          measurements?: string | null
+          nutrition_deviations?: string | null
+          nutrition_stars?: number | null
+          obstacles?: string | null
+          other_notes?: string | null
+          progress_feeling?: string | null
+          progression?: number | null
+          sleep_cycle?: string | null
+          sleep_cycle_other?: string | null
+          soreness?: number | null
+          structure_planning?: string | null
+          submitted_at?: string
+          supplements_consistency?: number | null
+          training_count?: string | null
+          training_count_other?: string | null
+          updated_at?: string
+          week_start?: string
+          weight_kg?: number | null
+        }
+        Relationships: []
+      }
       workout_plan_days: {
         Row: {
           created_at: string
