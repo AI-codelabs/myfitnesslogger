@@ -230,9 +230,14 @@ export default function CoachTasks() {
               </Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="weekly" disabled>
+          <TabsTrigger value="weekly">
             <Calendar className="h-3.5 w-3.5 mr-1.5" />
-            Wekelijks (binnenkort)
+            Wekelijks
+            {weeklyPending.length > 0 && (
+              <Badge variant="secondary" className="ml-2">
+                {weeklyPending.length}
+              </Badge>
+            )}
           </TabsTrigger>
         </TabsList>
 
