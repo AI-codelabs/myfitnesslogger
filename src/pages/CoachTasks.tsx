@@ -182,6 +182,19 @@ export default function CoachTasks() {
   const pending = onboardingTasks.filter((t) => !t.allDone);
   const completed = onboardingTasks.filter((t) => t.allDone);
 
+  const weeklyTasks = useMemo(() => {
+    const submittedMap = new Map(checkins.map((c) => [c.client_id, c.submitted_at]));
+    return rows
+      .filter((r) => r.hasOnboarding)
+      .map((r) => ({
+        row: r,
+        submittedAt: submittedMap.get(r.client.user_id) ?? null,
+      }));
+  }, [rows, checkins]);
+
+  const weeklyPending = weeklyTasks.filter((t) => !t.submittedAt);
+  const weeklyDone = weeklyTasks.filter((t) => t.submittedAt);
+
   const markVoiceRecorded = async (clientId: string, current: boolean) => {
     if (!user) return;
     const value = current ? null : new Date().toISOString();
