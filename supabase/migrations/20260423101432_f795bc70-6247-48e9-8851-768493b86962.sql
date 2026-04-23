@@ -1,0 +1,1 @@
+ALTER TABLE public.coach_messages ADD COLUMN IF NOT EXISTS voice_memo_recorded_at TIMESTAMP WITH TIME ZONE;
