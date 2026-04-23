@@ -25,6 +25,7 @@ import { NutritionWizard } from "@/components/NutritionWizard";
 import { ClientWorkouts } from "@/components/ClientWorkouts";
 import { CoachMessageTab } from "@/components/CoachMessageTab";
 import { WeeklyCheckinsTab } from "@/components/WeeklyCheckinsTab";
+import { ClientProgressionTab } from "@/components/ClientProgressionTab";
 
 const ClientProfile = () => {
   const { clientId } = useParams<{ clientId: string }>();
