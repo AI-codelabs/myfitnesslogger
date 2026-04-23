@@ -16,6 +16,7 @@ import {
   Calendar,
 } from "lucide-react";
 import { toast } from "sonner";
+import { formatWeekStart, formatHumanDate } from "@/lib/weeklyCheckin";
 
 type Client = {
   user_id: string;
