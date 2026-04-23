@@ -42,9 +42,6 @@ function SectionCard({
         aria-expanded={open}
         className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:opacity-90 transition ${headerClass}`}
       >
-        <div className="w-8 h-8 rounded-lg bg-background/60 flex items-center justify-center shrink-0">
-          <Icon className={`h-4 w-4 ${iconClass}`} />
-        </div>
         <div className="min-w-0 flex-1">
           <p className="font-semibold text-sm leading-tight">{title}</p>
           <p className="text-xs text-muted-foreground">
