@@ -352,6 +352,42 @@ function parseCSVRow(line: string): string[] {
   return result;
 }
 
+function isoDate(d: Date): string {
+  return d.toISOString().split("T")[0];
+}
+
+function addDays(d: Date, n: number): Date {
+  const copy = new Date(d);
+  copy.setDate(copy.getDate() + n);
+  return copy;
+}
+
+// Most recent Monday on/before given date
+function mondayOf(d: Date): Date {
+  const copy = new Date(d);
+  const day = copy.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  copy.setDate(copy.getDate() + diff);
+  copy.setHours(0, 0, 0, 0);
+  return copy;
+}
+
+async function authedClient(req: Request) {
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader?.startsWith("Bearer ")) {
+    return { error: "Unauthorized" as const, status: 401 as const };
+  }
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_ANON_KEY")!,
+    { global: { headers: { Authorization: authHeader } } },
+  );
+  const token = authHeader.replace("Bearer ", "");
+  const { data, error } = await supabase.auth.getClaims(token);
+  if (error || !data?.claims) return { error: "Unauthorized" as const, status: 401 as const };
+  return { supabase, userId: data.claims.sub as string };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -359,26 +395,161 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { action, username, password, start, end, cookies, user_id, gwt_permutation, gwt_header } = body;
+    const { action } = body;
 
-    if (action === "connect") {
+    // ==== connect_and_save: login + persist session in DB ====
+    if (action === "connect_and_save") {
+      const auth = await authedClient(req);
+      if ("error" in auth) return json({ error: auth.error }, auth.status);
+
+      const { username, password } = body;
       if (!username || !password) {
         return json({ error: "Username and password are required" }, 400);
       }
 
       await refreshGwtValues();
-
       const cookieJar = new Map<string, string>();
       await login(username, password, cookieJar);
       const userId = await gwtAuthenticate(cookieJar);
-
-      // Serialize cookies for client storage
       const cookies = Object.fromEntries(cookieJar);
+
+      const { error: upsertErr } = await auth.supabase
+        .from("cronometer_sessions")
+        .upsert({
+          client_id: auth.userId,
+          cronometer_username: username,
+          cookies,
+          user_id_external: userId,
+          gwt_permutation: cachedGwtPermutation,
+          gwt_header: cachedGwtHeader,
+          connected_at: new Date().toISOString(),
+          last_error: null,
+        }, { onConflict: "client_id" });
+
+      if (upsertErr) {
+        return json({ error: `Failed to save session: ${upsertErr.message}` }, 500);
+      }
+
+      return json({ success: true });
+    }
+
+    // ==== sync: fetch missing days from last log -> today ====
+    if (action === "sync") {
+      const auth = await authedClient(req);
+      if ("error" in auth) return json({ error: auth.error }, auth.status);
+
+      const { data: session, error: sessErr } = await auth.supabase
+        .from("cronometer_sessions")
+        .select("*")
+        .eq("client_id", auth.userId)
+        .maybeSingle();
+
+      if (sessErr) return json({ error: sessErr.message }, 500);
+      if (!session) return json({ error: "no_session", message: "Connect Cronometer first" }, 400);
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const { data: latest } = await auth.supabase
+        .from("cronometer_nutrition_logs")
+        .select("log_date")
+        .eq("client_id", auth.userId)
+        .order("log_date", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      let startDate: Date;
+      if (latest?.log_date) {
+        startDate = addDays(new Date(latest.log_date + "T00:00:00Z"), 1);
+        if (startDate > today) {
+          return json({ success: true, days_synced: 0, up_to_date: true });
+        }
+      } else {
+        startDate = mondayOf(today);
+      }
+
+      const cookieJar = new Map<string, string>(
+        Object.entries(session.cookies as Record<string, string>),
+      );
+      cachedGwtPermutation = session.gwt_permutation;
+      cachedGwtHeader = session.gwt_header;
+
+      let csv: string;
+      try {
+        csv = await exportServings(
+          cookieJar,
+          session.user_id_external,
+          isoDate(startDate),
+          isoDate(today),
+        );
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        await auth.supabase
+          .from("cronometer_sessions")
+          .update({ last_error: msg })
+          .eq("client_id", auth.userId);
+        return json({ error: "session_expired", message: msg }, 401);
+      }
+
+      const parsed = parseServingsCSV(csv);
+
+      const rows: any[] = [];
+      const dayMap = new Map(parsed.days.map((d: any) => [d.date, d]));
+      for (let cur = new Date(startDate); cur <= today; cur = addDays(cur, 1)) {
+        const dateStr = isoDate(cur);
+        const day: any = dayMap.get(dateStr);
+        rows.push({
+          client_id: auth.userId,
+          log_date: dateStr,
+          calories: day?.totals.calories ?? 0,
+          protein_g: day?.totals.protein ?? 0,
+          carbs_g: day?.totals.carbohydrates ?? 0,
+          fat_g: day?.totals.fat ?? 0,
+          fiber_g: day?.totals.fiber ?? 0,
+          sugar_g: day?.totals.sugar ?? 0,
+          sodium_mg: day?.totals.sodium ?? 0,
+          entries: day?.entries ?? [],
+          source: "cronometer",
+          synced_at: new Date().toISOString(),
+        });
+      }
+
+      if (rows.length > 0) {
+        const { error: insErr } = await auth.supabase
+          .from("cronometer_nutrition_logs")
+          .upsert(rows, { onConflict: "client_id,log_date" });
+        if (insErr) return json({ error: insErr.message }, 500);
+      }
+
+      await auth.supabase
+        .from("cronometer_sessions")
+        .update({ last_synced_at: new Date().toISOString(), last_error: null })
+        .eq("client_id", auth.userId);
 
       return json({
         success: true,
+        days_synced: rows.length,
+        from: isoDate(startDate),
+        to: isoDate(today),
+      });
+    }
+
+    // ==== Legacy actions (unchanged) ====
+    const { username, password, start, end, cookies, user_id, gwt_permutation, gwt_header } = body;
+
+    if (action === "connect") {
+      if (!username || !password) {
+        return json({ error: "Username and password are required" }, 400);
+      }
+      await refreshGwtValues();
+      const cookieJar = new Map<string, string>();
+      await login(username, password, cookieJar);
+      const userId = await gwtAuthenticate(cookieJar);
+      const cookiesOut = Object.fromEntries(cookieJar);
+      return json({
+        success: true,
         user_id: userId,
-        cookies,
+        cookies: cookiesOut,
         gwt_permutation: cachedGwtPermutation,
         gwt_header: cachedGwtHeader,
       });
@@ -388,54 +559,43 @@ serve(async (req) => {
       if (!cookies || !user_id) {
         return json({ error: "Missing session data. Please sign in again." }, 400);
       }
-
-      // Use provided GWT values or cached
       if (gwt_permutation) cachedGwtPermutation = gwt_permutation;
       if (gwt_header) cachedGwtHeader = gwt_header;
-
       const cookieJar = new Map<string, string>(Object.entries(cookies));
-
       const endDate = end || new Date().toISOString().split("T")[0];
       const startDate = start || (() => {
         const d = new Date();
         d.setDate(d.getDate() - 6);
         return d.toISOString().split("T")[0];
       })();
-
       const csv = await exportServings(cookieJar, user_id, startDate, endDate);
       const parsed = parseServingsCSV(csv);
-
       return json({ success: true, ...parsed });
     }
 
-    // Combined: login + export in one call (simplest flow)
     if (action === "login_and_export") {
       if (!username || !password) {
         return json({ error: "Username and password are required" }, 400);
       }
-
       await refreshGwtValues();
-
       const cookieJar = new Map<string, string>();
       await login(username, password, cookieJar);
       const userId = await gwtAuthenticate(cookieJar);
-
       const endDate = end || new Date().toISOString().split("T")[0];
       const startDate = start || (() => {
         const d = new Date();
         d.setDate(d.getDate() - 6);
         return d.toISOString().split("T")[0];
       })();
-
       const csv = await exportServings(cookieJar, userId, startDate, endDate);
       const parsed = parseServingsCSV(csv);
-
       return json({ success: true, ...parsed });
     }
 
-    return json({ error: "Invalid action. Use: connect, export, or login_and_export" }, 400);
+    return json({ error: "Invalid action. Use: connect_and_save, sync, connect, export, or login_and_export" }, 400);
   } catch (e) {
     console.error("Cronometer error:", e);
-    return json({ error: e.message || "Unknown error" }, 500);
+    const msg = e instanceof Error ? e.message : "Unknown error";
+    return json({ error: msg }, 500);
   }
 });
