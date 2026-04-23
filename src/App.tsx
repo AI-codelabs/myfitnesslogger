@@ -17,6 +17,7 @@ import WorkoutPlan from "./pages/WorkoutPlan.tsx";
 import ClientNutrition from "./pages/ClientNutrition.tsx";
 import ClientTraining from "./pages/ClientTraining.tsx";
 import LogWorkout from "./pages/LogWorkout.tsx";
+import ClientWorkoutSession from "./pages/ClientWorkoutSession.tsx";
 import { AppLayout } from "./components/AppLayout";
 
 const queryClient = new QueryClient();
@@ -58,6 +59,7 @@ const App = () => (
             <Route path="/account" element={<Protected><AppLayout><Account /></AppLayout></Protected>} />
             <Route path="/onboarding" element={<Protected requireOnboarding={false}><Onboarding /></Protected>} />
             <Route path="/clients/:clientId" element={<Protected><AppLayout><ClientProfile /></AppLayout></Protected>} />
+            <Route path="/clients/:clientId/sessions/:sessionId" element={<Protected><AppLayout><ClientWorkoutSession /></AppLayout></Protected>} />
             <Route path="/workouts" element={<Protected><AppLayout><Workouts /></AppLayout></Protected>} />
             <Route path="/workouts/:planId" element={<Protected><AppLayout><WorkoutPlan /></AppLayout></Protected>} />
             <Route path="/nutrition" element={<Protected><AppLayout><ClientNutrition /></AppLayout></Protected>} />
