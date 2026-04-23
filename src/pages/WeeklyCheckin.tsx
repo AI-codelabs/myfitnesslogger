@@ -358,7 +358,7 @@ export default function WeeklyCheckin() {
                   </Label>
                 </div>
               ))}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <RadioGroupItem id="sc-other" value="anders" />
                 <Label htmlFor="sc-other" className="font-normal">
                   Anders:
@@ -366,7 +366,7 @@ export default function WeeklyCheckin() {
                 <Input
                   value={form.sleep_cycle_other}
                   onChange={(e) => set("sleep_cycle_other", e.target.value)}
-                  className="max-w-xs"
+                  className="flex-1 min-w-[140px]"
                   disabled={form.sleep_cycle !== "anders"}
                 />
               </div>
