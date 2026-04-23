@@ -16,6 +16,7 @@ import {
   Calendar,
 } from "lucide-react";
 import { toast } from "sonner";
+import { formatWeekStart, formatHumanDate } from "@/lib/weeklyCheckin";
 
 type Client = {
   user_id: string;
@@ -51,7 +52,9 @@ type TaskRow = {
 export default function CoachTasks() {
   const { user } = useAuth();
   const [rows, setRows] = useState<TaskRow[]>([]);
+  const [checkins, setCheckins] = useState<Array<{ client_id: string; submitted_at: string }>>([]);
   const [loading, setLoading] = useState(true);
+  const weekStart = formatWeekStart();
 
   const load = async () => {
     if (!user) return;
@@ -63,7 +66,7 @@ export default function CoachTasks() {
       .from("invitations")
       .select("accepted_user_id")
       .eq("coach_id", user.id)
-      .eq("status", "accepted")
+      .in("status", ["onboarding", "active", "accepted"])
       .not("accepted_user_id", "is", null);
 
     const clientIds = (inv ?? []).map((i: any) => i.accepted_user_id).filter(Boolean);
@@ -73,7 +76,7 @@ export default function CoachTasks() {
       return;
     }
 
-    const [profilesRes, onboardingRes, nutritionRes, assignRes, msgRes] = await Promise.all([
+    const [profilesRes, onboardingRes, nutritionRes, assignRes, msgRes, checkinsRes] = await Promise.all([
       supabase.from("profiles").select("user_id, display_name").in("user_id", clientIds),
       supabase
         .from("onboarding_responses")
@@ -94,6 +97,11 @@ export default function CoachTasks() {
         .from("coach_messages")
         .select("client_id, voice_memo, published_at, voice_memo_recorded_at")
         .eq("coach_id", user.id)
+        .in("client_id", clientIds),
+      supabase
+        .from("weekly_checkins")
+        .select("client_id, submitted_at")
+        .eq("week_start", weekStart)
         .in("client_id", clientIds),
     ]);
 
@@ -129,6 +137,7 @@ export default function CoachTasks() {
     });
 
     setRows(built);
+    setCheckins((checkinsRes.data ?? []) as Array<{ client_id: string; submitted_at: string }>);
     setLoading(false);
   };
 
@@ -173,6 +182,19 @@ export default function CoachTasks() {
   const pending = onboardingTasks.filter((t) => !t.allDone);
   const completed = onboardingTasks.filter((t) => t.allDone);
 
+  const weeklyTasks = useMemo(() => {
+    const submittedMap = new Map(checkins.map((c) => [c.client_id, c.submitted_at]));
+    return rows
+      .filter((r) => r.hasOnboarding)
+      .map((r) => ({
+        row: r,
+        submittedAt: submittedMap.get(r.client.user_id) ?? null,
+      }));
+  }, [rows, checkins]);
+
+  const weeklyPending = weeklyTasks.filter((t) => !t.submittedAt);
+  const weeklyDone = weeklyTasks.filter((t) => t.submittedAt);
+
   const markVoiceRecorded = async (clientId: string, current: boolean) => {
     if (!user) return;
     const value = current ? null : new Date().toISOString();
@@ -208,9 +230,14 @@ export default function CoachTasks() {
               </Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="weekly" disabled>
+          <TabsTrigger value="weekly">
             <Calendar className="h-3.5 w-3.5 mr-1.5" />
-            Wekelijks (binnenkort)
+            Wekelijks
+            {weeklyPending.length > 0 && (
+              <Badge variant="secondary" className="ml-2">
+                {weeklyPending.length}
+              </Badge>
+            )}
           </TabsTrigger>
         </TabsList>
 
@@ -332,14 +359,65 @@ export default function CoachTasks() {
           )}
         </TabsContent>
 
-        <TabsContent value="weekly">
-          <Card className="p-8 text-center">
-            <Calendar className="h-10 w-10 mx-auto text-muted-foreground mb-2" />
-            <p className="font-medium">Wekelijkse check-ins komen eraan</p>
-            <p className="text-sm text-muted-foreground">
-              Hier verschijnen straks wekelijkse taken per client.
-            </p>
-          </Card>
+        <TabsContent value="weekly" className="space-y-4">
+          <p className="text-xs text-muted-foreground">
+            Week van {formatHumanDate(weekStart, "nl")}
+          </p>
+          {loading ? (
+            <p className="text-sm text-muted-foreground">Laden...</p>
+          ) : weeklyTasks.length === 0 ? (
+            <Card className="p-8 text-center">
+              <Calendar className="h-10 w-10 mx-auto text-muted-foreground mb-2" />
+              <p className="font-medium">Geen clients</p>
+            </Card>
+          ) : (
+            <>
+              {weeklyPending.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">
+                    Nog niet ingevuld ({weeklyPending.length})
+                  </p>
+                  {weeklyPending.map(({ row }) => (
+                    <Card key={row.client.user_id} className="px-4 py-3 flex items-center gap-3">
+                      <Circle className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <span className="flex-1 text-sm font-medium truncate">
+                        {row.client.display_name ?? "Naamloos"}
+                      </span>
+                      <Button asChild size="sm" variant="outline">
+                        <Link to={`/clients/${row.client.user_id}?tab=checkins`}>
+                          Open
+                          <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
+                        </Link>
+                      </Button>
+                    </Card>
+                  ))}
+                </div>
+              )}
+              {weeklyDone.length > 0 && (
+                <div className="space-y-2 pt-2">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">
+                    Ingevuld ({weeklyDone.length})
+                  </p>
+                  {weeklyDone.map(({ row, submittedAt }) => (
+                    <Card key={row.client.user_id} className="px-4 py-3 flex items-center gap-3">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">
+                          {row.client.display_name ?? "Naamloos"}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Ingevuld {formatHumanDate(submittedAt!, "nl")}
+                        </p>
+                      </div>
+                      <Button asChild size="sm" variant="ghost">
+                        <Link to={`/clients/${row.client.user_id}?tab=checkins`}>Bekijk</Link>
+                      </Button>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
         </TabsContent>
       </Tabs>
     </div>
