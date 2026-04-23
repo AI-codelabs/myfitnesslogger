@@ -228,6 +228,7 @@ export function ClientWorkouts({ clientId, coachId, preferredFrequency, preferre
         assignments={assignments as any}
         plans={plans}
         lang={lang}
+        clientId={clientId}
       />
       <Card className="p-5 space-y-4">
         <div className="flex items-center justify-between gap-3 flex-wrap">
