@@ -149,39 +149,42 @@ export default function CoachTasks() {
   }, [user?.id]);
 
   const onboardingTasks = useMemo(() => {
-    return rows
-      .filter((r) => r.hasOnboarding)
-      .map((r) => {
-        const intakeReady = r.hasNutrition && r.hasSchedule;
-        const subtasks = [
-          {
-            key: "generate",
-            label: "Genereer startbericht",
-            done: r.hasMessage,
-            blocked: !intakeReady,
-            icon: Sparkles,
-          },
-          {
-            key: "publish",
-            label: "Publiceer naar client",
-            done: r.isPublished,
-            blocked: !r.hasMessage,
-            icon: Send,
-          },
-          {
-            key: "voice",
-            label: "Voice memo opnemen",
-            done: r.voiceRecorded,
-            blocked: !r.isPublished,
-            icon: Mic,
-          },
-        ];
-        const allDone = subtasks.every((s) => s.done);
-        return { row: r, subtasks, allDone, intakeReady };
-      });
+    return rows.map((r) => {
+      const intakeReady = r.hasNutrition && r.hasSchedule;
+      const subtasks = [
+        {
+          key: "generate",
+          label: "Genereer startbericht",
+          done: r.hasMessage,
+          blocked: !intakeReady,
+          icon: Sparkles,
+        },
+        {
+          key: "publish",
+          label: "Publiceer naar client",
+          done: r.isPublished,
+          blocked: !r.hasMessage,
+          icon: Send,
+        },
+        {
+          key: "voice",
+          label: "Voice memo opnemen",
+          done: r.voiceRecorded,
+          blocked: !r.isPublished,
+          icon: Mic,
+        },
+      ];
+      const allDone = r.hasOnboarding && subtasks.every((s) => s.done);
+      const openCount = r.hasOnboarding ? subtasks.filter((s) => !s.done).length : 0;
+      return { row: r, subtasks, allDone, intakeReady, openCount };
+    });
   }, [rows]);
 
-  const pending = onboardingTasks.filter((t) => !t.allDone);
+  // Clients who haven't completed onboarding form yet (waiting on client)
+  const awaitingClient = onboardingTasks.filter((t) => !t.row.hasOnboarding);
+  // Onboarding form done, coach work pending
+  const pending = onboardingTasks.filter((t) => t.row.hasOnboarding && !t.allDone);
+  // Coach work fully done
   const completed = onboardingTasks.filter((t) => t.allDone);
 
   const weeklyTasks = useMemo(() => {
