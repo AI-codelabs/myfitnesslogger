@@ -62,8 +62,8 @@ const empty: Form = {
 
 function Section({ title, children }: { title?: string; children: React.ReactNode }) {
   return (
-    <Card className="p-5 space-y-4">
-      {title && <h2 className="font-semibold">{title}</h2>}
+    <Card className="p-4 sm:p-5 space-y-4">
+      {title && <h2 className="font-semibold text-base">{title}</h2>}
       {children}
     </Card>
   );
@@ -83,9 +83,8 @@ function ScaleRow({
   max?: number;
 }) {
   return (
-    <div className="flex items-center gap-3 flex-wrap">
-      {leftLabel && <span className="text-sm text-muted-foreground w-32">{leftLabel}</span>}
-      <div className="flex gap-1.5 flex-wrap flex-1">
+    <div className="space-y-2">
+      <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
         {Array.from({ length: max }).map((_, i) => {
           const n = i + 1;
           const active = value === n;
@@ -94,10 +93,10 @@ function ScaleRow({
               key={n}
               type="button"
               onClick={() => onChange(n)}
-              className={`h-10 w-10 rounded-full border text-sm font-medium transition ${
+              className={`h-11 rounded-lg border text-sm font-medium transition ${
                 active
                   ? "bg-primary text-primary-foreground border-primary"
-                  : "border-border hover:bg-muted"
+                  : "border-border hover:bg-muted active:bg-muted"
               }`}
             >
               {n}
@@ -105,8 +104,11 @@ function ScaleRow({
           );
         })}
       </div>
-      {rightLabel && (
-        <span className="text-sm text-muted-foreground text-right w-32">{rightLabel}</span>
+      {(leftLabel || rightLabel) && (
+        <div className="flex justify-between gap-2 text-[11px] sm:text-xs text-muted-foreground leading-tight">
+          <span className="flex-1">{leftLabel}</span>
+          <span className="flex-1 text-right">{rightLabel}</span>
+        </div>
       )}
     </div>
   );
@@ -122,7 +124,7 @@ function StarRow({
   max?: number;
 }) {
   return (
-    <div className="flex gap-2">
+    <div className="flex gap-1 sm:gap-2">
       {Array.from({ length: max }).map((_, i) => {
         const n = i + 1;
         const active = (value ?? 0) >= n;
@@ -131,11 +133,11 @@ function StarRow({
             key={n}
             type="button"
             onClick={() => onChange(n)}
-            className="p-1"
+            className="p-1.5 -m-0.5"
             aria-label={`${n} ster`}
           >
             <Star
-              className={`h-7 w-7 ${
+              className={`h-8 w-8 sm:h-7 sm:w-7 ${
                 active ? "fill-amber-400 text-amber-400" : "text-muted-foreground"
               }`}
             />
@@ -246,17 +248,17 @@ export default function WeeklyCheckin() {
   }
 
   return (
-    <div className="container mx-auto p-4 sm:p-6 max-w-2xl">
+    <div className="container mx-auto px-3 py-4 sm:p-6 max-w-2xl">
       <button
         onClick={() => navigate("/")}
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-4"
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-3"
       >
-        <ArrowLeft className="h-4 w-4" /> Terug naar dashboard
+        <ArrowLeft className="h-4 w-4" /> Terug
       </button>
 
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight">Wekelijkse check-in</h1>
-        <p className="text-sm text-muted-foreground">
+      <div className="mb-5">
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Wekelijkse check-in</h1>
+        <p className="text-sm text-muted-foreground mt-1">
           Vul in hoe je week is verlopen. Alle vragen zijn optioneel.
         </p>
       </div>
@@ -279,7 +281,7 @@ export default function WeeklyCheckin() {
                   </Label>
                 </div>
               ))}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <RadioGroupItem id="tc-other" value="anders" />
                 <Label htmlFor="tc-other" className="font-normal">
                   Anders:
@@ -287,7 +289,7 @@ export default function WeeklyCheckin() {
                 <Input
                   value={form.training_count_other}
                   onChange={(e) => set("training_count_other", e.target.value)}
-                  className="max-w-xs"
+                  className="flex-1 min-w-[140px]"
                   disabled={form.training_count !== "anders"}
                 />
               </div>
@@ -356,7 +358,7 @@ export default function WeeklyCheckin() {
                   </Label>
                 </div>
               ))}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <RadioGroupItem id="sc-other" value="anders" />
                 <Label htmlFor="sc-other" className="font-normal">
                   Anders:
@@ -364,7 +366,7 @@ export default function WeeklyCheckin() {
                 <Input
                   value={form.sleep_cycle_other}
                   onChange={(e) => set("sleep_cycle_other", e.target.value)}
-                  className="max-w-xs"
+                  className="flex-1 min-w-[140px]"
                   disabled={form.sleep_cycle !== "anders"}
                 />
               </div>
@@ -484,8 +486,8 @@ export default function WeeklyCheckin() {
           </div>
         </Section>
 
-        <div className="flex justify-end pt-2 pb-8">
-          <Button onClick={submit} disabled={saving} size="lg">
+        <div className="pt-2 pb-8 sticky bottom-0 sm:static bg-background sm:bg-transparent -mx-3 px-3 sm:mx-0 sm:px-0 border-t sm:border-0 pt-3 sm:pt-2">
+          <Button onClick={submit} disabled={saving} size="lg" className="w-full sm:w-auto sm:ml-auto sm:flex">
             {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             Verstuur check-in
           </Button>
