@@ -119,7 +119,7 @@ export function ClientStartMessageCard({ lang }: { lang: "nl" | "en" }) {
   if (sections.length === 0) return null;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6 items-start">
       {sections.map((s) => (
         <SectionCard key={s.title} {...s} countLabel={countLabel} />
       ))}
