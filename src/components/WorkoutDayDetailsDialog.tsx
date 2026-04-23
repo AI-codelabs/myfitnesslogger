@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Loader2, ExternalLink, Dumbbell, CheckCircle2, Eye } from "lucide-react";
 import { Lang } from "@/lib/onboardingSchema";
+import { cn } from "@/lib/utils";
 
 export interface ScheduledOccurrence {
   assignmentId: string;
@@ -107,71 +108,92 @@ export function WorkoutDayDetailsDialog({
       })
     : "";
 
-  // Compact view if there are logged sessions (coach view)
+  // Compact summary view if there are logged sessions (coach view)
   if (hasLogs) {
+    // Pick the primary session: completed first, otherwise the latest started.
+    const sorted = [...loggedSessions].sort((a, b) => {
+      if (!!a.completedAt !== !!b.completedAt) return a.completedAt ? -1 : 1;
+      return (b.startedAt ?? "").localeCompare(a.startedAt ?? "");
+    });
+    const primary = sorted[0];
+    const totalSets = loggedSessions.reduce((acc, s) => acc + s.setCount, 0);
+    const anyCompleted = loggedSessions.some((s) => s.completedAt);
+    const allCompleted = loggedSessions.every((s) => s.completedAt);
+    const statusLabel = allCompleted
+      ? tx("Voltooid", "Completed")
+      : anyCompleted
+      ? tx("Deels voltooid", "Partially completed")
+      : tx("Bezig", "In progress");
+
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="capitalize">{dateLabel}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
-            {loggedSessions.map((s) => {
-              const completed = !!s.completedAt;
-              return (
-                <div
-                  key={s.sessionId}
-                  className="rounded-lg border p-3 space-y-3"
-                >
-                  <div className="flex items-start gap-3">
-                    <div
-                      className={
-                        completed
-                          ? "h-9 w-9 rounded-lg bg-primary text-primary-foreground flex items-center justify-center shrink-0"
-                          : "h-9 w-9 rounded-lg bg-primary/15 text-primary flex items-center justify-center shrink-0"
-                      }
-                    >
-                      {completed ? (
-                        <CheckCircle2 className="h-5 w-5" />
-                      ) : (
-                        <Dumbbell className="h-5 w-5" />
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h4 className="font-semibold text-sm truncate">
-                          {s.planName || tx("Training", "Workout")}
-                        </h4>
-                        <Badge
-                          variant={completed ? "default" : "secondary"}
-                          className="text-[10px]"
-                        >
-                          {completed
-                            ? tx("Voltooid", "Completed")
-                            : tx("Bezig", "In progress")}
-                        </Badge>
-                      </div>
-                      {s.dayName && (
-                        <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                          {s.dayName}
-                        </p>
-                      )}
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {s.setCount} {tx("sets gelogd", "sets logged")}
-                      </p>
-                    </div>
-                  </div>
-                  {clientId && (
-                    <Button asChild size="sm" className="w-full gap-1.5">
-                      <Link to={`/clients/${clientId}/sessions/${s.sessionId}`}>
-                        <Eye className="h-3.5 w-3.5" />
-                        {tx("Bekijk training", "View workout")}
-                      </Link>
-                    </Button>
-                  )}
+          <div className="space-y-4">
+            {/* Workout summary */}
+            <div className="flex items-start gap-3">
+              <div
+                className={cn(
+                  "h-11 w-11 rounded-xl flex items-center justify-center shrink-0",
+                  allCompleted
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-primary/15 text-primary"
+                )}
+              >
+                {allCompleted ? (
+                  <CheckCircle2 className="h-5 w-5" />
+                ) : (
+                  <Dumbbell className="h-5 w-5" />
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h4 className="font-semibold truncate">
+                    {primary.planName || tx("Training", "Workout")}
+                  </h4>
+                  <Badge
+                    variant={allCompleted ? "default" : "secondary"}
+                    className="text-[10px]"
+                  >
+                    {statusLabel}
+                  </Badge>
                 </div>
-              );
-            })}
+                {primary.dayName && (
+                  <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                    {primary.dayName}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Quick stats */}
+            <div className="grid grid-cols-2 gap-2">
+              <div className="rounded-lg border bg-muted/30 px-3 py-2">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  {tx("Sets gelogd", "Sets logged")}
+                </p>
+                <p className="text-lg font-semibold tabular-nums">{totalSets}</p>
+              </div>
+              <div className="rounded-lg border bg-muted/30 px-3 py-2">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  {tx("Sessies", "Sessions")}
+                </p>
+                <p className="text-lg font-semibold tabular-nums">
+                  {loggedSessions.length}
+                </p>
+              </div>
+            </div>
+
+            {clientId && (
+              <Button asChild className="w-full gap-1.5">
+                <Link to={`/clients/${clientId}/sessions/${primary.sessionId}`}>
+                  <Eye className="h-4 w-4" />
+                  {tx("Bekijk training", "View workout")}
+                </Link>
+              </Button>
+            )}
           </div>
         </DialogContent>
       </Dialog>
