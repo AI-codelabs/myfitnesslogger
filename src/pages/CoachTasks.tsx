@@ -76,7 +76,7 @@ export default function CoachTasks() {
       return;
     }
 
-    const [profilesRes, onboardingRes, nutritionRes, assignRes, msgRes] = await Promise.all([
+    const [profilesRes, onboardingRes, nutritionRes, assignRes, msgRes, checkinsRes] = await Promise.all([
       supabase.from("profiles").select("user_id, display_name").in("user_id", clientIds),
       supabase
         .from("onboarding_responses")
@@ -97,6 +97,11 @@ export default function CoachTasks() {
         .from("coach_messages")
         .select("client_id, voice_memo, published_at, voice_memo_recorded_at")
         .eq("coach_id", user.id)
+        .in("client_id", clientIds),
+      supabase
+        .from("weekly_checkins")
+        .select("client_id, submitted_at")
+        .eq("week_start", weekStart)
         .in("client_id", clientIds),
     ]);
 
