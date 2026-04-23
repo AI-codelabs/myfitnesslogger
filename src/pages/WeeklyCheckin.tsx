@@ -486,8 +486,8 @@ export default function WeeklyCheckin() {
           </div>
         </Section>
 
-        <div className="flex justify-end pt-2 pb-8">
-          <Button onClick={submit} disabled={saving} size="lg">
+        <div className="pt-2 pb-8 sticky bottom-0 sm:static bg-background sm:bg-transparent -mx-3 px-3 sm:mx-0 sm:px-0 border-t sm:border-0 pt-3 sm:pt-2">
+          <Button onClick={submit} disabled={saving} size="lg" className="w-full sm:w-auto sm:ml-auto sm:flex">
             {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             Verstuur check-in
           </Button>
