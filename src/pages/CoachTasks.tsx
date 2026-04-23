@@ -52,7 +52,9 @@ type TaskRow = {
 export default function CoachTasks() {
   const { user } = useAuth();
   const [rows, setRows] = useState<TaskRow[]>([]);
+  const [checkins, setCheckins] = useState<Array<{ client_id: string; submitted_at: string }>>([]);
   const [loading, setLoading] = useState(true);
+  const weekStart = formatWeekStart();
 
   const load = async () => {
     if (!user) return;
