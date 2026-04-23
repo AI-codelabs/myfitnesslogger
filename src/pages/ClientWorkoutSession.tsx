@@ -19,6 +19,7 @@ import {
   CheckCircle2,
   Clock,
   TrendingUp,
+  RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Lang } from "@/lib/onboardingSchema";
@@ -312,19 +313,33 @@ const ClientWorkoutSession = () => {
             {tx("Terug naar client", "Back to client")}
           </Link>
         </Button>
-        <Badge variant={isCompleted ? "default" : "secondary"} className="gap-1">
-          {isCompleted ? (
-            <>
-              <CheckCircle2 className="h-3 w-3" />
-              {tx("Voltooid", "Completed")}
-            </>
-          ) : (
-            <>
-              <Clock className="h-3 w-3" />
-              {tx("Bezig", "In progress")}
-            </>
-          )}
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => loadAll(false)}
+            disabled={refreshing}
+            className="gap-1.5"
+          >
+            <RefreshCw
+              className={cn("h-3.5 w-3.5", refreshing && "animate-spin")}
+            />
+            {tx("Vernieuw", "Refresh")}
+          </Button>
+          <Badge variant={isCompleted ? "default" : "secondary"} className="gap-1">
+            {isCompleted ? (
+              <>
+                <CheckCircle2 className="h-3 w-3" />
+                {tx("Voltooid", "Completed")}
+              </>
+            ) : (
+              <>
+                <Clock className="h-3 w-3" />
+                {tx("Bezig", "In progress")}
+              </>
+            )}
+          </Badge>
+        </div>
       </div>
 
       <Card className="p-5 space-y-2">
