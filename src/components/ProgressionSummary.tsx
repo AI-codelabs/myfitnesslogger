@@ -12,66 +12,6 @@ interface Props {
 
 type Row = { week_start: string; weight_kg: number | null; body_fat_pct: number | null };
 
-function StatCard({
-  label,
-  value,
-  unit,
-  delta,
-  icon: Icon,
-  tone,
-}: {
-  label: string;
-  value: string;
-  unit?: string;
-  delta: number | null;
-  icon: React.ComponentType<{ className?: string }>;
-  tone: "secondary" | "success";
-}) {
-  const toneMap = {
-    secondary: "from-secondary/15 to-secondary/5 text-secondary",
-    success: "from-emerald-500/15 to-emerald-500/5 text-emerald-600",
-  };
-  return (
-    <Card className="p-4 relative overflow-hidden">
-      <div
-        className={`absolute -top-6 -right-6 w-20 h-20 rounded-full bg-gradient-to-br ${toneMap[tone]} blur-xl opacity-60`}
-      />
-      <div className="relative space-y-2">
-        <div className="flex items-center justify-between">
-          <p className="text-xs uppercase tracking-wide text-muted-foreground font-medium">
-            {label}
-          </p>
-          <Icon className={`h-4 w-4 ${toneMap[tone].split(" ").pop()}`} />
-        </div>
-        <div className="flex items-baseline gap-1.5">
-          <span className="text-2xl font-bold tabular-nums">{value}</span>
-          {unit && <span className="text-xs text-muted-foreground">{unit}</span>}
-        </div>
-        {delta != null && (
-          <div
-            className={`flex items-center gap-1 text-xs font-medium ${
-              delta < 0
-                ? "text-emerald-600"
-                : delta > 0
-                  ? "text-orange-500"
-                  : "text-muted-foreground"
-            }`}
-          >
-            {delta < 0 ? (
-              <TrendingDown className="h-3 w-3" />
-            ) : delta > 0 ? (
-              <TrendingUp className="h-3 w-3" />
-            ) : (
-              <Minus className="h-3 w-3" />
-            )}
-            {delta > 0 ? "+" : ""}
-            {delta.toFixed(1)} {unit ?? ""} {lang === "nl" ? "sinds start" : "since start"}
-          </div>
-        )}
-      </div>
-    </Card>
-  );
-}
 
 export function ProgressionSummary({ lang }: Props) {
   const { user } = useAuth();
