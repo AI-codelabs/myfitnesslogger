@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
-import { Sparkles } from "lucide-react";
+import { Sparkles, CheckCircle2, AlertTriangle, Target } from "lucide-react";
 
 interface Msg {
   voice_memo: string;
@@ -31,42 +31,66 @@ export function ClientStartMessageCard({ lang }: { lang: "nl" | "en" }) {
 
   const tx = (nl: string, en: string) => (lang === "nl" ? nl : en);
 
-  const sections: Array<{ title: string; items: string[]; tone: string }> = [
+  const sections = [
     {
-      title: tx("✅ Positief", "✅ Positive"),
+      key: "positive",
+      title: tx("Positief", "Positive"),
       items: msg.client_positive ?? [],
-      tone: "text-emerald-600 dark:text-emerald-400",
+      Icon: CheckCircle2,
+      iconClass: "text-emerald-600 dark:text-emerald-400",
+      badgeClass: "bg-emerald-500/10 border-emerald-500/20",
+      dotClass: "bg-emerald-500",
     },
     {
-      title: tx("⚠️ Aandachtspunten", "⚠️ Attention points"),
+      key: "attention",
+      title: tx("Aandachtspunten", "Attention points"),
       items: msg.client_attention ?? [],
-      tone: "text-amber-600 dark:text-amber-400",
+      Icon: AlertTriangle,
+      iconClass: "text-amber-600 dark:text-amber-400",
+      badgeClass: "bg-amber-500/10 border-amber-500/20",
+      dotClass: "bg-amber-500",
     },
     {
-      title: tx("🎯 Actiepunten", "🎯 Action points"),
+      key: "actions",
+      title: tx("Actiepunten", "Action points"),
       items: msg.client_actions ?? [],
-      tone: "text-primary",
+      Icon: Target,
+      iconClass: "text-primary",
+      badgeClass: "bg-primary/10 border-primary/20",
+      dotClass: "bg-primary",
     },
   ].filter((s) => s.items.length > 0);
 
   if (sections.length === 0) return null;
 
   return (
-    <Card className="p-5 sm:p-6 mb-6 border-primary/20 bg-gradient-to-br from-primary/5 via-background to-background">
-      <div className="flex items-center gap-2 mb-4">
-        <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+    <Card className="overflow-hidden mb-6 border-primary/20">
+      <div className="flex items-center gap-3 px-5 py-4 border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent">
+        <div className="w-9 h-9 rounded-lg bg-primary/15 flex items-center justify-center shrink-0">
           <Sparkles className="h-4 w-4 text-primary" />
         </div>
-        <h2 className="font-semibold">{tx("Startbericht van je coach", "Message from your coach")}</h2>
+        <div className="min-w-0">
+          <h2 className="font-semibold leading-tight">
+            {tx("Startbericht van je coach", "Message from your coach")}
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            {tx("Persoonlijke feedback op je intake", "Personal feedback on your intake")}
+          </p>
+        </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {sections.map((s) => (
-          <div key={s.title} className="space-y-2">
-            <p className={`text-sm font-semibold ${s.tone}`}>{s.title}</p>
-            <ul className="space-y-1.5">
-              {s.items.map((it, i) => (
-                <li key={i} className="text-sm text-foreground/90 leading-relaxed">
-                  • {it}
+
+      <div className="divide-y md:divide-y-0 md:divide-x md:grid md:grid-cols-3">
+        {sections.map(({ key, title, items, Icon, iconClass, badgeClass, dotClass }) => (
+          <div key={key} className="p-5 space-y-3">
+            <div className={`inline-flex items-center gap-2 px-2.5 py-1 rounded-md border ${badgeClass}`}>
+              <Icon className={`h-3.5 w-3.5 ${iconClass}`} />
+              <span className="text-xs font-semibold tracking-wide uppercase">{title}</span>
+            </div>
+            <ul className="space-y-2">
+              {items.map((it, i) => (
+                <li key={i} className="flex gap-2.5 text-sm leading-relaxed text-foreground/90">
+                  <span className={`mt-2 h-1.5 w-1.5 rounded-full shrink-0 ${dotClass}`} />
+                  <span>{it}</span>
                 </li>
               ))}
             </ul>
