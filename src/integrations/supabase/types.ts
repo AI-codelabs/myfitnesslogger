@@ -512,6 +512,45 @@ export type Database = {
         }
         Relationships: []
       }
+      progress_photos: {
+        Row: {
+          back_path: string | null
+          client_id: string
+          created_at: string
+          front_path: string | null
+          id: string
+          notes: string | null
+          side_path: string | null
+          taken_on: string
+          updated_at: string
+          weight_kg: number | null
+        }
+        Insert: {
+          back_path?: string | null
+          client_id: string
+          created_at?: string
+          front_path?: string | null
+          id?: string
+          notes?: string | null
+          side_path?: string | null
+          taken_on?: string
+          updated_at?: string
+          weight_kg?: number | null
+        }
+        Update: {
+          back_path?: string | null
+          client_id?: string
+          created_at?: string
+          front_path?: string | null
+          id?: string
+          notes?: string | null
+          side_path?: string | null
+          taken_on?: string
+          updated_at?: string
+          weight_kg?: number | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
