@@ -1,79 +1,70 @@
-import type { CronometerExportData } from "@/types/cronometer";
+import { supabase } from "@/integrations/supabase/client";
 
-const FUNCTION_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cronometer`;
-
-interface CronometerSession {
-  cookies: Record<string, string>;
-  user_id: string;
-  gwt_permutation: string;
-  gwt_header: string;
-  connected_at: number;
-}
-
-const SESSION_KEY = "cronometer_session";
-
-export function saveSession(session: CronometerSession) {
-  localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-}
-
-export function getSession(): CronometerSession | null {
-  const raw = localStorage.getItem(SESSION_KEY);
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
-}
-
-export function clearSession() {
-  localStorage.removeItem(SESSION_KEY);
-}
-
-async function callCronometer(body: Record<string, unknown>) {
-  const resp = await fetch(FUNCTION_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-    },
-    body: JSON.stringify(body),
-  });
-  return resp.json();
-}
-
-/** Login and store session cookies for future use */
-export async function connectToCronometer(
+/** Connect Cronometer and persist session server-side for this client. */
+export async function connectCronometerServer(
   username: string,
-  password: string
-): Promise<{ success: boolean; error?: string; session?: CronometerSession }> {
-  const result = await callCronometer({ action: "connect", username, password });
-  if (result.error) return { success: false, error: result.error };
-
-  const session: CronometerSession = {
-    cookies: result.cookies,
-    user_id: result.user_id,
-    gwt_permutation: result.gwt_permutation,
-    gwt_header: result.gwt_header,
-    connected_at: Date.now(),
-  };
-  saveSession(session);
-  return { success: true, session };
+  password: string,
+): Promise<{ success: boolean; error?: string }> {
+  const { data, error } = await supabase.functions.invoke("cronometer", {
+    body: { action: "connect_and_save", username, password },
+  });
+  if (error) return { success: false, error: error.message };
+  if ((data as any)?.error) return { success: false, error: (data as any).error };
+  return { success: true };
 }
 
-/** Export data using stored session (no re-login needed) */
-export async function exportData(
-  session: CronometerSession,
-  startDate?: string,
-  endDate?: string
-): Promise<CronometerExportData> {
-  return callCronometer({
-    action: "export",
-    cookies: session.cookies,
-    user_id: session.user_id,
-    gwt_permutation: session.gwt_permutation,
-    gwt_header: session.gwt_header,
-    start: startDate,
-    end: endDate,
+export interface SyncResult {
+  success: boolean;
+  error?: string;
+  sessionExpired?: boolean;
+  daysSynced?: number;
+  upToDate?: boolean;
+  from?: string;
+  to?: string;
+}
+
+/** Sync nutrition data from last logged day -> today. */
+export async function syncCronometer(): Promise<SyncResult> {
+  const { data, error } = await supabase.functions.invoke("cronometer", {
+    body: { action: "sync" },
   });
+  if (error) {
+    // functions.invoke surfaces non-2xx as an error; check the body if available
+    const body = (error as any).context?.body;
+    if (body) {
+      try {
+        const parsed = typeof body === "string" ? JSON.parse(body) : body;
+        if (parsed?.error === "session_expired") {
+          return { success: false, sessionExpired: true, error: parsed.message };
+        }
+        if (parsed?.error === "no_session") {
+          return { success: false, error: "no_session" };
+        }
+        return { success: false, error: parsed?.message || parsed?.error || error.message };
+      } catch {
+        // ignore parse errors
+      }
+    }
+    return { success: false, error: error.message };
+  }
+  const d = data as any;
+  if (d?.error === "session_expired") return { success: false, sessionExpired: true, error: d.message };
+  if (d?.error) return { success: false, error: d.message || d.error };
+  return {
+    success: true,
+    daysSynced: d?.days_synced ?? 0,
+    upToDate: !!d?.up_to_date,
+    from: d?.from,
+    to: d?.to,
+  };
+}
+
+/** Check if this client already has a Cronometer session saved. */
+export async function hasCronometerSession(clientId: string): Promise<boolean> {
+  const { data } = await supabase
+    .from("cronometer_sessions")
+    .select("id")
+    .eq("client_id", clientId)
+    .maybeSingle();
+  return !!data;
 }

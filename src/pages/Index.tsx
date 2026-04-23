@@ -6,8 +6,10 @@ import { DashboardNotifications } from "@/components/DashboardNotifications";
 import { ClientStartMessageCard } from "@/components/ClientStartMessageCard";
 import { WeeklyCheckinCard } from "@/components/WeeklyCheckinCard";
 import { ProgressionSummary } from "@/components/ProgressionSummary";
+import { CronometerConnectDialog } from "@/components/CronometerConnectDialog";
+import { hasCronometerSession } from "@/lib/cronometer";
 import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Lang } from "@/lib/onboardingSchema";
 
 const copy = {
@@ -67,12 +69,34 @@ function LangToggle({ lang, setLang }: { lang: Lang; setLang: (l: Lang) => void 
 }
 
 const Index = () => {
-  const { role, loading } = useAuth();
+  const { role, loading, user, onboardingComplete } = useAuth();
   const navigate = useNavigate();
   const [lang, setLang] = useState<Lang>(
     () => (localStorage.getItem("onbLang") as Lang) || "nl",
   );
+  const [showCronometerDialog, setShowCronometerDialog] = useState(false);
   const tx = (b: { nl: string; en: string }) => b[lang];
+
+  // Auto-prompt clients to connect Cronometer once after onboarding
+  useEffect(() => {
+    if (role !== "user" || !user?.id || !onboardingComplete) return;
+    const dismissedKey = `cron_prompt_dismissed_${user.id}`;
+    if (localStorage.getItem(dismissedKey)) return;
+    let cancelled = false;
+    hasCronometerSession(user.id).then((has) => {
+      if (cancelled) return;
+      if (!has) setShowCronometerDialog(true);
+    });
+    return () => { cancelled = true; };
+  }, [role, user?.id, onboardingComplete]);
+
+  const handleDialogChange = (open: boolean) => {
+    setShowCronometerDialog(open);
+    if (!open && user?.id) {
+      localStorage.setItem(`cron_prompt_dismissed_${user.id}`, "1");
+    }
+  };
+
 
   if (loading) {
     return (
@@ -172,6 +196,11 @@ const Index = () => {
 
         <ProgressionSummary lang={lang} />
       </div>
+      <CronometerConnectDialog
+        open={showCronometerDialog}
+        onOpenChange={handleDialogChange}
+        lang={lang}
+      />
     </AppLayout>
   );
 };
