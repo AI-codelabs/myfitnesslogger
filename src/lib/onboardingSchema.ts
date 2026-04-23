@@ -140,6 +140,7 @@ export const onboardingSections: Section[] = [
         ],
       },
       { name: "injuries", label: { nl: "Blessures of beperkingen?", en: "Injuries or limitations?" }, type: "textarea", optional: true },
+      { name: "medication_notes", label: { nl: "Neem je iets van medicatie of zijn er andere bijzonderheden die benoemingswaardig zijn?", en: "Do you take any medication or are there other notable details to mention?" }, type: "textarea", optional: true, storeIn: "details" },
     ],
   },
   {
