@@ -66,20 +66,20 @@ export function AppSidebar() {
               )}
               {role === "coach" && (
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={isActive("/tasks")}>
-                    <NavLink to="/tasks" className={linkCls(isActive("/tasks"))}>
-                      <ListTodo className="h-4 w-4 shrink-0" />
-                      {!collapsed && <span>Tasks</span>}
+                  <SidebarMenuButton asChild isActive={isActive("/workouts") || location.pathname.startsWith("/workouts/")}>
+                    <NavLink to="/workouts" className={linkCls(isActive("/workouts") || location.pathname.startsWith("/workouts/"))}>
+                      <Dumbbell className="h-4 w-4 shrink-0" />
+                      {!collapsed && <span>Workouts</span>}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}
               {role === "coach" && (
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={isActive("/workouts") || location.pathname.startsWith("/workouts/")}>
-                    <NavLink to="/workouts" className={linkCls(isActive("/workouts") || location.pathname.startsWith("/workouts/"))}>
-                      <Dumbbell className="h-4 w-4 shrink-0" />
-                      {!collapsed && <span>Workouts</span>}
+                  <SidebarMenuButton asChild isActive={isActive("/tasks")}>
+                    <NavLink to="/tasks" className={linkCls(isActive("/tasks"))}>
+                      <ListTodo className="h-4 w-4 shrink-0" />
+                      {!collapsed && <span>Tasks</span>}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
