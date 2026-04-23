@@ -248,17 +248,17 @@ export default function WeeklyCheckin() {
   }
 
   return (
-    <div className="container mx-auto p-4 sm:p-6 max-w-2xl">
+    <div className="container mx-auto px-3 py-4 sm:p-6 max-w-2xl">
       <button
         onClick={() => navigate("/")}
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-4"
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-3"
       >
-        <ArrowLeft className="h-4 w-4" /> Terug naar dashboard
+        <ArrowLeft className="h-4 w-4" /> Terug
       </button>
 
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight">Wekelijkse check-in</h1>
-        <p className="text-sm text-muted-foreground">
+      <div className="mb-5">
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Wekelijkse check-in</h1>
+        <p className="text-sm text-muted-foreground mt-1">
           Vul in hoe je week is verlopen. Alle vragen zijn optioneel.
         </p>
       </div>
