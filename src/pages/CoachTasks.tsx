@@ -137,6 +137,7 @@ export default function CoachTasks() {
     });
 
     setRows(built);
+    setCheckins((checkinsRes.data ?? []) as Array<{ client_id: string; submitted_at: string }>);
     setLoading(false);
   };
 
