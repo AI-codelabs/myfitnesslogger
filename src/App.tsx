@@ -13,6 +13,7 @@ import Onboarding from "./pages/Onboarding.tsx";
 import ClientProfile from "./pages/ClientProfile.tsx";
 import Clients from "./pages/Clients.tsx";
 import Workouts from "./pages/Workouts.tsx";
+import CoachTasks from "./pages/CoachTasks.tsx";
 import WorkoutPlan from "./pages/WorkoutPlan.tsx";
 import ClientNutrition from "./pages/ClientNutrition.tsx";
 import ClientTraining from "./pages/ClientTraining.tsx";
@@ -56,6 +57,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Protected><Index /></Protected>} />
             <Route path="/clients" element={<Protected><AppLayout><Clients /></AppLayout></Protected>} />
+            <Route path="/tasks" element={<Protected><AppLayout><CoachTasks /></AppLayout></Protected>} />
             <Route path="/account" element={<Protected><AppLayout><Account /></AppLayout></Protected>} />
             <Route path="/onboarding" element={<Protected requireOnboarding={false}><Onboarding /></Protected>} />
             <Route path="/clients/:clientId" element={<Protected><AppLayout><ClientProfile /></AppLayout></Protected>} />

@@ -1,4 +1,4 @@
-import { LayoutDashboard, User as UserIcon, LogOut, Users, Dumbbell, Apple, TrendingUp } from "lucide-react";
+import { LayoutDashboard, User as UserIcon, LogOut, Users, Dumbbell, Apple, TrendingUp, ListTodo } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   Sidebar,
@@ -60,6 +60,16 @@ export function AppSidebar() {
                     <NavLink to="/clients" className={linkCls(isActive("/clients"))}>
                       <Users className="h-4 w-4 shrink-0" />
                       {!collapsed && <span>Clients</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+              {role === "coach" && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={isActive("/tasks")}>
+                    <NavLink to="/tasks" className={linkCls(isActive("/tasks"))}>
+                      <ListTodo className="h-4 w-4 shrink-0" />
+                      {!collapsed && <span>Tasks</span>}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

@@ -111,6 +111,7 @@ export type Database = {
           published_at: string | null
           updated_at: string
           voice_memo: string
+          voice_memo_recorded_at: string | null
         }
         Insert: {
           client_actions?: string[]
@@ -124,6 +125,7 @@ export type Database = {
           published_at?: string | null
           updated_at?: string
           voice_memo?: string
+          voice_memo_recorded_at?: string | null
         }
         Update: {
           client_actions?: string[]
@@ -137,6 +139,7 @@ export type Database = {
           published_at?: string | null
           updated_at?: string
           voice_memo?: string
+          voice_memo_recorded_at?: string | null
         }
         Relationships: []
       }
