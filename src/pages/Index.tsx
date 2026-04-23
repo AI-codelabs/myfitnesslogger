@@ -6,8 +6,10 @@ import { DashboardNotifications } from "@/components/DashboardNotifications";
 import { ClientStartMessageCard } from "@/components/ClientStartMessageCard";
 import { WeeklyCheckinCard } from "@/components/WeeklyCheckinCard";
 import { ProgressionSummary } from "@/components/ProgressionSummary";
+import { CronometerConnectDialog } from "@/components/CronometerConnectDialog";
+import { hasCronometerSession } from "@/lib/cronometer";
 import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Lang } from "@/lib/onboardingSchema";
 
 const copy = {
