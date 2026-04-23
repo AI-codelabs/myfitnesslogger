@@ -63,7 +63,7 @@ export default function CoachTasks() {
       .from("invitations")
       .select("accepted_user_id")
       .eq("coach_id", user.id)
-      .eq("status", "accepted")
+      .in("status", ["onboarding", "active", "accepted"])
       .not("accepted_user_id", "is", null);
 
     const clientIds = (inv ?? []).map((i: any) => i.accepted_user_id).filter(Boolean);
