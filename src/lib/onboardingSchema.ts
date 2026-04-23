@@ -197,6 +197,22 @@ export const onboardingSections: Section[] = [
         ],
       },
       { name: "step_tracker_screenshot_path", label: { nl: "Screenshot stappenteller / Apple Watch / Fitbit", en: "Step counter / Apple Watch / Fitbit screenshot" }, type: "image", optional: true },
+      {
+        name: "referral_source",
+        label: { nl: "Hoe ben je bij mij terecht gekomen?", en: "How did you find me?" },
+        type: "radio",
+        storeIn: "details",
+        options: [
+          { value: "instagram", label: { nl: "Instagram", en: "Instagram" } },
+          { value: "instagram_dm", label: { nl: "Instagram DM", en: "Instagram DM" } },
+          { value: "facebook", label: { nl: "Facebook", en: "Facebook" } },
+          { value: "website", label: { nl: "Website", en: "Website" } },
+          { value: "friends_family", label: { nl: "Vrienden, familie, kennissen", en: "Friends, family, acquaintances" } },
+          { value: "gym", label: { nl: "De sportschool", en: "The gym" } },
+          { value: "other", label: { nl: "Anders", en: "Other" } },
+        ],
+      },
+      { name: "referral_source_other", label: { nl: "Toelichting (indien anders)", en: "Specify (if other)" }, type: "text", optional: true, storeIn: "details" },
     ],
   },
 ];
