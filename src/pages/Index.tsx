@@ -5,6 +5,7 @@ import { Loader2, BarChart3, TrendingUp, Users, Dumbbell, Apple, ArrowRight } fr
 import { DashboardNotifications } from "@/components/DashboardNotifications";
 import { ClientStartMessageCard } from "@/components/ClientStartMessageCard";
 import { WeeklyCheckinCard } from "@/components/WeeklyCheckinCard";
+import { ProgressionSummary } from "@/components/ProgressionSummary";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { Lang } from "@/lib/onboardingSchema";
@@ -139,7 +140,9 @@ const Index = () => {
         <WeeklyCheckinCard lang={lang} />
         <ClientStartMessageCard lang={lang} />
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <ProgressionSummary lang={lang} />
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Card
             className="p-6 flex items-center gap-4 cursor-pointer hover:bg-muted/50 transition-colors group"
             onClick={() => navigate("/training")}
@@ -166,22 +169,6 @@ const Index = () => {
               <p className="text-sm text-muted-foreground">{tx(copy.nutritionDesc)}</p>
             </div>
             <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-emerald-500 transition-colors shrink-0" />
-          </Card>
-
-          <Card
-            className="p-6 flex items-center gap-4 cursor-pointer hover:bg-muted/50 transition-colors group"
-            onClick={() => navigate("/progression")}
-          >
-            <div className="w-12 h-12 rounded-xl bg-secondary/15 flex items-center justify-center shrink-0">
-              <TrendingUp className="h-6 w-6 text-secondary" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold">{lang === "nl" ? "Progressie" : "Progression"}</p>
-              <p className="text-sm text-muted-foreground">
-                {lang === "nl" ? "Bekijk je grafieken & foto's" : "Charts & photos"}
-              </p>
-            </div>
-            <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-secondary transition-colors shrink-0" />
           </Card>
         </div>
       </div>
