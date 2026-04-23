@@ -19,6 +19,7 @@ import {
   CheckCircle2,
   Clock,
   TrendingUp,
+  RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Lang } from "@/lib/onboardingSchema";
@@ -80,6 +81,7 @@ const ClientWorkoutSession = () => {
   const tx = (nl: string, en: string) => (lang === "nl" ? nl : en);
 
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [session, setSession] = useState<SessionHeader | null>(null);
   const [planName, setPlanName] = useState("");
   const [dayName, setDayName] = useState<string | null>(null);
@@ -93,68 +95,96 @@ const ClientWorkoutSession = () => {
   const [openExId, setOpenExId] = useState<string | null>(null);
   const [metric, setMetric] = useState<Metric>("weight");
 
-  useEffect(() => {
+  const loadAll = async (initial = false) => {
     if (!user?.id || !sessionId || !clientId) return;
-    (async () => {
-      setLoading(true);
-      const { data: s } = await supabase
-        .from("workout_sessions")
+    if (initial) setLoading(true);
+    else setRefreshing(true);
+
+    const { data: s } = await supabase
+      .from("workout_sessions")
+      .select(
+        "id, client_id, plan_id, day_id, scheduled_date, started_at, completed_at, notes"
+      )
+      .eq("id", sessionId)
+      .maybeSingle();
+    if (!s) {
+      navigate(`/clients/${clientId}`);
+      return;
+    }
+    setSession(s as any);
+
+    const [{ data: plan }, dayRes, { data: profile }] = await Promise.all([
+      supabase.from("workout_plans").select("name").eq("id", s.plan_id).maybeSingle(),
+      s.day_id
+        ? supabase
+            .from("workout_plan_days")
+            .select("name")
+            .eq("id", s.day_id)
+            .maybeSingle()
+        : Promise.resolve({ data: null } as any),
+      supabase
+        .from("profiles")
+        .select("display_name")
+        .eq("user_id", clientId)
+        .maybeSingle(),
+    ]);
+    setPlanName(plan?.name ?? "");
+    setDayName(dayRes?.data?.name ?? null);
+    setClientName(profile?.display_name ?? "");
+
+    let ex: PlanExerciseRow[] = [];
+    if (s.day_id) {
+      const { data } = await supabase
+        .from("workout_plan_exercises")
         .select(
-          "id, client_id, plan_id, day_id, scheduled_date, started_at, completed_at, notes"
+          "id, order_index, sets_reps, notes, exercise_id, exercise:exercises(name, muscle_group)"
         )
-        .eq("id", sessionId)
-        .maybeSingle();
-      if (!s) {
-        navigate(`/clients/${clientId}`);
-        return;
-      }
-      setSession(s as any);
+        .eq("day_id", s.day_id)
+        .order("order_index");
+      ex = (data ?? []) as any;
+    }
+    setExercises(ex);
 
-      const [{ data: plan }, dayRes, { data: profile }] = await Promise.all([
-        supabase.from("workout_plans").select("name").eq("id", s.plan_id).maybeSingle(),
-        s.day_id
-          ? supabase
-              .from("workout_plan_days")
-              .select("name")
-              .eq("id", s.day_id)
-              .maybeSingle()
-          : Promise.resolve({ data: null } as any),
-        supabase
-          .from("profiles")
-          .select("display_name")
-          .eq("user_id", clientId)
-          .maybeSingle(),
-      ]);
-      setPlanName(plan?.name ?? "");
-      setDayName(dayRes?.data?.name ?? null);
-      setClientName(profile?.display_name ?? "");
+    const { data: logs } = await supabase
+      .from("workout_set_logs")
+      .select("id, plan_exercise_id, set_number, reps, weight_kg, notes")
+      .eq("session_id", sessionId)
+      .order("set_number");
+    const byEx: Record<string, SetLog[]> = {};
+    for (const l of (logs ?? []) as any[]) {
+      const normalized: SetLog = {
+        id: l.id,
+        plan_exercise_id: l.plan_exercise_id,
+        set_number: l.set_number,
+        reps: l.reps == null ? null : Number(l.reps),
+        weight_kg: l.weight_kg == null ? null : Number(l.weight_kg),
+        notes: l.notes,
+      };
+      (byEx[normalized.plan_exercise_id] ||= []).push(normalized);
+    }
+    setLogsByExercise(byEx);
+    setLoading(false);
+    setRefreshing(false);
+  };
 
-      let ex: PlanExerciseRow[] = [];
-      if (s.day_id) {
-        const { data } = await supabase
-          .from("workout_plan_exercises")
-          .select(
-            "id, order_index, sets_reps, notes, exercise_id, exercise:exercises(name, muscle_group)"
-          )
-          .eq("day_id", s.day_id)
-          .order("order_index");
-        ex = (data ?? []) as any;
-      }
-      setExercises(ex);
+  useEffect(() => {
+    loadAll(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, sessionId, clientId]);
 
-      const { data: logs } = await supabase
-        .from("workout_set_logs")
-        .select("id, plan_exercise_id, set_number, reps, weight_kg, notes")
-        .eq("session_id", sessionId)
-        .order("set_number");
-      const byEx: Record<string, SetLog[]> = {};
-      for (const l of (logs ?? []) as SetLog[]) {
-        (byEx[l.plan_exercise_id] ||= []).push(l);
-      }
-      setLogsByExercise(byEx);
-      setLoading(false);
-    })();
-  }, [user?.id, sessionId, clientId, navigate]);
+  // Refetch when the tab/window regains focus, so the coach always sees the latest logs.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") loadAll(false);
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, sessionId, clientId]);
 
   // Load progress history for the given exercise across all client sessions
   const loadHistory = async (planExerciseId: string, exerciseId: string) => {
@@ -283,19 +313,33 @@ const ClientWorkoutSession = () => {
             {tx("Terug naar client", "Back to client")}
           </Link>
         </Button>
-        <Badge variant={isCompleted ? "default" : "secondary"} className="gap-1">
-          {isCompleted ? (
-            <>
-              <CheckCircle2 className="h-3 w-3" />
-              {tx("Voltooid", "Completed")}
-            </>
-          ) : (
-            <>
-              <Clock className="h-3 w-3" />
-              {tx("Bezig", "In progress")}
-            </>
-          )}
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => loadAll(false)}
+            disabled={refreshing}
+            className="gap-1.5"
+          >
+            <RefreshCw
+              className={cn("h-3.5 w-3.5", refreshing && "animate-spin")}
+            />
+            {tx("Vernieuw", "Refresh")}
+          </Button>
+          <Badge variant={isCompleted ? "default" : "secondary"} className="gap-1">
+            {isCompleted ? (
+              <>
+                <CheckCircle2 className="h-3 w-3" />
+                {tx("Voltooid", "Completed")}
+              </>
+            ) : (
+              <>
+                <Clock className="h-3 w-3" />
+                {tx("Bezig", "In progress")}
+              </>
+            )}
+          </Badge>
+        </div>
       </div>
 
       <Card className="p-5 space-y-2">
