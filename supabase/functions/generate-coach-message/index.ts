@@ -1,0 +1,347 @@
+// Generate a personalized Dutch start message for a client based on intake,
+// nutrition plan and assigned workout schedule. Returns a voice-memo script
+// (coach-only) and structured client bullet points.
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+};
+
+const SYSTEM_PROMPT = `Je bent een high-level online fitness coach. Je schrijft persoonlijke startberichten voor nieuwe klanten op basis van hun intakeformulier, voedingsschema en trainingsschema.
+
+Je output bestaat uit TWEE delen:
+
+1. SPRAAKMEMO (coachend, direct, positief maar scherp)
+- Wordt door de coach voorgelezen en via WhatsApp naar de klant gestuurd.
+- Lange, vloeiende lopende tekst. Geen bulletpoints, geen kopjes, geen emoji's.
+- Begin met "Dit is je startpunt..." of een vergelijkbare directe opening.
+- Verwijs concreet naar de data van de klant: doel, trainingsfrequentie, kcal, macro's, focuspunten.
+- Leg keuzes uit (waarom upper/lower verdeling, waarom carbs omhoog, etc.).
+- Eindig met praktische volgende stappen en check-in moment.
+
+2. KLANT BULLETPOINTS (zichtbaar op het dashboard van de klant)
+- Drie aparte arrays van korte, scherpe punten:
+  - positive: dingen die goed gaan / sterke startpositie
+  - attention: aandachtspunten op basis van de data
+  - actions: 3-5 concrete actiepunten voor deze week
+- Elke bullet is 1 zin, krachtig en concreet.
+
+REGELS:
+- Schrijf ALLES in het Nederlands.
+- Altijd data-gedreven: verwijs naar concrete waardes uit de input.
+- Coachend, niet betuttelend.
+- Geen algemene adviezen zonder link naar de data van de klant.
+- Geen herhaling tussen spraakmemo en bulletpoints — bulletpoints vatten de essentie samen.
+- Geef max 5 actiepunten.`;
+
+interface ClientContext {
+  intake: Record<string, unknown> | null;
+  nutrition: Record<string, unknown> | null;
+  assignments: Array<Record<string, unknown>>;
+}
+
+function buildUserPrompt(ctx: ClientContext): string {
+  const parts: string[] = [];
+
+  parts.push("=== INTAKE FORMULIER ===");
+  if (ctx.intake) {
+    const i = ctx.intake;
+    const fmt = (k: string, v: unknown) =>
+      v !== null && v !== undefined && v !== "" ? `${k}: ${Array.isArray(v) ? v.join(", ") : v}` : null;
+    const lines = [
+      fmt("Naam", i.full_name),
+      fmt("Leeftijd", i.age),
+      fmt("Lengte (cm)", i.height_cm),
+      fmt("Gewicht (kg)", i.weight_kg),
+      fmt("Vetpercentage", i.body_fat_pct),
+      fmt("Beroep", i.occupation),
+      fmt("Activiteitsniveau", i.activity_level),
+      fmt("Slaap (uren)", i.sleep_hours),
+      fmt("Rookt", i.smokes),
+      fmt("Alcohol", i.drinks_alcohol),
+      fmt("Primair doel", i.primary_goal),
+      fmt("Reden doel", i.goal_reason),
+      fmt("Gewenst resultaat", i.target_outcome),
+      fmt("Weken commitment", i.weeks_committed),
+      fmt("Trainingsfrequentie nu", i.train_freq_current),
+      fmt("Trainingsfrequentie target", i.train_freq_target),
+      fmt("Trainingsdagen", i.train_days),
+      fmt("Sinds wanneer trainen", i.lifting_since),
+      fmt("Trainingslocatie", i.train_location),
+      fmt("Focus spiergroepen", i.focus_muscles),
+      fmt("Blessures", i.injuries),
+      fmt("Volgt al een meal plan", i.follows_meal_plan),
+      fmt("Dieet voorkeuren", i.diet_preferences),
+      fmt("Maaltijden per dag", i.meals_per_day),
+      fmt("Water (liter)", i.water_liters),
+      fmt("Supplementen", i.supplements),
+      fmt("Track macros", i.tracks_macros),
+      fmt("Typische dag voeding", i.typical_day_food),
+      fmt("Uitdagingen", i.challenges),
+      fmt("Eerdere mislukkingen", i.past_failures),
+      fmt("Verwachtingen van coach", i.coach_expectations),
+      fmt("Wekelijkse trainingsuren", i.weekly_training_hours),
+    ].filter(Boolean);
+    parts.push(lines.join("\n"));
+
+    if (i.details && typeof i.details === "object") {
+      const det = i.details as Record<string, unknown>;
+      const detailLines: string[] = [];
+      if (det.medication_notes) detailLines.push(`Medicatie / bijzonderheden: ${det.medication_notes}`);
+      if (det.referral_source) detailLines.push(`Hoe binnengekomen: ${det.referral_source}`);
+      if (detailLines.length) parts.push(detailLines.join("\n"));
+    }
+  } else {
+    parts.push("(geen intake data)");
+  }
+
+  parts.push("\n=== VOEDINGSSCHEMA ===");
+  if (ctx.nutrition) {
+    const n = ctx.nutrition;
+    const d = (n.details ?? {}) as Record<string, unknown>;
+    parts.push(
+      [
+        n.gender ? `Geslacht: ${n.gender}` : null,
+        n.age ? `Leeftijd: ${n.age}` : null,
+        n.height_cm ? `Lengte: ${n.height_cm} cm` : null,
+        n.weight_kg ? `Gewicht: ${n.weight_kg} kg` : null,
+        d.calories ? `Calorieën: ${d.calories} kcal` : null,
+        d.protein_g ? `Eiwit: ${d.protein_g} g` : null,
+        d.carbs_g ? `Koolhydraten: ${d.carbs_g} g` : null,
+        d.fat_g ? `Vet: ${d.fat_g} g` : null,
+        d.notes ? `Coach notities: ${d.notes}` : null,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    );
+  } else {
+    parts.push("(geen voedingsschema)");
+  }
+
+  parts.push("\n=== TRAININGSSCHEMA ===");
+  if (ctx.assignments.length === 0) {
+    parts.push("(geen trainingsschema toegewezen)");
+  } else {
+    for (const a of ctx.assignments) {
+      const plan = (a.plan ?? {}) as Record<string, unknown>;
+      const days = (plan.workout_plan_days ?? []) as Array<Record<string, unknown>>;
+      parts.push(
+        `Plan: ${plan.name ?? "—"}${plan.description ? ` — ${plan.description}` : ""}`,
+      );
+      if (a.days) parts.push(`Trainingsdagen: ${(a.days as string[]).join(", ")}`);
+      if (a.weeks) parts.push(`Duur: ${a.weeks} weken`);
+      for (const day of days) {
+        const exs = (day.workout_plan_exercises ?? []) as Array<Record<string, unknown>>;
+        const exList = exs
+          .sort((x, y) => Number(x.order_index) - Number(y.order_index))
+          .map((e) => {
+            const ex = (e.exercises ?? {}) as Record<string, unknown>;
+            return `  - ${ex.name ?? "?"}${e.sets_reps ? ` (${e.sets_reps})` : ""}${e.notes ? ` — ${e.notes}` : ""}`;
+          })
+          .join("\n");
+        parts.push(`Dag ${day.day_index ?? "?"} — ${day.name}:\n${exList}`);
+      }
+    }
+  }
+
+  parts.push(
+    "\nGenereer nu de spraakmemo en klant bulletpoints op basis van bovenstaande data. Gebruik de tool `coach_start_message` om je antwoord te structureren.",
+  );
+
+  return parts.join("\n");
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  try {
+    const { clientId } = await req.json();
+    if (!clientId || typeof clientId !== "string") {
+      return new Response(JSON.stringify({ error: "clientId required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+    const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY missing");
+
+    // Verify caller is the coach
+    const userResp = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: { Authorization: authHeader, apikey: SERVICE_KEY },
+    });
+    if (!userResp.ok) {
+      return new Response(JSON.stringify({ error: "Invalid token" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const userData = await userResp.json();
+    const coachId = userData.id;
+
+    const headers = {
+      apikey: SERVICE_KEY,
+      Authorization: `Bearer ${SERVICE_KEY}`,
+      "Content-Type": "application/json",
+    };
+
+    // Verify coach-client relationship
+    const relRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/invitations?coach_id=eq.${coachId}&accepted_user_id=eq.${clientId}&select=id`,
+      { headers },
+    );
+    const rel = await relRes.json();
+    if (!Array.isArray(rel) || rel.length === 0) {
+      return new Response(JSON.stringify({ error: "Not your client" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Fetch intake, nutrition, assignments+plans+days+exercises
+    const [intakeRes, nutritionRes, assignRes] = await Promise.all([
+      fetch(
+        `${SUPABASE_URL}/rest/v1/onboarding_responses?user_id=eq.${clientId}&select=*`,
+        { headers },
+      ),
+      fetch(
+        `${SUPABASE_URL}/rest/v1/nutrition_plans?client_id=eq.${clientId}&select=*`,
+        { headers },
+      ),
+      fetch(
+        `${SUPABASE_URL}/rest/v1/client_workout_assignments?client_id=eq.${clientId}&is_active=eq.true&select=*,plan:workout_plans(name,description,frequency_per_week,workout_plan_days(day_index,name,workout_plan_exercises(order_index,sets_reps,notes,exercises(name,muscle_group,equipment))))`,
+        { headers },
+      ),
+    ]);
+
+    const intakeArr = await intakeRes.json();
+    const nutritionArr = await nutritionRes.json();
+    const assignments = await assignRes.json();
+
+    const ctx: ClientContext = {
+      intake: Array.isArray(intakeArr) && intakeArr[0] ? intakeArr[0] : null,
+      nutrition: Array.isArray(nutritionArr) && nutritionArr[0] ? nutritionArr[0] : null,
+      assignments: Array.isArray(assignments) ? assignments : [],
+    };
+
+    const userPrompt = buildUserPrompt(ctx);
+
+    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-pro",
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: userPrompt },
+        ],
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "coach_start_message",
+              description: "Het gestructureerde startbericht voor de klant.",
+              parameters: {
+                type: "object",
+                properties: {
+                  voice_memo: {
+                    type: "string",
+                    description:
+                      "De volledige spraakmemo tekst die de coach zal voorlezen. Lange lopende tekst, in het Nederlands, geen emoji's of bulletpoints.",
+                  },
+                  client_positive: {
+                    type: "array",
+                    items: { type: "string" },
+                    description: "Korte positieve punten voor de klant (1 zin per item).",
+                  },
+                  client_attention: {
+                    type: "array",
+                    items: { type: "string" },
+                    description: "Aandachtspunten voor de klant (1 zin per item).",
+                  },
+                  client_actions: {
+                    type: "array",
+                    items: { type: "string" },
+                    description: "Concrete actiepunten voor deze week (max 5).",
+                  },
+                },
+                required: [
+                  "voice_memo",
+                  "client_positive",
+                  "client_attention",
+                  "client_actions",
+                ],
+                additionalProperties: false,
+              },
+            },
+          },
+        ],
+        tool_choice: { type: "function", function: { name: "coach_start_message" } },
+      }),
+    });
+
+    if (!aiResp.ok) {
+      const txt = await aiResp.text();
+      console.error("AI gateway error", aiResp.status, txt);
+      if (aiResp.status === 429) {
+        return new Response(
+          JSON.stringify({ error: "Rate limit bereikt, probeer het zo opnieuw." }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      if (aiResp.status === 402) {
+        return new Response(
+          JSON.stringify({
+            error: "AI credits zijn op. Voeg credits toe in Settings > Workspace > Usage.",
+          }),
+          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      return new Response(JSON.stringify({ error: "AI generatie mislukt" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const aiData = await aiResp.json();
+    const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
+    if (!toolCall) {
+      console.error("No tool call in response", JSON.stringify(aiData));
+      return new Response(
+        JSON.stringify({ error: "Onverwacht AI antwoord" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+    const args = JSON.parse(toolCall.function.arguments);
+
+    return new Response(
+      JSON.stringify({
+        voice_memo: args.voice_memo ?? "",
+        client_positive: Array.isArray(args.client_positive) ? args.client_positive : [],
+        client_attention: Array.isArray(args.client_attention) ? args.client_attention : [],
+        client_actions: Array.isArray(args.client_actions) ? args.client_actions : [],
+      }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  } catch (e) {
+    console.error("generate-coach-message error", e);
+    return new Response(
+      JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+});
