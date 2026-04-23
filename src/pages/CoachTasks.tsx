@@ -359,14 +359,65 @@ export default function CoachTasks() {
           )}
         </TabsContent>
 
-        <TabsContent value="weekly">
-          <Card className="p-8 text-center">
-            <Calendar className="h-10 w-10 mx-auto text-muted-foreground mb-2" />
-            <p className="font-medium">Wekelijkse check-ins komen eraan</p>
-            <p className="text-sm text-muted-foreground">
-              Hier verschijnen straks wekelijkse taken per client.
-            </p>
-          </Card>
+        <TabsContent value="weekly" className="space-y-4">
+          <p className="text-xs text-muted-foreground">
+            Week van {formatHumanDate(weekStart, "nl")}
+          </p>
+          {loading ? (
+            <p className="text-sm text-muted-foreground">Laden...</p>
+          ) : weeklyTasks.length === 0 ? (
+            <Card className="p-8 text-center">
+              <Calendar className="h-10 w-10 mx-auto text-muted-foreground mb-2" />
+              <p className="font-medium">Geen clients</p>
+            </Card>
+          ) : (
+            <>
+              {weeklyPending.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">
+                    Nog niet ingevuld ({weeklyPending.length})
+                  </p>
+                  {weeklyPending.map(({ row }) => (
+                    <Card key={row.client.user_id} className="px-4 py-3 flex items-center gap-3">
+                      <Circle className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <span className="flex-1 text-sm font-medium truncate">
+                        {row.client.display_name ?? "Naamloos"}
+                      </span>
+                      <Button asChild size="sm" variant="outline">
+                        <Link to={`/clients/${row.client.user_id}?tab=checkins`}>
+                          Open
+                          <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
+                        </Link>
+                      </Button>
+                    </Card>
+                  ))}
+                </div>
+              )}
+              {weeklyDone.length > 0 && (
+                <div className="space-y-2 pt-2">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">
+                    Ingevuld ({weeklyDone.length})
+                  </p>
+                  {weeklyDone.map(({ row, submittedAt }) => (
+                    <Card key={row.client.user_id} className="px-4 py-3 flex items-center gap-3">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">
+                          {row.client.display_name ?? "Naamloos"}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Ingevuld {formatHumanDate(submittedAt!, "nl")}
+                        </p>
+                      </div>
+                      <Button asChild size="sm" variant="ghost">
+                        <Link to={`/clients/${row.client.user_id}?tab=checkins`}>Bekijk</Link>
+                      </Button>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
         </TabsContent>
       </Tabs>
     </div>
