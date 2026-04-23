@@ -62,8 +62,8 @@ const empty: Form = {
 
 function Section({ title, children }: { title?: string; children: React.ReactNode }) {
   return (
-    <Card className="p-5 space-y-4">
-      {title && <h2 className="font-semibold">{title}</h2>}
+    <Card className="p-4 sm:p-5 space-y-4">
+      {title && <h2 className="font-semibold text-base">{title}</h2>}
       {children}
     </Card>
   );
@@ -83,9 +83,8 @@ function ScaleRow({
   max?: number;
 }) {
   return (
-    <div className="flex items-center gap-3 flex-wrap">
-      {leftLabel && <span className="text-sm text-muted-foreground w-32">{leftLabel}</span>}
-      <div className="flex gap-1.5 flex-wrap flex-1">
+    <div className="space-y-2">
+      <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
         {Array.from({ length: max }).map((_, i) => {
           const n = i + 1;
           const active = value === n;
@@ -94,10 +93,10 @@ function ScaleRow({
               key={n}
               type="button"
               onClick={() => onChange(n)}
-              className={`h-10 w-10 rounded-full border text-sm font-medium transition ${
+              className={`h-11 rounded-lg border text-sm font-medium transition ${
                 active
                   ? "bg-primary text-primary-foreground border-primary"
-                  : "border-border hover:bg-muted"
+                  : "border-border hover:bg-muted active:bg-muted"
               }`}
             >
               {n}
@@ -105,8 +104,11 @@ function ScaleRow({
           );
         })}
       </div>
-      {rightLabel && (
-        <span className="text-sm text-muted-foreground text-right w-32">{rightLabel}</span>
+      {(leftLabel || rightLabel) && (
+        <div className="flex justify-between gap-2 text-[11px] sm:text-xs text-muted-foreground leading-tight">
+          <span className="flex-1">{leftLabel}</span>
+          <span className="flex-1 text-right">{rightLabel}</span>
+        </div>
       )}
     </div>
   );
@@ -122,7 +124,7 @@ function StarRow({
   max?: number;
 }) {
   return (
-    <div className="flex gap-2">
+    <div className="flex gap-1 sm:gap-2">
       {Array.from({ length: max }).map((_, i) => {
         const n = i + 1;
         const active = (value ?? 0) >= n;
@@ -131,11 +133,11 @@ function StarRow({
             key={n}
             type="button"
             onClick={() => onChange(n)}
-            className="p-1"
+            className="p-1.5 -m-0.5"
             aria-label={`${n} ster`}
           >
             <Star
-              className={`h-7 w-7 ${
+              className={`h-8 w-8 sm:h-7 sm:w-7 ${
                 active ? "fill-amber-400 text-amber-400" : "text-muted-foreground"
               }`}
             />
