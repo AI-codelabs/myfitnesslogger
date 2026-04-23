@@ -248,7 +248,7 @@ const ClientProfile = () => {
         </div>
       </div>
 
-      <Tabs defaultValue="overview">
+      <Tabs defaultValue={new URLSearchParams(window.location.search).get("tab") || "overview"}>
         <TabsList>
           <TabsTrigger value="overview">{lang === "nl" ? "Overzicht" : "Overview"}</TabsTrigger>
           <TabsTrigger value="workouts">{lang === "nl" ? "Workouts" : "Workouts"}</TabsTrigger>
