@@ -281,7 +281,7 @@ export default function WeeklyCheckin() {
                   </Label>
                 </div>
               ))}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <RadioGroupItem id="tc-other" value="anders" />
                 <Label htmlFor="tc-other" className="font-normal">
                   Anders:
@@ -289,7 +289,7 @@ export default function WeeklyCheckin() {
                 <Input
                   value={form.training_count_other}
                   onChange={(e) => set("training_count_other", e.target.value)}
-                  className="max-w-xs"
+                  className="flex-1 min-w-[140px]"
                   disabled={form.training_count !== "anders"}
                 />
               </div>
