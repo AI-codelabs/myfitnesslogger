@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, ExternalLink, Dumbbell } from "lucide-react";
+import { Loader2, ExternalLink, Dumbbell, CheckCircle2, Eye } from "lucide-react";
 import { Lang } from "@/lib/onboardingSchema";
 
 export interface ScheduledOccurrence {
@@ -15,11 +15,23 @@ export interface ScheduledOccurrence {
   occurrenceIndex: number;
 }
 
+export interface LoggedSession {
+  sessionId: string;
+  planId: string;
+  planName: string;
+  dayName: string | null;
+  startedAt: string;
+  completedAt: string | null;
+  setCount: number;
+}
+
 interface Props {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   date: Date | null;
   occurrences: ScheduledOccurrence[];
+  loggedSessions?: LoggedSession[];
+  clientId?: string;
   lang: Lang;
 }
 
@@ -35,13 +47,23 @@ interface DayWithExercises {
   }[];
 }
 
-export function WorkoutDayDetailsDialog({ open, onOpenChange, date, occurrences, lang }: Props) {
+export function WorkoutDayDetailsDialog({
+  open,
+  onOpenChange,
+  date,
+  occurrences,
+  loggedSessions = [],
+  clientId,
+  lang,
+}: Props) {
   const tx = (nl: string, en: string) => (lang === "nl" ? nl : en);
   const [loading, setLoading] = useState(false);
   const [planDays, setPlanDays] = useState<Record<string, DayWithExercises[]>>({});
 
+  const hasLogs = loggedSessions.length > 0;
+
   useEffect(() => {
-    if (!open || occurrences.length === 0) return;
+    if (!open || hasLogs || occurrences.length === 0) return;
     const planIds = Array.from(new Set(occurrences.map((o) => o.planId)));
     (async () => {
       setLoading(true);
@@ -74,7 +96,7 @@ export function WorkoutDayDetailsDialog({ open, onOpenChange, date, occurrences,
       setPlanDays(grouped);
       setLoading(false);
     })();
-  }, [open, occurrences]);
+  }, [open, occurrences, hasLogs]);
 
   const dateLabel = date
     ? date.toLocaleDateString(lang === "nl" ? "nl-NL" : "en-US", {
@@ -84,6 +106,77 @@ export function WorkoutDayDetailsDialog({ open, onOpenChange, date, occurrences,
         year: "numeric",
       })
     : "";
+
+  // Compact view if there are logged sessions (coach view)
+  if (hasLogs) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="capitalize">{dateLabel}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            {loggedSessions.map((s) => {
+              const completed = !!s.completedAt;
+              return (
+                <div
+                  key={s.sessionId}
+                  className="rounded-lg border p-3 space-y-3"
+                >
+                  <div className="flex items-start gap-3">
+                    <div
+                      className={
+                        completed
+                          ? "h-9 w-9 rounded-lg bg-primary text-primary-foreground flex items-center justify-center shrink-0"
+                          : "h-9 w-9 rounded-lg bg-primary/15 text-primary flex items-center justify-center shrink-0"
+                      }
+                    >
+                      {completed ? (
+                        <CheckCircle2 className="h-5 w-5" />
+                      ) : (
+                        <Dumbbell className="h-5 w-5" />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h4 className="font-semibold text-sm truncate">
+                          {s.planName || tx("Training", "Workout")}
+                        </h4>
+                        <Badge
+                          variant={completed ? "default" : "secondary"}
+                          className="text-[10px]"
+                        >
+                          {completed
+                            ? tx("Voltooid", "Completed")
+                            : tx("Bezig", "In progress")}
+                        </Badge>
+                      </div>
+                      {s.dayName && (
+                        <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                          {s.dayName}
+                        </p>
+                      )}
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {s.setCount} {tx("sets gelogd", "sets logged")}
+                      </p>
+                    </div>
+                  </div>
+                  {clientId && (
+                    <Button asChild size="sm" className="w-full gap-1.5">
+                      <Link to={`/clients/${clientId}/sessions/${s.sessionId}`}>
+                        <Eye className="h-3.5 w-3.5" />
+                        {tx("Bekijk training", "View workout")}
+                      </Link>
+                    </Button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -104,7 +197,6 @@ export function WorkoutDayDetailsDialog({ open, onOpenChange, date, occurrences,
           <div className="space-y-5">
             {occurrences.map((occ) => {
               const days = planDays[occ.planId] ?? [];
-              // Cycle through plan days based on occurrence number
               const dayForToday =
                 days.length > 0 ? days[(occ.occurrenceIndex - 1) % days.length] : null;
               return (

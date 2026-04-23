@@ -265,8 +265,8 @@ export function WorkoutActivityCalendar({ assignments, plans, lang, clientId }: 
                 isToday && "ring-2 ring-primary",
                 hasLog
                   ? isCompleted
-                    ? "bg-green-500/15 border-green-500/50 hover:bg-green-500/25"
-                    : "bg-amber-500/15 border-amber-500/50 hover:bg-amber-500/25"
+                    ? "bg-primary text-primary-foreground border-primary hover:bg-primary/90"
+                    : "bg-primary/15 border-primary border-dashed hover:bg-primary/25"
                   : hasPlan
                   ? "bg-primary/10 border-primary/40 hover:bg-primary/20"
                   : "bg-card border-border"
@@ -275,11 +275,9 @@ export function WorkoutActivityCalendar({ assignments, plans, lang, clientId }: 
               <span
                 className={cn(
                   "font-medium",
-                  hasLog
-                    ? isCompleted
-                      ? "text-green-700 dark:text-green-400"
-                      : "text-amber-700 dark:text-amber-400"
-                    : hasPlan && "text-primary"
+                  hasLog && isCompleted
+                    ? "text-primary-foreground"
+                    : (hasLog || hasPlan) && "text-primary"
                 )}
               >
                 {d.getDate()}
@@ -290,9 +288,7 @@ export function WorkoutActivityCalendar({ assignments, plans, lang, clientId }: 
                     <CheckCircle2
                       className={cn(
                         "h-3 w-3",
-                        isCompleted
-                          ? "text-green-600 dark:text-green-400"
-                          : "text-amber-600 dark:text-amber-400"
+                        isCompleted ? "text-primary-foreground" : "text-primary"
                       )}
                     />
                   ) : (
@@ -302,10 +298,8 @@ export function WorkoutActivityCalendar({ assignments, plans, lang, clientId }: 
                     <span
                       className={cn(
                         "text-[10px] font-semibold",
-                        hasLog
-                          ? isCompleted
-                            ? "text-green-700 dark:text-green-400"
-                            : "text-amber-700 dark:text-amber-400"
+                        hasLog && isCompleted
+                          ? "text-primary-foreground"
                           : "text-primary"
                       )}
                     >
@@ -325,11 +319,11 @@ export function WorkoutActivityCalendar({ assignments, plans, lang, clientId }: 
           {tx("Gepland", "Planned")}
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="inline-block h-3 w-3 rounded-sm bg-amber-500/20 border border-amber-500/50" />
+          <span className="inline-block h-3 w-3 rounded-sm bg-primary/15 border border-dashed border-primary" />
           {tx("Bezig", "In progress")}
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="inline-block h-3 w-3 rounded-sm bg-green-500/20 border border-green-500/50" />
+          <span className="inline-block h-3 w-3 rounded-sm bg-primary border-primary" />
           {tx("Voltooid", "Completed")}
         </div>
         <div className="flex items-center gap-1.5">
