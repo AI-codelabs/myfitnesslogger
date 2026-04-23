@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Sparkles, CheckCircle2, AlertTriangle, Target, ChevronDown } from "lucide-react";
 
 interface Msg {
