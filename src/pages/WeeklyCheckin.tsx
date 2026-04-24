@@ -8,10 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Loader2, ArrowLeft, Star, Check, Link2 } from "lucide-react";
+import { Loader2, ArrowLeft, Star, Check, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { formatWeekStart } from "@/lib/weeklyCheckin";
 import { CronometerConnectDialog } from "@/components/CronometerConnectDialog";
+import { syncCronometer } from "@/lib/cronometer";
 
 type Form = {
   training_count: string;
