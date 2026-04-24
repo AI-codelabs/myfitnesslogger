@@ -442,6 +442,19 @@ const ClientProfile = () => {
               }}
             />
           ))}
+
+          {nutrition?.details?.calories && (
+            <NutritionWeeklyOverview
+              lang={lang}
+              logs={nutritionLogs}
+              targets={{
+                calories: nutrition.details.calories,
+                protein_g: nutrition.details.protein_g,
+                carbs_g: nutrition.details.carbs_g,
+                fat_g: nutrition.details.fat_g,
+              }}
+            />
+          )}
         </TabsContent>
       </Tabs>
     </div>
