@@ -388,7 +388,7 @@ export default function WeeklyCheckin() {
             <div className="space-y-1">
               <Label className="block text-sm font-medium">Wekelijks voedingsoverzicht</Label>
               <p className="text-xs text-muted-foreground">
-                Eén klik haalt automatisch je laatste voedingsdata uit Cronometer op — geen dagelijkse logging nodig.
+                Eén klik haalt automatisch je laatste voedingsdata uit Cronometer op.
               </p>
             </div>
             {cronoSynced ? (
