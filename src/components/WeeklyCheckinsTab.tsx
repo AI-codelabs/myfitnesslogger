@@ -223,18 +223,34 @@ export function WeeklyCheckinsTab({ clientId, lang }: Props) {
   const t: T = (nl, en) => (lang === "nl" ? nl : en);
   const [items, setItems] = useState<Checkin[]>([]);
   const [loading, setLoading] = useState(true);
+  const [primaryGoal, setPrimaryGoal] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase
-        .from("weekly_checkins")
-        .select("*")
-        .eq("client_id", clientId)
-        .order("week_start", { ascending: false });
-      setItems((data ?? []) as Checkin[]);
+      const [{ data: checkins }, { data: onboarding }] = await Promise.all([
+        supabase
+          .from("weekly_checkins")
+          .select("*")
+          .eq("client_id", clientId)
+          .order("week_start", { ascending: false }),
+        supabase
+          .from("onboarding_responses")
+          .select("primary_goal")
+          .eq("user_id", clientId)
+          .maybeSingle(),
+      ]);
+      setItems((checkins ?? []) as Checkin[]);
+      setPrimaryGoal(onboarding?.primary_goal ?? null);
       setLoading(false);
     })();
   }, [clientId]);
+
+  // Goal-aware weight direction:
+  //  - cut → losing weight is good (positiveDown = true)
+  //  - muscle → gaining weight is good (positiveDown = false)
+  //  - energy / combo / unknown → neutral (no good/bad coloring)
+  const weightPositiveDown = primaryGoal === "cut";
+  const weightNeutral = primaryGoal !== "cut" && primaryGoal !== "muscle";
 
   const latest = items[0];
   const previous = items[1];
