@@ -142,7 +142,7 @@ export function WeeklyReviewTab({ clientId, coachId, lang }: Props) {
       .eq("client_id", clientId)
       .eq("coach_id", coachId)
       .order("week_start", { ascending: false });
-    const list = (data ?? []) as Draft[];
+    const list = (data ?? []) as unknown as Draft[];
     setDrafts(list);
     if (list.length > 0 && !selectedId) {
       setSelectedId(list[0].id);
