@@ -167,35 +167,49 @@ export const NutritionWeeklyOverview = ({ lang, logs, targets }: Props) => {
           </Button>
         </div>
 
-        {/* Chart */}
+        {/* Chart — y-axis goes up to 150%; 100% gridline at 2/3 height */}
         <div className="relative">
-          <div className="absolute right-0 -top-4 text-[10px] text-muted-foreground">100%</div>
-          <div className="border-t border-border absolute left-0 right-0 top-0" />
-          <div className="grid grid-cols-7 gap-1 sm:gap-3 pt-1">
-            {days.map(({ date, key }) => {
-              const log = logByDate.get(key);
-              const bars = [
-                { color: COLORS.calories, h: log ? pct(log.calories, targets.calories) : 0 },
-                { color: COLORS.protein, h: log ? pct(log.protein_g, targets.protein_g) : 0 },
-                { color: COLORS.carbs, h: log ? pct(log.carbs_g, targets.carbs_g) : 0 },
-                { color: COLORS.fat, h: log ? pct(log.fat_g, targets.fat_g) : 0 },
-              ];
-              const isToday = key === new Date().toISOString().slice(0, 10);
-              return (
-                <div key={key} className="flex flex-col items-center min-w-0">
-                  <div className="w-full h-40 flex items-end justify-center gap-[2px] sm:gap-[3px]">
+          <div className="relative h-40">
+            {/* 100% gridline at 33.33% from top (i.e. 66.66% bar height) */}
+            <div className="absolute left-0 right-0 border-t border-dashed border-border" style={{ top: "33.33%" }} />
+            <div className="absolute right-0 text-[10px] text-muted-foreground" style={{ top: "calc(33.33% - 14px)" }}>
+              100%
+            </div>
+            <div className="absolute inset-0 grid grid-cols-7 gap-1 sm:gap-3">
+              {days.map(({ date, key }) => {
+                const log = logByDate.get(key);
+                const bars = [
+                  { color: COLORS.calories, h: log ? pct(log.calories, targets.calories) : 0 },
+                  { color: COLORS.protein, h: log ? pct(log.protein_g, targets.protein_g) : 0 },
+                  { color: COLORS.carbs, h: log ? pct(log.carbs_g, targets.carbs_g) : 0 },
+                  { color: COLORS.fat, h: log ? pct(log.fat_g, targets.fat_g) : 0 },
+                ];
+                return (
+                  <div key={key} className="h-full flex items-end justify-center gap-[2px] sm:gap-[3px]">
                     {bars.map((b, i) => (
                       <div
                         key={i}
                         className="w-1 sm:w-2 rounded-sm transition-all"
                         style={{
-                          height: `${Math.min(100, b.h)}%`,
+                          // scale: 150% value = 100% of container height
+                          height: `${(Math.min(150, b.h) / 150) * 100}%`,
                           background: b.color,
                           opacity: log ? 1 : 0.25,
                         }}
                       />
                     ))}
                   </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Day labels row */}
+          <div className="grid grid-cols-7 gap-1 sm:gap-3 mt-2">
+            {days.map(({ date, key }) => {
+              const isToday = key === new Date().toISOString().slice(0, 10);
+              return (
+                <div key={key} className="flex flex-col items-center min-w-0">
                   <p
                     className={`mt-2 text-[10px] sm:text-xs font-semibold truncate max-w-full ${
                       isToday ? "text-primary" : "text-foreground"
