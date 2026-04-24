@@ -114,6 +114,7 @@ function Delta({
   decimals = 1,
   suffix = "",
   positiveDown = false,
+  neutral = false,
 }: {
   current: number | null;
   previous: number | null;
