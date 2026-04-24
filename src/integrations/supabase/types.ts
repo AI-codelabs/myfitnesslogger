@@ -764,6 +764,66 @@ export type Database = {
         }
         Relationships: []
       }
+      weekly_review_drafts: {
+        Row: {
+          applied_to_nutrition_at: string | null
+          checkin_id: string | null
+          client_actions: string[]
+          client_attention: string[]
+          client_id: string
+          client_positive: string[]
+          coach_id: string
+          created_at: string
+          generated_at: string | null
+          id: string
+          insights: Json
+          published_at: string | null
+          suggested_adjustments: Json
+          updated_at: string
+          voice_memo: string
+          voice_memo_recorded_at: string | null
+          week_start: string
+        }
+        Insert: {
+          applied_to_nutrition_at?: string | null
+          checkin_id?: string | null
+          client_actions?: string[]
+          client_attention?: string[]
+          client_id: string
+          client_positive?: string[]
+          coach_id: string
+          created_at?: string
+          generated_at?: string | null
+          id?: string
+          insights?: Json
+          published_at?: string | null
+          suggested_adjustments?: Json
+          updated_at?: string
+          voice_memo?: string
+          voice_memo_recorded_at?: string | null
+          week_start: string
+        }
+        Update: {
+          applied_to_nutrition_at?: string | null
+          checkin_id?: string | null
+          client_actions?: string[]
+          client_attention?: string[]
+          client_id?: string
+          client_positive?: string[]
+          coach_id?: string
+          created_at?: string
+          generated_at?: string | null
+          id?: string
+          insights?: Json
+          published_at?: string | null
+          suggested_adjustments?: Json
+          updated_at?: string
+          voice_memo?: string
+          voice_memo_recorded_at?: string | null
+          week_start?: string
+        }
+        Relationships: []
+      }
       workout_plan_days: {
         Row: {
           created_at: string
