@@ -50,8 +50,10 @@ function fmtDate(d: Date, lang: Lang) {
   });
 }
 
-function dayLabel(d: Date, lang: Lang) {
-  return d.toLocaleDateString(lang === "nl" ? "nl-NL" : "en-US", { weekday: "long" });
+function dayLabel(d: Date, lang: Lang, short = false) {
+  return d.toLocaleDateString(lang === "nl" ? "nl-NL" : "en-US", {
+    weekday: short ? "short" : "long",
+  });
 }
 
 const COLORS = {
@@ -169,7 +171,7 @@ export const NutritionWeeklyOverview = ({ lang, logs, targets }: Props) => {
         <div className="relative">
           <div className="absolute right-0 -top-4 text-[10px] text-muted-foreground">100%</div>
           <div className="border-t border-border absolute left-0 right-0 top-0" />
-          <div className="grid grid-cols-7 gap-2 sm:gap-3 pt-1">
+          <div className="grid grid-cols-7 gap-1 sm:gap-3 pt-1">
             {days.map(({ date, key }) => {
               const log = logByDate.get(key);
               const bars = [
@@ -180,12 +182,12 @@ export const NutritionWeeklyOverview = ({ lang, logs, targets }: Props) => {
               ];
               const isToday = key === new Date().toISOString().slice(0, 10);
               return (
-                <div key={key} className="flex flex-col items-center">
-                  <div className="w-full h-40 flex items-end justify-center gap-[3px]">
+                <div key={key} className="flex flex-col items-center min-w-0">
+                  <div className="w-full h-40 flex items-end justify-center gap-[2px] sm:gap-[3px]">
                     {bars.map((b, i) => (
                       <div
                         key={i}
-                        className="w-1.5 sm:w-2 rounded-sm transition-all"
+                        className="w-1 sm:w-2 rounded-sm transition-all"
                         style={{
                           height: `${Math.min(100, b.h)}%`,
                           background: b.color,
@@ -195,13 +197,16 @@ export const NutritionWeeklyOverview = ({ lang, logs, targets }: Props) => {
                     ))}
                   </div>
                   <p
-                    className={`mt-2 text-xs font-semibold ${
+                    className={`mt-2 text-[10px] sm:text-xs font-semibold truncate max-w-full ${
                       isToday ? "text-primary" : "text-foreground"
                     } capitalize`}
                   >
-                    {dayLabel(date, lang)}
+                    <span className="sm:hidden">{dayLabel(date, lang, true)}</span>
+                    <span className="hidden sm:inline">{dayLabel(date, lang)}</span>
                   </p>
-                  <p className="text-[10px] text-muted-foreground">{fmtDate(date, lang)}</p>
+                  <p className="text-[9px] sm:text-[10px] text-muted-foreground whitespace-nowrap">
+                    {fmtDate(date, lang)}
+                  </p>
                 </div>
               );
             })}
