@@ -95,7 +95,7 @@ const ClientNutrition = () => {
   }
 
   return (
-    <div className="container max-w-4xl py-6 space-y-4">
+    <div className="container max-w-6xl py-6 space-y-4">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
           {t("Voeding", "Nutrition")}
