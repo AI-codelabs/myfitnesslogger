@@ -335,8 +335,6 @@ export default function WeeklyCheckin() {
 
         {/* VOEDING */}
         <Section title="Voeding">
-        {/* VOEDING */}
-        <Section title="Voeding">
           <div className="space-y-2">
             <Label>Cronometer</Label>
             {cronoConnected ? (
