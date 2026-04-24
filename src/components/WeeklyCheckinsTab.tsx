@@ -385,9 +385,16 @@ export function WeeklyCheckinsTab({ clientId, lang }: Props) {
           value={latest.weight_kg}
           unit="kg"
           delta={
-            <Delta current={latest.weight_kg} previous={previous?.weight_kg ?? null} decimals={1} suffix=" kg" positiveDown />
+            <Delta
+              current={latest.weight_kg}
+              previous={previous?.weight_kg ?? null}
+              decimals={1}
+              suffix=" kg"
+              positiveDown={weightPositiveDown}
+              neutral={weightNeutral}
+            />
           }
-          spark={<Sparkline values={sparkSeries.weight} positiveDown />}
+          spark={<Sparkline values={sparkSeries.weight} positiveDown={weightPositiveDown} neutral={weightNeutral} />}
         />
         <KpiTile
           icon={Heart}
