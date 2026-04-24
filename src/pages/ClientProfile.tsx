@@ -26,6 +26,7 @@ import { ClientWorkouts } from "@/components/ClientWorkouts";
 import { CoachMessageTab } from "@/components/CoachMessageTab";
 import { WeeklyCheckinsTab } from "@/components/WeeklyCheckinsTab";
 import { ClientProgressionTab } from "@/components/ClientProgressionTab";
+import { NutritionWeeklyOverview, DailyLog } from "@/components/NutritionWeeklyOverview";
 
 const ClientProfile = () => {
   const { clientId } = useParams<{ clientId: string }>();
@@ -39,6 +40,7 @@ const ClientProfile = () => {
   const [nutrition, setNutrition] = useState<any>(null);
   const [editingNutrition, setEditingNutrition] = useState(false);
   const [coachId, setCoachId] = useState<string | null>(null);
+  const [nutritionLogs, setNutritionLogs] = useState<DailyLog[]>([]);
 
   const updateStatus = async (status: "active" | "inactive") => {
     if (!invite) return;
@@ -83,7 +85,7 @@ const ClientProfile = () => {
       setLoading(true);
       const { data: u } = await supabase.auth.getUser();
       setCoachId(u.user?.id ?? null);
-      const [invQ, respQ, nutQ] = await Promise.all([
+      const [invQ, respQ, nutQ, logsQ] = await Promise.all([
         supabase
           .from("invitations")
           .select("id, email, status, accepted_at, created_at")
@@ -99,10 +101,17 @@ const ClientProfile = () => {
           .select("*")
           .eq("client_id", clientId)
           .maybeSingle(),
+        supabase
+          .from("cronometer_nutrition_logs")
+          .select("log_date, calories, protein_g, carbs_g, fat_g")
+          .eq("client_id", clientId)
+          .order("log_date", { ascending: false })
+          .limit(60),
       ]);
       setInvite(invQ.data);
       setResponse(respQ.data);
       setNutrition(nutQ.data);
+      setNutritionLogs((logsQ.data as DailyLog[]) || []);
       setLoading(false);
 
       // Sign URLs for any uploaded photos
@@ -433,6 +442,19 @@ const ClientProfile = () => {
               }}
             />
           ))}
+
+          {nutrition?.details?.calories && (
+            <NutritionWeeklyOverview
+              lang={lang}
+              logs={nutritionLogs}
+              targets={{
+                calories: nutrition.details.calories,
+                protein_g: nutrition.details.protein_g,
+                carbs_g: nutrition.details.carbs_g,
+                fat_g: nutrition.details.fat_g,
+              }}
+            />
+          )}
         </TabsContent>
       </Tabs>
     </div>
