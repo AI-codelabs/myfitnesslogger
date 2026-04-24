@@ -8,10 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Loader2, ArrowLeft, Star, Check, Link2 } from "lucide-react";
+import { Loader2, ArrowLeft, Star, Check, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { formatWeekStart } from "@/lib/weeklyCheckin";
 import { CronometerConnectDialog } from "@/components/CronometerConnectDialog";
+import { syncCronometer } from "@/lib/cronometer";
 
 type Form = {
   training_count: string;
@@ -157,6 +158,34 @@ export default function WeeklyCheckin() {
   const [saving, setSaving] = useState(false);
   const [cronoConnected, setCronoConnected] = useState<boolean | null>(null);
   const [cronoDialogOpen, setCronoDialogOpen] = useState(false);
+  const [cronoSyncing, setCronoSyncing] = useState(false);
+  const [cronoSynced, setCronoSynced] = useState(false);
+
+  const handleCronoSync = async () => {
+    if (!cronoConnected) {
+      setCronoDialogOpen(true);
+      return;
+    }
+    setCronoSyncing(true);
+    const res = await syncCronometer();
+    setCronoSyncing(false);
+    if (!res.success) {
+      if (res.sessionExpired || res.error === "no_session") {
+        setCronoConnected(false);
+        setCronoDialogOpen(true);
+        toast.error("Cronometer-sessie verlopen. Verbind opnieuw.");
+        return;
+      }
+      toast.error(res.error || "Synchroniseren mislukt");
+      return;
+    }
+    setCronoSynced(true);
+    toast.success(
+      res.upToDate
+        ? "Voedingsdata is al up-to-date"
+        : `Voedingsdata gesynchroniseerd (${res.daysSynced ?? 0} dagen)`,
+    );
+  };
 
   const checkCrono = async (uid: string) => {
     const { data } = await supabase
@@ -336,28 +365,6 @@ export default function WeeklyCheckin() {
         {/* VOEDING */}
         <Section title="Voeding">
           <div className="space-y-2">
-            <Label>Cronometer</Label>
-            {cronoConnected ? (
-              <Button type="button" variant="outline" disabled className="gap-2">
-                <Check className="h-4 w-4 text-primary" />
-                Cronometer verbonden
-              </Button>
-            ) : (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setCronoDialogOpen(true)}
-                className="gap-2"
-              >
-                <Link2 className="h-4 w-4" />
-                Verbind Cronometer
-              </Button>
-            )}
-            <p className="text-xs text-muted-foreground">
-              Verbind je account zodat je voedingsdata automatisch wordt gesynchroniseerd.
-            </p>
-          </div>
-          <div className="space-y-2">
             <Label>Hoe goed heb je het voedingsschema gevolgd?</Label>
             <StarRow value={form.nutrition_stars} onChange={(v) => set("nutrition_stars", v)} />
           </div>
@@ -376,6 +383,33 @@ export default function WeeklyCheckin() {
               onChange={(e) => set("cravings", e.target.value)}
               rows={2}
             />
+          </div>
+          <div className="pt-2 border-t space-y-2">
+            <Label>Wekelijks voedingsoverzicht</Label>
+            {cronoSynced ? (
+              <Button type="button" variant="outline" disabled className="gap-2">
+                <Check className="h-4 w-4 text-primary" />
+                Voedingsoverzicht gelogd
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCronoSync}
+                disabled={cronoSyncing}
+                className="gap-2"
+              >
+                {cronoSyncing ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
+                Log wekelijks voedingsoverzicht
+              </Button>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Eén klik haalt automatisch je laatste voedingsdata uit Cronometer op — geen dagelijkse logging nodig.
+            </p>
           </div>
         </Section>
 
