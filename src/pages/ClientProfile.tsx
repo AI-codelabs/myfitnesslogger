@@ -25,6 +25,7 @@ import { NutritionWizard } from "@/components/NutritionWizard";
 import { ClientWorkouts } from "@/components/ClientWorkouts";
 import { CoachMessageTab } from "@/components/CoachMessageTab";
 import { WeeklyCheckinsTab } from "@/components/WeeklyCheckinsTab";
+import { WeeklyReviewTab } from "@/components/WeeklyReviewTab";
 import { ClientProgressionTab } from "@/components/ClientProgressionTab";
 import { NutritionWeeklyOverview, DailyLog } from "@/components/NutritionWeeklyOverview";
 
@@ -266,6 +267,7 @@ const ClientProfile = () => {
           <TabsTrigger value="progression">{lang === "nl" ? "Progressie" : "Progress"}</TabsTrigger>
           <TabsTrigger value="message">{lang === "nl" ? "Bericht" : "Message"}</TabsTrigger>
           <TabsTrigger value="checkins">{lang === "nl" ? "Check-ins" : "Check-ins"}</TabsTrigger>
+          <TabsTrigger value="review">{lang === "nl" ? "Review" : "Review"}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="message" className="mt-4">
@@ -276,6 +278,12 @@ const ClientProfile = () => {
 
         <TabsContent value="checkins" className="mt-4">
           {clientId ? <WeeklyCheckinsTab clientId={clientId} lang={lang} /> : null}
+        </TabsContent>
+
+        <TabsContent value="review" className="mt-4">
+          {coachId && clientId ? (
+            <WeeklyReviewTab clientId={clientId} coachId={coachId} lang={lang} />
+          ) : null}
         </TabsContent>
 
         <TabsContent value="progression" className="mt-4">
