@@ -7,6 +7,7 @@ import { Loader2, RefreshCw, Plug, AlertTriangle } from "lucide-react";
 import { Lang } from "@/lib/onboardingSchema";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import { CronometerConnectDialog } from "@/components/CronometerConnectDialog";
+import { NutritionWeeklyOverview } from "@/components/NutritionWeeklyOverview";
 import { hasCronometerSession, syncCronometer } from "@/lib/cronometer";
 import { toast } from "sonner";
 
@@ -154,39 +155,17 @@ const ClientNutrition = () => {
         </div>
       </Card>
 
-      {/* Recent daily logs */}
-      {logs.length > 0 && (
-        <Card className="p-4 sm:p-5 space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold">{t("Recente dagen", "Recent days")}</h3>
-            <span className="text-xs text-muted-foreground">
-              {t("Laatste 14 dagen", "Last 14 days")}
-            </span>
-          </div>
-          <div className="divide-y">
-            {logs.map((log) => (
-              <div key={log.id} className="py-2.5 flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-medium">
-                    {new Date(log.log_date).toLocaleDateString(lang === "nl" ? "nl-NL" : "en-US", {
-                      weekday: "short",
-                      day: "numeric",
-                      month: "short",
-                    })}
-                  </p>
-                  <p className="text-xs text-muted-foreground tabular-nums">
-                    P {Math.round(log.protein_g)}g · C {Math.round(log.carbs_g)}g · F{" "}
-                    {Math.round(log.fat_g)}g
-                  </p>
-                </div>
-                <p className="text-sm font-semibold tabular-nums">
-                  {Math.round(log.calories)} kcal
-                </p>
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
+      {/* Weekly overview */}
+      <NutritionWeeklyOverview
+        lang={lang}
+        logs={logs}
+        targets={{
+          calories: nutrition?.details?.calories ?? null,
+          protein_g: nutrition?.details?.protein_g ?? null,
+          carbs_g: nutrition?.details?.carbs_g ?? null,
+          fat_g: nutrition?.details?.fat_g ?? null,
+        }}
+      />
 
       {!nutrition || !nutrition.completed_at ? (
         <Card className="p-8 text-center text-sm text-muted-foreground">
