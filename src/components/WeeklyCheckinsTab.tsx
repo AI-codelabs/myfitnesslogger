@@ -120,6 +120,7 @@ function Delta({
   decimals?: number;
   suffix?: string;
   positiveDown?: boolean;
+  neutral?: boolean;
 }) {
   if (current == null || previous == null) {
     return <span className="text-xs text-muted-foreground">—</span>;
@@ -138,7 +139,11 @@ function Delta({
     <span
       className={cn(
         "inline-flex items-center gap-1 text-xs font-medium",
-        isGood ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400",
+        neutral
+          ? "text-muted-foreground"
+          : isGood
+            ? "text-emerald-600 dark:text-emerald-400"
+            : "text-rose-600 dark:text-rose-400",
       )}
     >
       <Icon className="h-3 w-3" />
