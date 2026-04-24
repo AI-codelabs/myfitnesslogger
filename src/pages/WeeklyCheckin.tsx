@@ -155,6 +155,21 @@ export default function WeeklyCheckin() {
   const [form, setForm] = useState<Form>(empty);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [cronoConnected, setCronoConnected] = useState<boolean | null>(null);
+  const [cronoDialogOpen, setCronoDialogOpen] = useState(false);
+
+  const checkCrono = async (uid: string) => {
+    const { data } = await supabase
+      .from("cronometer_sessions")
+      .select("id")
+      .eq("client_id", uid)
+      .maybeSingle();
+    setCronoConnected(!!data);
+  };
+
+  useEffect(() => {
+    if (user) checkCrono(user.id);
+  }, [user]);
 
   const weekStart = formatWeekStart();
 
