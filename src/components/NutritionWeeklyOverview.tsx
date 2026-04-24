@@ -126,10 +126,12 @@ export const NutritionWeeklyOverview = ({ lang, logs, targets }: Props) => {
       : null;
 
   const evaluation = (score: number) => {
-    if (score >= 85) return t("Uitstekend", "Excellent");
-    if (score >= 70) return t("Goed", "Good");
-    if (score >= 50) return t("Redelijk", "Fair");
-    return t("Kan beter", "Needs work");
+    if (score >= 90) return t("Uitstekend", "Excellent");
+    if (score >= 75) return t("Goed", "Good");
+    if (score >= 60) return t("Voldoende", "Decent");
+    if (score >= 40) return t("Matig", "Mediocre");
+    if (score >= 20) return t("Onvoldoende", "Poor");
+    return t("Moet beter", "Needs improvement");
   };
 
   const weekNum = isoWeekNumber(weekStart);
