@@ -8,9 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Loader2, ArrowLeft, Star } from "lucide-react";
+import { Loader2, ArrowLeft, Star, Check, Link2 } from "lucide-react";
 import { toast } from "sonner";
 import { formatWeekStart } from "@/lib/weeklyCheckin";
+import { CronometerConnectDialog } from "@/components/CronometerConnectDialog";
 
 type Form = {
   training_count: string;
@@ -154,6 +155,21 @@ export default function WeeklyCheckin() {
   const [form, setForm] = useState<Form>(empty);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [cronoConnected, setCronoConnected] = useState<boolean | null>(null);
+  const [cronoDialogOpen, setCronoDialogOpen] = useState(false);
+
+  const checkCrono = async (uid: string) => {
+    const { data } = await supabase
+      .from("cronometer_sessions")
+      .select("id")
+      .eq("client_id", uid)
+      .maybeSingle();
+    setCronoConnected(!!data);
+  };
+
+  useEffect(() => {
+    if (user) checkCrono(user.id);
+  }, [user]);
 
   const weekStart = formatWeekStart();
 
@@ -319,6 +335,28 @@ export default function WeeklyCheckin() {
 
         {/* VOEDING */}
         <Section title="Voeding">
+          <div className="space-y-2">
+            <Label>Cronometer</Label>
+            {cronoConnected ? (
+              <Button type="button" variant="outline" disabled className="gap-2">
+                <Check className="h-4 w-4 text-primary" />
+                Cronometer verbonden
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setCronoDialogOpen(true)}
+                className="gap-2"
+              >
+                <Link2 className="h-4 w-4" />
+                Verbind Cronometer
+              </Button>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Verbind je account zodat je voedingsdata automatisch wordt gesynchroniseerd.
+            </p>
+          </div>
           <div className="space-y-2">
             <Label>Hoe goed heb je het voedingsschema gevolgd?</Label>
             <StarRow value={form.nutrition_stars} onChange={(v) => set("nutrition_stars", v)} />
@@ -493,6 +531,11 @@ export default function WeeklyCheckin() {
           </Button>
         </div>
       </div>
+      <CronometerConnectDialog
+        open={cronoDialogOpen}
+        onOpenChange={setCronoDialogOpen}
+        onConnected={() => user && checkCrono(user.id)}
+      />
     </div>
   );
 }
