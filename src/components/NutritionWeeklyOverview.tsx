@@ -211,7 +211,7 @@ export const NutritionWeeklyOverview = ({ lang, logs, targets }: Props) => {
               return (
                 <div key={key} className="flex flex-col items-center min-w-0">
                   <p
-                    className={`mt-2 text-[10px] sm:text-xs font-semibold truncate max-w-full ${
+                    className={`text-[10px] sm:text-xs font-semibold truncate max-w-full ${
                       isToday ? "text-primary" : "text-foreground"
                     } capitalize`}
                   >
