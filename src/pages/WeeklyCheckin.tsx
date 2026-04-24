@@ -531,6 +531,11 @@ export default function WeeklyCheckin() {
           </Button>
         </div>
       </div>
+      <CronometerConnectDialog
+        open={cronoDialogOpen}
+        onOpenChange={setCronoDialogOpen}
+        onConnected={() => user && checkCrono(user.id)}
+      />
     </div>
   );
 }
