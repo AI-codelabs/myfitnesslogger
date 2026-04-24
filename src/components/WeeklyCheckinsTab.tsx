@@ -76,7 +76,15 @@ function sleepValue(c: Checkin) {
 
 /* ---------- atomic UI ---------- */
 
-function Sparkline({ values, positiveDown = false }: { values: Array<number | null>; positiveDown?: boolean }) {
+function Sparkline({
+  values,
+  positiveDown = false,
+  neutral = false,
+}: {
+  values: Array<number | null>;
+  positiveDown?: boolean;
+  neutral?: boolean;
+}) {
   const clean = values.map((v) => (v == null ? null : Number(v)));
   const nums = clean.filter((v): v is number => v != null);
   if (nums.length < 2) {
@@ -95,8 +103,9 @@ function Sparkline({ values, positiveDown = false }: { values: Array<number | nu
   const last = nums[nums.length - 1];
   const first = nums[0];
   const trendingUp = last > first;
-  const stroke =
-    last === first
+  const stroke = neutral
+    ? "hsl(var(--muted-foreground))"
+    : last === first
       ? "hsl(var(--muted-foreground))"
       : (trendingUp && !positiveDown) || (!trendingUp && positiveDown)
         ? "hsl(var(--primary))"
