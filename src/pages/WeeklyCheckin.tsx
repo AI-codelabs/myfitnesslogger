@@ -158,6 +158,34 @@ export default function WeeklyCheckin() {
   const [saving, setSaving] = useState(false);
   const [cronoConnected, setCronoConnected] = useState<boolean | null>(null);
   const [cronoDialogOpen, setCronoDialogOpen] = useState(false);
+  const [cronoSyncing, setCronoSyncing] = useState(false);
+  const [cronoSynced, setCronoSynced] = useState(false);
+
+  const handleCronoSync = async () => {
+    if (!cronoConnected) {
+      setCronoDialogOpen(true);
+      return;
+    }
+    setCronoSyncing(true);
+    const res = await syncCronometer();
+    setCronoSyncing(false);
+    if (!res.success) {
+      if (res.sessionExpired || res.error === "no_session") {
+        setCronoConnected(false);
+        setCronoDialogOpen(true);
+        toast.error("Cronometer-sessie verlopen. Verbind opnieuw.");
+        return;
+      }
+      toast.error(res.error || "Synchroniseren mislukt");
+      return;
+    }
+    setCronoSynced(true);
+    toast.success(
+      res.upToDate
+        ? "Voedingsdata is al up-to-date"
+        : `Voedingsdata gesynchroniseerd (${res.daysSynced ?? 0} dagen)`,
+    );
+  };
 
   const checkCrono = async (uid: string) => {
     const { data } = await supabase
