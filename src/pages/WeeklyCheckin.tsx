@@ -335,6 +335,30 @@ export default function WeeklyCheckin() {
 
         {/* VOEDING */}
         <Section title="Voeding">
+        {/* VOEDING */}
+        <Section title="Voeding">
+          <div className="space-y-2">
+            <Label>Cronometer</Label>
+            {cronoConnected ? (
+              <Button type="button" variant="outline" disabled className="gap-2">
+                <Check className="h-4 w-4 text-primary" />
+                Cronometer verbonden
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setCronoDialogOpen(true)}
+                className="gap-2"
+              >
+                <Link2 className="h-4 w-4" />
+                Verbind Cronometer
+              </Button>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Verbind je account zodat je voedingsdata automatisch wordt gesynchroniseerd.
+            </p>
+          </div>
           <div className="space-y-2">
             <Label>Hoe goed heb je het voedingsschema gevolgd?</Label>
             <StarRow value={form.nutrition_stars} onChange={(v) => set("nutrition_stars", v)} />
