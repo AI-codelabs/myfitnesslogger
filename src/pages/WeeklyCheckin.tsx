@@ -384,10 +384,15 @@ export default function WeeklyCheckin() {
               rows={2}
             />
           </div>
-          <div className="pt-2 border-t space-y-2">
-            <Label>Wekelijks voedingsoverzicht</Label>
+          <div className="pt-4 mt-2 border-t space-y-3">
+            <div className="space-y-1">
+              <Label className="block text-sm font-medium">Wekelijks voedingsoverzicht</Label>
+              <p className="text-xs text-muted-foreground">
+                Eén klik haalt automatisch je laatste voedingsdata uit Cronometer op — geen dagelijkse logging nodig.
+              </p>
+            </div>
             {cronoSynced ? (
-              <Button type="button" variant="outline" disabled className="gap-2">
+              <Button type="button" variant="outline" disabled className="w-full sm:w-auto gap-2">
                 <Check className="h-4 w-4 text-primary" />
                 Voedingsoverzicht gelogd
               </Button>
@@ -397,7 +402,7 @@ export default function WeeklyCheckin() {
                 variant="outline"
                 onClick={handleCronoSync}
                 disabled={cronoSyncing}
-                className="gap-2"
+                className="w-full sm:w-auto gap-2"
               >
                 {cronoSyncing ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -407,9 +412,6 @@ export default function WeeklyCheckin() {
                 Log wekelijks voedingsoverzicht
               </Button>
             )}
-            <p className="text-xs text-muted-foreground">
-              Eén klik haalt automatisch je laatste voedingsdata uit Cronometer op — geen dagelijkse logging nodig.
-            </p>
           </div>
         </Section>
 
