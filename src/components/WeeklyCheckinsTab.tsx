@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import {
@@ -7,8 +7,23 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Loader2, ClipboardCheck, Star } from "lucide-react";
+import {
+  Loader2,
+  ClipboardCheck,
+  Star,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  Scale as ScaleIcon,
+  Heart,
+  Zap,
+  Dumbbell,
+  Utensils,
+  Moon,
+  Droplet,
+} from "lucide-react";
 import { formatHumanDate } from "@/lib/weeklyCheckin";
+import { cn } from "@/lib/utils";
 
 interface Props {
   clientId: string;
@@ -42,127 +57,164 @@ type Checkin = {
   other_notes: string | null;
 };
 
-function Field({ label, value }: { label: string; value: React.ReactNode }) {
-  if (value === null || value === undefined || value === "") return null;
+type T = (nl: string, en: string) => string;
+
+/* ---------- helpers ---------- */
+
+function trainingCountValue(c: Checkin) {
+  return c.training_count === "anders" ? c.training_count_other ?? "—" : c.training_count ?? "—";
+}
+function trainingCountNum(c: Checkin): number | null {
+  const v = trainingCountValue(c);
+  const n = parseInt(String(v), 10);
+  return Number.isFinite(n) ? n : null;
+}
+function sleepValue(c: Checkin) {
+  if (c.sleep_cycle === "anders") return c.sleep_cycle_other ?? "—";
+  return c.sleep_cycle ?? "—";
+}
+
+/* ---------- atomic UI ---------- */
+
+function Sparkline({ values, positiveDown = false }: { values: Array<number | null>; positiveDown?: boolean }) {
+  const clean = values.map((v) => (v == null ? null : Number(v)));
+  const nums = clean.filter((v): v is number => v != null);
+  if (nums.length < 2) {
+    return <div className="h-6 w-full" />;
+  }
+  const min = Math.min(...nums);
+  const max = Math.max(...nums);
+  const range = max - min || 1;
+  const w = 80;
+  const h = 24;
+  const step = w / (clean.length - 1);
+  const points = clean
+    .map((v, i) => (v == null ? null : `${(i * step).toFixed(1)},${(h - ((v - min) / range) * h).toFixed(1)}`))
+    .filter(Boolean)
+    .join(" ");
+  const last = nums[nums.length - 1];
+  const first = nums[0];
+  const trendingUp = last > first;
+  const stroke =
+    last === first
+      ? "hsl(var(--muted-foreground))"
+      : (trendingUp && !positiveDown) || (!trendingUp && positiveDown)
+        ? "hsl(var(--primary))"
+        : "hsl(var(--destructive))";
   return (
-    <div className="space-y-0.5">
-      <p className="text-xs uppercase tracking-wide text-muted-foreground font-medium">{label}</p>
-      <p className="text-sm">{value}</p>
-    </div>
+    <svg viewBox={`0 0 ${w} ${h}`} className="h-6 w-20" preserveAspectRatio="none">
+      <polyline fill="none" stroke={stroke} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" points={points} />
+    </svg>
   );
 }
 
-function Stars({ value }: { value: number | null }) {
-  if (!value) return null;
+function Delta({
+  current,
+  previous,
+  decimals = 1,
+  suffix = "",
+  positiveDown = false,
+}: {
+  current: number | null;
+  previous: number | null;
+  decimals?: number;
+  suffix?: string;
+  positiveDown?: boolean;
+}) {
+  if (current == null || previous == null) {
+    return <span className="text-xs text-muted-foreground">—</span>;
+  }
+  const diff = current - previous;
+  if (Math.abs(diff) < (decimals === 0 ? 0.5 : 0.05)) {
+    return (
+      <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+        <Minus className="h-3 w-3" /> 0{suffix}
+      </span>
+    );
+  }
+  const isGood = positiveDown ? diff < 0 : diff > 0;
+  const Icon = diff > 0 ? TrendingUp : TrendingDown;
   return (
-    <div className="flex gap-0.5">
-      {Array.from({ length: 5 }).map((_, i) => (
-        <Star
-          key={i}
-          className={`h-3.5 w-3.5 ${
-            i < value ? "fill-amber-400 text-amber-400" : "text-muted-foreground/30"
-          }`}
-        />
-      ))}
-    </div>
-  );
-}
-
-function Scale({ value }: { value: number | null }) {
-  if (value == null) return null;
-  return (
-    <span className="inline-flex items-center gap-1.5">
-      <span className="font-semibold">{value}</span>
-      <span className="text-muted-foreground">/ 5</span>
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 text-xs font-medium",
+        isGood ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400",
+      )}
+    >
+      <Icon className="h-3 w-3" />
+      {diff > 0 ? "+" : ""}
+      {diff.toFixed(decimals)}
+      {suffix}
     </span>
   );
 }
 
-function CheckinDetails({ c }: { c: Checkin }) {
-  const trainingCount =
-    c.training_count === "anders" ? c.training_count_other ?? "Anders" : c.training_count;
-  const sleepCycle =
-    c.sleep_cycle === "anders"
-      ? c.sleep_cycle_other ?? "Anders"
-      : c.sleep_cycle
-        ? `Gemiddeld ${c.sleep_cycle}`
-        : null;
-
-  const groups: Array<{ title: string; fields: Array<[string, React.ReactNode]> }> = [
-    {
-      title: "Training",
-      fields: [
-        ["Trainingen deze week", trainingCount],
-        ["Intensiteit (RPE)", <Scale value={c.intensity_rpe} />],
-        ["Progressie", <Scale value={c.progression} />],
-      ],
-    },
-    {
-      title: "Voeding",
-      fields: [
-        ["Voedingsschema", <Stars value={c.nutrition_stars} />],
-        ["Afwijkingen", c.nutrition_deviations],
-        ["Cravings / energiedips", c.cravings],
-      ],
-    },
-    {
-      title: "Herstel & slaap",
-      fields: [
-        ["Sleep cycle", sleepCycle],
-        ["Energie overdag", <Scale value={c.energy} />],
-        ["Spierpijn / herstel", <Scale value={c.soreness} />],
-      ],
-    },
-    {
-      title: "Lichaam",
-      fields: [
-        ["Gewicht (kg)", c.weight_kg],
-        ["Metingen", c.measurements],
-        ["Vetpercentage", c.body_fat_pct],
-      ],
-    },
-    {
-      title: "Mentale staat",
-      fields: [
-        ["Gevoel deze week", <Scale value={c.feeling} />],
-        ["Structuur / planning", c.structure_planning],
-        ["Progressiegevoel", c.progress_feeling],
-        ["Belemmeringen", c.obstacles],
-      ],
-    },
-    {
-      title: "Supplementen & overig",
-      fields: [
-        ["Supplementen consistent", <Scale value={c.supplements_consistency} />],
-        ["Hydratatie", <Scale value={c.hydration} />],
-        ["Overige notities", c.other_notes],
-      ],
-    },
-  ];
-
+function KpiTile({
+  icon: Icon,
+  label,
+  value,
+  unit,
+  delta,
+  spark,
+}: {
+  icon: any;
+  label: string;
+  value: React.ReactNode;
+  unit?: string;
+  delta: React.ReactNode;
+  spark: React.ReactNode;
+}) {
   return (
-    <div className="space-y-5 pt-2">
-      {groups.map((g) => {
-        const visible = g.fields.filter(
-          ([, v]) => v !== null && v !== undefined && v !== "",
-        );
-        if (visible.length === 0) return null;
-        return (
-          <div key={g.title} className="space-y-3">
-            <p className="text-sm font-semibold">{g.title}</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {visible.map(([label, value], i) => (
-                <Field key={i} label={label} value={value} />
-              ))}
-            </div>
-          </div>
-        );
-      })}
-    </div>
+    <Card className="p-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5 text-muted-foreground">
+          <Icon className="h-3.5 w-3.5" />
+          <span className="text-[11px] uppercase tracking-wide font-semibold">{label}</span>
+        </div>
+        {spark}
+      </div>
+      <div className="flex items-baseline justify-between gap-2">
+        <div className="flex items-baseline gap-1">
+          <span className="text-xl font-bold tabular-nums">{value ?? "—"}</span>
+          {unit && value != null && <span className="text-xs text-muted-foreground">{unit}</span>}
+        </div>
+        {delta}
+      </div>
+    </Card>
   );
 }
 
+function ScaleCell({ value, max = 5 }: { value: number | null; max?: number }) {
+  if (value == null) return <span className="text-muted-foreground">—</span>;
+  return (
+    <span className="tabular-nums">
+      <span className="font-semibold">{value}</span>
+      <span className="text-muted-foreground text-xs">/{max}</span>
+    </span>
+  );
+}
+
+function StarsCell({ value }: { value: number | null }) {
+  if (!value) return <span className="text-muted-foreground">—</span>;
+  return (
+    <span className="inline-flex items-center gap-0.5">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <Star
+          key={i}
+          className={cn(
+            "h-3 w-3",
+            i < value ? "fill-amber-400 text-amber-400" : "text-muted-foreground/30",
+          )}
+        />
+      ))}
+    </span>
+  );
+}
+
+/* ---------- main ---------- */
+
 export function WeeklyCheckinsTab({ clientId, lang }: Props) {
+  const t: T = (nl, en) => (lang === "nl" ? nl : en);
   const [items, setItems] = useState<Checkin[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -178,6 +230,27 @@ export function WeeklyCheckinsTab({ clientId, lang }: Props) {
     })();
   }, [clientId]);
 
+  const latest = items[0];
+  const previous = items[1];
+
+  // Oldest -> newest for sparklines, last 8 weeks
+  const sparkSeries = useMemo(() => {
+    const recent = items.slice(0, 8).slice().reverse();
+    return {
+      weight: recent.map((c) => c.weight_kg),
+      feeling: recent.map((c) => c.feeling),
+      energy: recent.map((c) => c.energy),
+      nutrition: recent.map((c) => c.nutrition_stars),
+      training: recent.map((c) => trainingCountNum(c)),
+      rpe: recent.map((c) => c.intensity_rpe),
+      soreness: recent.map((c) => c.soreness),
+      hydration: recent.map((c) => c.hydration),
+    };
+  }, [items]);
+
+  // Most recent 6 weeks for the comparison table (newest left)
+  const tableWeeks = useMemo(() => items.slice(0, 6), [items]);
+
   if (loading) {
     return (
       <div className="py-10 flex items-center justify-center">
@@ -186,71 +259,319 @@ export function WeeklyCheckinsTab({ clientId, lang }: Props) {
     );
   }
 
-  if (items.length === 0) {
+  if (items.length === 0 || !latest) {
     return (
       <Card className="p-8 text-center">
         <ClipboardCheck className="h-10 w-10 mx-auto text-muted-foreground mb-2" />
-        <p className="font-medium">{lang === "nl" ? "Nog geen check-ins" : "No check-ins yet"}</p>
+        <p className="font-medium">{t("Nog geen check-ins", "No check-ins yet")}</p>
         <p className="text-sm text-muted-foreground">
-          {lang === "nl"
-            ? "Zodra deze client een check-in invult verschijnt die hier."
-            : "Once this client submits a check-in, it will appear here."}
+          {t(
+            "Zodra deze client een check-in invult verschijnt die hier.",
+            "Once this client submits a check-in, it will appear here.",
+          )}
         </p>
       </Card>
     );
   }
 
-  const [latest, ...rest] = items;
+  const tableRows: Array<{
+    label: string;
+    icon?: any;
+    render: (c: Checkin) => React.ReactNode;
+  }> = [
+    {
+      label: t("Gewicht", "Weight"),
+      icon: ScaleIcon,
+      render: (c) =>
+        c.weight_kg != null ? (
+          <span className="tabular-nums">{c.weight_kg} kg</span>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        ),
+    },
+    {
+      label: t("Vetpercentage", "Body fat"),
+      render: (c) =>
+        c.body_fat_pct != null ? (
+          <span className="tabular-nums">{c.body_fat_pct}%</span>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        ),
+    },
+    {
+      label: t("Gevoel", "Feeling"),
+      icon: Heart,
+      render: (c) => <ScaleCell value={c.feeling} max={10} />,
+    },
+    { label: t("Energie", "Energy"), icon: Zap, render: (c) => <ScaleCell value={c.energy} max={10} /> },
+    { label: t("Spierpijn", "Soreness"), render: (c) => <ScaleCell value={c.soreness} max={10} /> },
+    {
+      label: t("Trainingen", "Workouts"),
+      icon: Dumbbell,
+      render: (c) => <span className="tabular-nums">{trainingCountValue(c)}</span>,
+    },
+    { label: t("Intensiteit (RPE)", "Intensity (RPE)"), render: (c) => <ScaleCell value={c.intensity_rpe} max={10} /> },
+    { label: t("Progressie", "Progression"), render: (c) => <ScaleCell value={c.progression} max={10} /> },
+    {
+      label: t("Voeding", "Nutrition"),
+      icon: Utensils,
+      render: (c) => <StarsCell value={c.nutrition_stars} />,
+    },
+    {
+      label: t("Hydratatie", "Hydration"),
+      icon: Droplet,
+      render: (c) => <ScaleCell value={c.hydration} max={10} />,
+    },
+    {
+      label: t("Supplementen", "Supplements"),
+      render: (c) => <ScaleCell value={c.supplements_consistency} max={5} />,
+    },
+    { label: t("Slaap", "Sleep"), icon: Moon, render: (c) => <span>{sleepValue(c)}</span> },
+  ];
 
   return (
     <div className="space-y-4">
-      <Card className="overflow-hidden">
-        <div className="px-5 py-4 border-b bg-muted/30 flex items-center justify-between gap-3">
-          <div>
-            <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">
-              {lang === "nl" ? "Laatste check-in" : "Latest check-in"}
-            </p>
-            <p className="font-semibold">
-              {lang === "nl" ? "Week van " : "Week of "}
-              {formatHumanDate(latest.week_start, lang)}
-            </p>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {lang === "nl" ? "Ingevuld " : "Submitted "}
-            {formatHumanDate(latest.submitted_at, lang)}
+      {/* Header */}
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">
+            {t("Laatste check-in", "Latest check-in")}
+          </p>
+          <p className="text-lg font-semibold">
+            {t("Week van ", "Week of ")}
+            {formatHumanDate(latest.week_start, lang)}
           </p>
         </div>
-        <div className="p-5">
-          <CheckinDetails c={latest} />
+        <p className="text-xs text-muted-foreground">
+          {t("Ingevuld ", "Submitted ")}
+          {formatHumanDate(latest.submitted_at, lang)}
+          {previous && (
+            <>
+              {" · "}
+              {t("vergeleken met week van ", "vs week of ")}
+              {formatHumanDate(previous.week_start, lang)}
+            </>
+          )}
+        </p>
+      </div>
+
+      {/* KPI tiles */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
+        <KpiTile
+          icon={ScaleIcon}
+          label={t("Gewicht", "Weight")}
+          value={latest.weight_kg}
+          unit="kg"
+          delta={
+            <Delta current={latest.weight_kg} previous={previous?.weight_kg ?? null} decimals={1} suffix=" kg" positiveDown />
+          }
+          spark={<Sparkline values={sparkSeries.weight} positiveDown />}
+        />
+        <KpiTile
+          icon={Heart}
+          label={t("Gevoel", "Feeling")}
+          value={latest.feeling}
+          unit="/10"
+          delta={<Delta current={latest.feeling} previous={previous?.feeling ?? null} decimals={0} />}
+          spark={<Sparkline values={sparkSeries.feeling} />}
+        />
+        <KpiTile
+          icon={Zap}
+          label={t("Energie", "Energy")}
+          value={latest.energy}
+          unit="/10"
+          delta={<Delta current={latest.energy} previous={previous?.energy ?? null} decimals={0} />}
+          spark={<Sparkline values={sparkSeries.energy} />}
+        />
+        <KpiTile
+          icon={Utensils}
+          label={t("Voeding", "Nutrition")}
+          value={<StarsCell value={latest.nutrition_stars} />}
+          delta={
+            <Delta current={latest.nutrition_stars} previous={previous?.nutrition_stars ?? null} decimals={0} suffix="★" />
+          }
+          spark={<Sparkline values={sparkSeries.nutrition} />}
+        />
+        <KpiTile
+          icon={Dumbbell}
+          label={t("Trainingen", "Workouts")}
+          value={trainingCountValue(latest)}
+          delta={<Delta current={trainingCountNum(latest)} previous={previous ? trainingCountNum(previous) : null} decimals={0} />}
+          spark={<Sparkline values={sparkSeries.training} />}
+        />
+        <KpiTile
+          icon={Zap}
+          label={t("RPE", "RPE")}
+          value={latest.intensity_rpe}
+          unit="/10"
+          delta={<Delta current={latest.intensity_rpe} previous={previous?.intensity_rpe ?? null} decimals={0} />}
+          spark={<Sparkline values={sparkSeries.rpe} />}
+        />
+        <KpiTile
+          icon={Droplet}
+          label={t("Hydratatie", "Hydration")}
+          value={latest.hydration}
+          unit="/10"
+          delta={<Delta current={latest.hydration} previous={previous?.hydration ?? null} decimals={0} />}
+          spark={<Sparkline values={sparkSeries.hydration} />}
+        />
+        <KpiTile
+          icon={Heart}
+          label={t("Spierpijn", "Soreness")}
+          value={latest.soreness}
+          unit="/10"
+          delta={<Delta current={latest.soreness} previous={previous?.soreness ?? null} decimals={0} positiveDown />}
+          spark={<Sparkline values={sparkSeries.soreness} positiveDown />}
+        />
+      </div>
+
+      {/* Qualitative answers latest week */}
+      {(latest.progress_feeling ||
+        latest.obstacles ||
+        latest.structure_planning ||
+        latest.nutrition_deviations ||
+        latest.cravings ||
+        latest.measurements ||
+        latest.other_notes) && (
+        <Card className="p-4">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold mb-3">
+            {t("Toelichting deze week", "Notes this week")}
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
+            {[
+              [t("Progressiegevoel", "Progress feeling"), latest.progress_feeling],
+              [t("Belemmeringen", "Obstacles"), latest.obstacles],
+              [t("Structuur / planning", "Structure / planning"), latest.structure_planning],
+              [t("Voeding afwijkingen", "Nutrition deviations"), latest.nutrition_deviations],
+              [t("Cravings / dips", "Cravings / dips"), latest.cravings],
+              [t("Metingen", "Measurements"), latest.measurements],
+              [t("Overige notities", "Other notes"), latest.other_notes],
+            ]
+              .filter(([, v]) => v)
+              .map(([label, v]) => (
+                <div key={label as string} className="space-y-0.5">
+                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">
+                    {label}
+                  </p>
+                  <p className="text-sm leading-snug whitespace-pre-wrap">{v}</p>
+                </div>
+              ))}
+          </div>
+        </Card>
+      )}
+
+      {/* Comparison table — last 6 weeks */}
+      <Card className="overflow-hidden">
+        <div className="px-4 py-3 border-b bg-muted/30 flex items-center justify-between">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">
+            {t("Vergelijking laatste weken", "Recent weeks comparison")}
+          </p>
+          <p className="text-[11px] text-muted-foreground">
+            {tableWeeks.length} {t("weken", "weeks")}
+          </p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b bg-muted/10">
+                <th className="text-left font-medium text-xs text-muted-foreground px-3 py-2 sticky left-0 bg-muted/10">
+                  {t("Metric", "Metric")}
+                </th>
+                {tableWeeks.map((c, i) => (
+                  <th
+                    key={c.id}
+                    className={cn(
+                      "text-left font-medium text-xs px-3 py-2 whitespace-nowrap",
+                      i === 0 ? "text-foreground" : "text-muted-foreground",
+                    )}
+                  >
+                    {i === 0 && (
+                      <span className="block text-[10px] uppercase tracking-wide text-primary font-semibold">
+                        {t("Nieuwste", "Latest")}
+                      </span>
+                    )}
+                    {formatHumanDate(c.week_start, lang)}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {tableRows.map((row, ri) => (
+                <tr key={row.label} className={cn("border-b last:border-b-0", ri % 2 === 1 && "bg-muted/5")}>
+                  <td className="px-3 py-2 sticky left-0 bg-card">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                      {row.icon && <row.icon className="h-3 w-3" />}
+                      {row.label}
+                    </span>
+                  </td>
+                  {tableWeeks.map((c, i) => (
+                    <td
+                      key={c.id}
+                      className={cn("px-3 py-2 whitespace-nowrap", i === 0 && "font-medium")}
+                    >
+                      {row.render(c)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </Card>
 
-      {rest.length > 0 && (
+      {/* Older weeks notes — collapsible */}
+      {items.length > 1 && (
         <Card className="overflow-hidden">
-          <div className="px-5 py-3 border-b bg-muted/30">
+          <div className="px-4 py-3 border-b bg-muted/30">
             <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">
-              {lang === "nl" ? "Geschiedenis" : "History"}
+              {t("Toelichtingen vorige weken", "Notes — previous weeks")}
             </p>
           </div>
           <Accordion type="single" collapsible>
-            {rest.map((c) => (
-              <AccordionItem key={c.id} value={c.id} className="border-b last:border-b-0">
-                <AccordionTrigger className="px-5 hover:no-underline">
-                  <div className="flex items-center justify-between flex-1 pr-3">
-                    <span className="font-medium">
-                      {lang === "nl" ? "Week van " : "Week of "}
-                      {formatHumanDate(c.week_start, lang)}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {formatHumanDate(c.submitted_at, lang)}
-                    </span>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className="px-5">
-                  <CheckinDetails c={c} />
-                </AccordionContent>
-              </AccordionItem>
-            ))}
+            {items.slice(1).map((c) => {
+              const notes = [
+                [t("Progressiegevoel", "Progress feeling"), c.progress_feeling],
+                [t("Belemmeringen", "Obstacles"), c.obstacles],
+                [t("Structuur / planning", "Structure / planning"), c.structure_planning],
+                [t("Voeding afwijkingen", "Nutrition deviations"), c.nutrition_deviations],
+                [t("Cravings / dips", "Cravings / dips"), c.cravings],
+                [t("Metingen", "Measurements"), c.measurements],
+                [t("Overige notities", "Other notes"), c.other_notes],
+              ].filter(([, v]) => v);
+              return (
+                <AccordionItem key={c.id} value={c.id} className="border-b last:border-b-0">
+                  <AccordionTrigger className="px-4 hover:no-underline">
+                    <div className="flex items-center justify-between flex-1 pr-3">
+                      <span className="font-medium text-sm">
+                        {t("Week van ", "Week of ")}
+                        {formatHumanDate(c.week_start, lang)}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {notes.length} {t("notities", "notes")}
+                      </span>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="px-4">
+                    {notes.length === 0 ? (
+                      <p className="text-sm text-muted-foreground py-2">
+                        {t("Geen toelichting ingevuld.", "No notes provided.")}
+                      </p>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 pb-2">
+                        {notes.map(([label, v]) => (
+                          <div key={label as string} className="space-y-0.5">
+                            <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">
+                              {label}
+                            </p>
+                            <p className="text-sm leading-snug whitespace-pre-wrap">{v}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </AccordionContent>
+                </AccordionItem>
+              );
+            })}
           </Accordion>
         </Card>
       )}
