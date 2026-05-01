@@ -133,11 +133,13 @@ export default function Settings() {
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Configuration</h1>
         <p className="text-muted-foreground text-sm">
-          Customize the automated check-in emails sent to your clients.
+          Manage your integrations and customize the automated check-in emails sent to your clients.
         </p>
       </div>
+
+      <GmailConnectionCard />
 
       <Card>
         <CardHeader>
