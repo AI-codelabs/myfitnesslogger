@@ -40,8 +40,17 @@ export default function Workouts() {
   const [planCategory, setPlanCategory] = useState<string>("all");
   const [planFreq, setPlanFreq] = useState<string>("all");
   const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState<ExerciseRecord | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
 
-  async function loadPlans() {
+  async function reloadExercises() {
+    const { data } = await supabase
+      .from("exercises")
+      .select("*")
+      .order("muscle_group")
+      .order("name");
+    setExercises(data ?? []);
+  }
     const { data: p } = await supabase
       .from("workout_plans")
       .select("*")
