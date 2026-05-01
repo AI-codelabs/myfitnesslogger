@@ -27,7 +27,12 @@ type Form = {
   energy: number | null;
   soreness: number | null;
   weight_kg: string;
-  measurements: string;
+  waist_cm: string;
+  belly_cm: string;
+  hips_cm: string;
+  chest_cm: string;
+  arm_cm: string;
+  thigh_cm: string;
   body_fat_pct: string;
   feeling: number | null;
   structure_planning: string;
@@ -51,7 +56,12 @@ const empty: Form = {
   energy: null,
   soreness: null,
   weight_kg: "",
-  measurements: "",
+  waist_cm: "",
+  belly_cm: "",
+  hips_cm: "",
+  chest_cm: "",
+  arm_cm: "",
+  thigh_cm: "",
   body_fat_pct: "",
   feeling: null,
   structure_planning: "",
@@ -61,6 +71,16 @@ const empty: Form = {
   hydration: null,
   other_notes: "",
 };
+
+const MEASUREMENT_FIELDS: Array<{ key: keyof Form; label: string }> = [
+  { key: "waist_cm", label: "Taille (cm)" },
+  { key: "belly_cm", label: "Buik (cm)" },
+  { key: "hips_cm", label: "Heup (cm)" },
+  { key: "chest_cm", label: "Borst (cm)" },
+  { key: "arm_cm", label: "Arm (cm)" },
+  { key: "thigh_cm", label: "Bovenbeen (cm)" },
+];
+
 
 function Section({ title, children }: { title?: string; children: React.ReactNode }) {
   return (
