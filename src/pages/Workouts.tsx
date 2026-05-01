@@ -28,6 +28,8 @@ interface Exercise {
   muscle_group: string | null;
   equipment: string | null;
   is_pro: boolean;
+  notes: string | null;
+  video_url: string | null;
 }
 
 export default function Workouts() {
