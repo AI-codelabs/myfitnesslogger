@@ -120,10 +120,20 @@ Deno.serve(async (req) => {
 
         const fromName = conn.email; // we don't store coach display name here
 
+        // Load custom template for this coach (if any)
+        const { data: customTpl } = await admin
+          .from("email_templates")
+          .select("subject, body, header_image_url")
+          .eq("coach_id", conn.coach_id)
+          .eq("template_key", mode)
+          .maybeSingle();
+
         // 6. Send each email
         for (const recipient of emails) {
           try {
-            const tpl = TEMPLATES[mode](recipient.name);
+            const tpl = customTpl && (customTpl.subject || customTpl.body)
+              ? renderCustomTemplate(customTpl, recipient.name)
+              : TEMPLATES[mode](recipient.name);
             const message = [
               `From: ${fromName} <${conn.email}>`,
               `To: ${recipient.email}`,
