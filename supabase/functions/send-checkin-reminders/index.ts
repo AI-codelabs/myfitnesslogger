@@ -255,6 +255,44 @@ function json(data: unknown, status = 200) {
 // to "Hi" when we don't have a display name.
 // =====================================================================
 
+const CHECKIN_URL = "https://myfitnesslogger.lovable.app/check-in";
+
+function renderCustomTemplate(
+  tpl: { subject: string; body: string; header_image_url: string | null },
+  name: string | null,
+): { subject: string; html: string } {
+  const safeName = name ? escapeHtml(name) : "";
+  const replacePlaceholders = (s: string) =>
+    (s ?? "")
+      .replaceAll("{{name}}", safeName || "there")
+      .replaceAll("{{checkin_url}}", CHECKIN_URL);
+
+  const subject = replacePlaceholders(tpl.subject || "Weekly check-in");
+  // Convert plain-text body (with placeholders) into HTML paragraphs
+  const bodyText = replacePlaceholders(tpl.body || "");
+  const paragraphs = bodyText
+    .split(/\n{2,}/)
+    .map((p) =>
+      `<p style="margin:0 0 16px;">${escapeHtml(p).replaceAll("\n", "<br/>")}</p>`,
+    )
+    .join("");
+
+  const headerImg = tpl.header_image_url
+    ? `<div style="text-align:center;margin-bottom:20px;"><img src="${tpl.header_image_url}" alt="" style="max-width:100%;height:auto;border-radius:8px;" /></div>`
+    : "";
+
+  const cta = `<p style="margin:28px 0;"><a href="${CHECKIN_URL}" style="display:inline-block;padding:12px 22px;background:#0070f3;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;">Vul je check-in in</a></p>`;
+
+  const html = `
+<!doctype html><html><body style="font-family:Arial,sans-serif;line-height:1.6;color:#222;max-width:560px;margin:0 auto;padding:24px;">
+  ${headerImg}
+  ${paragraphs}
+  ${cta}
+</body></html>`.trim();
+
+  return { subject, html };
+}
+
 type TemplateFn = (name: string | null) => { subject: string; html: string };
 
 const TEMPLATES: Record<"sunday" | "monday", TemplateFn> = {
