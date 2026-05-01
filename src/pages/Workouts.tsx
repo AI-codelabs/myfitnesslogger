@@ -51,6 +51,7 @@ export default function Workouts() {
       .order("name");
     setExercises(data ?? []);
   }
+  async function loadPlans() {
     const { data: p } = await supabase
       .from("workout_plans")
       .select("*")
