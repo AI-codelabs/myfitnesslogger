@@ -27,7 +27,12 @@ type Form = {
   energy: number | null;
   soreness: number | null;
   weight_kg: string;
-  measurements: string;
+  waist_cm: string;
+  belly_cm: string;
+  hips_cm: string;
+  chest_cm: string;
+  arm_cm: string;
+  thigh_cm: string;
   body_fat_pct: string;
   feeling: number | null;
   structure_planning: string;
@@ -51,7 +56,12 @@ const empty: Form = {
   energy: null,
   soreness: null,
   weight_kg: "",
-  measurements: "",
+  waist_cm: "",
+  belly_cm: "",
+  hips_cm: "",
+  chest_cm: "",
+  arm_cm: "",
+  thigh_cm: "",
   body_fat_pct: "",
   feeling: null,
   structure_planning: "",
@@ -61,6 +71,16 @@ const empty: Form = {
   hydration: null,
   other_notes: "",
 };
+
+const MEASUREMENT_FIELDS: Array<{ key: keyof Form; label: string }> = [
+  { key: "waist_cm", label: "Taille (cm)" },
+  { key: "belly_cm", label: "Buik (cm)" },
+  { key: "hips_cm", label: "Heup (cm)" },
+  { key: "chest_cm", label: "Borst (cm)" },
+  { key: "arm_cm", label: "Arm (cm)" },
+  { key: "thigh_cm", label: "Bovenbeen (cm)" },
+];
+
 
 function Section({ title, children }: { title?: string; children: React.ReactNode }) {
   return (
@@ -225,7 +245,12 @@ export default function WeeklyCheckin() {
           energy: data.energy ?? null,
           soreness: data.soreness ?? null,
           weight_kg: data.weight_kg != null ? String(data.weight_kg) : "",
-          measurements: data.measurements ?? "",
+          waist_cm: (data.details as any)?.measurements?.waist_cm ?? "",
+          belly_cm: (data.details as any)?.measurements?.belly_cm ?? "",
+          hips_cm: (data.details as any)?.measurements?.hips_cm ?? "",
+          chest_cm: (data.details as any)?.measurements?.chest_cm ?? "",
+          arm_cm: (data.details as any)?.measurements?.arm_cm ?? "",
+          thigh_cm: (data.details as any)?.measurements?.thigh_cm ?? "",
           body_fat_pct: data.body_fat_pct != null ? String(data.body_fat_pct) : "",
           feeling: data.feeling ?? null,
           structure_planning: data.structure_planning ?? "",
@@ -261,7 +286,22 @@ export default function WeeklyCheckin() {
       energy: form.energy,
       soreness: form.soreness,
       weight_kg: form.weight_kg ? Number(form.weight_kg) : null,
-      measurements: form.measurements || null,
+      measurements: (() => {
+        const parts = MEASUREMENT_FIELDS
+          .map((f) => {
+            const v = String(form[f.key] ?? "").trim();
+            return v ? `${f.label.replace(" (cm)", "")}: ${v} cm` : null;
+          })
+          .filter(Boolean);
+        return parts.length ? parts.join(", ") : null;
+      })(),
+      details: {
+        measurements: MEASUREMENT_FIELDS.reduce((acc, f) => {
+          const v = String(form[f.key] ?? "").trim();
+          if (v) acc[f.key] = v;
+          return acc;
+        }, {} as Record<string, string>),
+      },
       body_fat_pct: form.body_fat_pct ? Number(form.body_fat_pct) : null,
       feeling: form.feeling,
       structure_planning: form.structure_planning || null,
@@ -477,11 +517,25 @@ export default function WeeklyCheckin() {
             />
           </div>
           <div className="space-y-2">
-            <Label>Metingen (heup, buik, taille)</Label>
-            <Input
-              value={form.measurements}
-              onChange={(e) => set("measurements", e.target.value)}
-            />
+            <Label>Metingen (cm)</Label>
+            <p className="text-xs text-muted-foreground">
+              Vul alleen in wat je hebt gemeten — laat de rest leeg.
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-1">
+              {MEASUREMENT_FIELDS.map((f) => (
+                <div key={f.key} className="space-y-1">
+                  <Label className="text-xs font-normal text-muted-foreground">
+                    {f.label}
+                  </Label>
+                  <Input
+                    inputMode="decimal"
+                    value={form[f.key] as string}
+                    onChange={(e) => set(f.key, e.target.value as Form[typeof f.key])}
+                    placeholder="—"
+                  />
+                </div>
+              ))}
+            </div>
           </div>
           <div className="space-y-2">
             <Label>Vetpercentage (indien bekend)</Label>
