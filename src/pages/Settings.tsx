@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Loader2, Upload, Trash2, Image as ImageIcon } from "lucide-react";
+import { GmailConnectionCard } from "@/components/GmailConnectionCard";
 
 type TemplateKey = "sunday" | "monday";
 
