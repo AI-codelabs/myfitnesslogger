@@ -22,6 +22,7 @@ import ClientWorkoutSession from "./pages/ClientWorkoutSession.tsx";
 import WeeklyCheckin from "./pages/WeeklyCheckin.tsx";
 import Progression from "./pages/Progression.tsx";
 import { AppLayout } from "./components/AppLayout";
+import Settings from "./pages/Settings.tsx";
 
 const queryClient = new QueryClient();
 
@@ -61,6 +62,7 @@ const App = () => (
             <Route path="/clients" element={<Protected><AppLayout><Clients /></AppLayout></Protected>} />
             <Route path="/tasks" element={<Protected><AppLayout><CoachTasks /></AppLayout></Protected>} />
             <Route path="/account" element={<Protected><AppLayout><Account /></AppLayout></Protected>} />
+            <Route path="/settings" element={<Protected><AppLayout><Settings /></AppLayout></Protected>} />
             <Route path="/onboarding" element={<Protected requireOnboarding={false}><Onboarding /></Protected>} />
             <Route path="/clients/:clientId" element={<Protected><AppLayout><ClientProfile /></AppLayout></Protected>} />
             <Route path="/clients/:clientId/sessions/:sessionId" element={<Protected><AppLayout><ClientWorkoutSession /></AppLayout></Protected>} />

@@ -1,4 +1,4 @@
-import { LayoutDashboard, User as UserIcon, LogOut, Users, Dumbbell, Apple, TrendingUp, ListTodo } from "lucide-react";
+import { LayoutDashboard, User as UserIcon, LogOut, Users, Dumbbell, Apple, TrendingUp, ListTodo, Settings as SettingsIcon } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   Sidebar,
@@ -80,6 +80,16 @@ export function AppSidebar() {
                     <NavLink to="/tasks" className={linkCls(isActive("/tasks"))}>
                       <ListTodo className="h-4 w-4 shrink-0" />
                       {!collapsed && <span>Tasks</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+              {role === "coach" && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={isActive("/settings")}>
+                    <NavLink to="/settings" className={linkCls(isActive("/settings"))}>
+                      <SettingsIcon className="h-4 w-4 shrink-0" />
+                      {!collapsed && <span>Settings</span>}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

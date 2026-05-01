@@ -242,6 +242,39 @@ export type Database = {
         }
         Relationships: []
       }
+      email_templates: {
+        Row: {
+          body: string
+          coach_id: string
+          created_at: string
+          header_image_url: string | null
+          id: string
+          subject: string
+          template_key: string
+          updated_at: string
+        }
+        Insert: {
+          body?: string
+          coach_id: string
+          created_at?: string
+          header_image_url?: string | null
+          id?: string
+          subject?: string
+          template_key: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          coach_id?: string
+          created_at?: string
+          header_image_url?: string | null
+          id?: string
+          subject?: string
+          template_key?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       exercises: {
         Row: {
           created_at: string
