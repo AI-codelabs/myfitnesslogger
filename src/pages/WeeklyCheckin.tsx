@@ -286,7 +286,22 @@ export default function WeeklyCheckin() {
       energy: form.energy,
       soreness: form.soreness,
       weight_kg: form.weight_kg ? Number(form.weight_kg) : null,
-      measurements: form.measurements || null,
+      measurements: (() => {
+        const parts = MEASUREMENT_FIELDS
+          .map((f) => {
+            const v = String(form[f.key] ?? "").trim();
+            return v ? `${f.label.replace(" (cm)", "")}: ${v} cm` : null;
+          })
+          .filter(Boolean);
+        return parts.length ? parts.join(", ") : null;
+      })(),
+      details: {
+        measurements: MEASUREMENT_FIELDS.reduce((acc, f) => {
+          const v = String(form[f.key] ?? "").trim();
+          if (v) acc[f.key] = v;
+          return acc;
+        }, {} as Record<string, string>),
+      },
       body_fat_pct: form.body_fat_pct ? Number(form.body_fat_pct) : null,
       feeling: form.feeling,
       structure_planning: form.structure_planning || null,
