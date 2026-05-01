@@ -58,8 +58,8 @@ function dayLabel(d: Date, lang: Lang, short = false) {
 
 const COLORS = {
   calories: "hsl(142 70% 45%)",   // green
-  protein: "hsl(340 75% 55%)",    // pink
-  carbs: "hsl(210 80% 55%)",      // blue
+  protein: "hsl(210 80% 60%)",    // blue
+  carbs: "hsl(0 75% 55%)",        // red
   fat: "hsl(25 90% 55%)",         // orange
 };
 

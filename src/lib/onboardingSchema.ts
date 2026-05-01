@@ -49,13 +49,10 @@ export const onboardingSections: Section[] = [
       { name: "hips_cm", label: { nl: "Omvang heupen (cm)", en: "Hips (cm)" }, type: "number", optional: true },
       { name: "occupation", label: { nl: "Beroep", en: "Occupation" }, type: "text" },
       {
-        name: "activity_level",
-        label: { nl: "Dagelijkse activiteit", en: "Daily activity" },
-        type: "radio",
-        options: [
-          { value: "active", label: { nl: "Actief", en: "Active" } },
-          { value: "sedentary", label: { nl: "Zittend", en: "Sedentary" } },
-        ],
+        name: "avg_steps_per_day",
+        label: { nl: "Gemiddeld aantal stappen per dag", en: "Average steps per day" },
+        type: "number",
+        storeIn: "details",
       },
       { name: "sleep_hours", label: { nl: "Uur slaap per nacht (gemiddeld)", en: "Sleep hours / night (avg)" }, type: "number" },
       { name: "smokes", label: { nl: "Rook je?", en: "Do you smoke?" }, type: "text" },

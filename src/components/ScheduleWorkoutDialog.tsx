@@ -35,13 +35,13 @@ export function ScheduleWorkoutDialog({ open, onOpenChange, prefillDays, lang, b
   const tx = (nl: string, en: string) => (lang === "nl" ? nl : en);
   const today = new Date().toISOString().slice(0, 10);
   const [startDate, setStartDate] = useState(today);
-  const [weeks, setWeeks] = useState(1);
+  const [weeks, setWeeks] = useState(10);
   const [days, setDays] = useState<string[]>([]);
 
   useEffect(() => {
     if (open) {
       setStartDate(today);
-      setWeeks(1);
+      setWeeks(10);
       setDays(prefillDays && prefillDays.length > 0 ? prefillDays : []);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

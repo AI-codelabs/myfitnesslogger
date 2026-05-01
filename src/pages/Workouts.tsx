@@ -8,9 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dumbbell, Sparkles, User as UserIcon, Search, X } from "lucide-react";
+import { Dumbbell, Sparkles, User as UserIcon, Search, X, Pencil, Video } from "lucide-react";
 import { CreatePlanDialog } from "@/components/CreatePlanDialog";
-import { CreateExerciseDialog } from "@/components/CreateExerciseDialog";
+import { ExerciseDialog, type ExerciseRecord } from "@/components/ExerciseDialog";
 
 interface Plan {
   id: string;
@@ -28,6 +28,8 @@ interface Exercise {
   muscle_group: string | null;
   equipment: string | null;
   is_pro: boolean;
+  notes: string | null;
+  video_url: string | null;
 }
 
 export default function Workouts() {
@@ -38,7 +40,17 @@ export default function Workouts() {
   const [planCategory, setPlanCategory] = useState<string>("all");
   const [planFreq, setPlanFreq] = useState<string>("all");
   const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState<ExerciseRecord | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
 
+  async function reloadExercises() {
+    const { data } = await supabase
+      .from("exercises")
+      .select("*")
+      .order("muscle_group")
+      .order("name");
+    setExercises(data ?? []);
+  }
   async function loadPlans() {
     const { data: p } = await supabase
       .from("workout_plans")
@@ -232,16 +244,7 @@ export default function Workouts() {
               onChange={(e) => setExFilter(e.target.value)}
               className="max-w-sm"
             />
-            <CreateExerciseDialog
-              onCreated={async () => {
-                const { data } = await supabase
-                  .from("exercises")
-                  .select("*")
-                  .order("muscle_group")
-                  .order("name");
-                setExercises(data ?? []);
-              }}
-            />
+            <ExerciseDialog onSaved={reloadExercises} />
           </div>
           <Card>
             <Table>
@@ -250,25 +253,63 @@ export default function Workouts() {
                   <TableHead>Name</TableHead>
                   <TableHead>Muscle group</TableHead>
                   <TableHead>Equipment</TableHead>
-                  <TableHead></TableHead>
+                  <TableHead>Video</TableHead>
+                  <TableHead className="w-[1%]"></TableHead>
+                  <TableHead className="w-[1%]"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredEx.map((e) => (
-                  <TableRow key={e.id}>
+                  <TableRow
+                    key={e.id}
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => {
+                      setEditing(e);
+                      setEditOpen(true);
+                    }}
+                  >
                     <TableCell className="font-medium">{e.name}</TableCell>
                     <TableCell className="text-muted-foreground capitalize">{e.muscle_group}</TableCell>
                     <TableCell className="text-muted-foreground capitalize">{e.equipment}</TableCell>
+                    <TableCell>
+                      {e.video_url ? (
+                        <a
+                          href={e.video_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={(ev) => ev.stopPropagation()}
+                          className="inline-flex items-center gap-1 text-primary hover:underline text-sm"
+                        >
+                          <Video className="h-3.5 w-3.5" /> Watch
+                        </a>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
                     <TableCell>
                       {e.is_pro && (
                         <Badge className="bg-secondary text-secondary-foreground">PRO</Badge>
                       )}
                     </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(ev) => {
+                          ev.stopPropagation();
+                          setEditing(e);
+                          setEditOpen(true);
+                        }}
+                        aria-label="Edit exercise"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
                 {filteredEx.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                       No exercises match your filter.
                     </TableCell>
                   </TableRow>
@@ -281,6 +322,17 @@ export default function Workouts() {
           </p>
         </TabsContent>
       </Tabs>
+
+      <ExerciseDialog
+        exercise={editing}
+        open={editOpen}
+        onOpenChange={(o) => {
+          setEditOpen(o);
+          if (!o) setEditing(null);
+        }}
+        onSaved={reloadExercises}
+      />
     </div>
   );
 }
+
