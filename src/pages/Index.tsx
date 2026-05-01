@@ -1,8 +1,12 @@
 import { useAuth } from "@/hooks/useAuth";
 import { AppLayout } from "@/components/AppLayout";
 import { Card } from "@/components/ui/card";
-import { Loader2, BarChart3, TrendingUp, Users, Dumbbell, Apple, ArrowRight } from "lucide-react";
-import { DashboardNotifications } from "@/components/DashboardNotifications";
+import { Loader2, Dumbbell, Apple, ArrowRight } from "lucide-react";
+import { ActionRequiredBlock } from "@/components/coach-dashboard/ActionRequiredBlock";
+import { RiskAttentionBlock } from "@/components/coach-dashboard/RiskAttentionBlock";
+import { RecentActivityBlock } from "@/components/coach-dashboard/RecentActivityBlock";
+import { OverviewStatsBlock } from "@/components/coach-dashboard/OverviewStatsBlock";
+import { useCoachDashboardData } from "@/lib/coachDashboard";
 import { ClientStartMessageCard } from "@/components/ClientStartMessageCard";
 import { WeeklyCheckinCard } from "@/components/WeeklyCheckinCard";
 import { ProgressionSummary } from "@/components/ProgressionSummary";
