@@ -95,8 +95,6 @@ const Account = () => {
           )}
         </Card>
       )}
-
-      {isCoach && <GmailConnectionCard />}
     </div>
   );
 };
