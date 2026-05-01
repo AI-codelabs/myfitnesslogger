@@ -517,11 +517,25 @@ export default function WeeklyCheckin() {
             />
           </div>
           <div className="space-y-2">
-            <Label>Metingen (heup, buik, taille)</Label>
-            <Input
-              value={form.measurements}
-              onChange={(e) => set("measurements", e.target.value)}
-            />
+            <Label>Metingen (cm)</Label>
+            <p className="text-xs text-muted-foreground">
+              Vul alleen in wat je hebt gemeten — laat de rest leeg.
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-1">
+              {MEASUREMENT_FIELDS.map((f) => (
+                <div key={f.key} className="space-y-1">
+                  <Label className="text-xs font-normal text-muted-foreground">
+                    {f.label}
+                  </Label>
+                  <Input
+                    inputMode="decimal"
+                    value={form[f.key] as string}
+                    onChange={(e) => set(f.key, e.target.value as Form[typeof f.key])}
+                    placeholder="—"
+                  />
+                </div>
+              ))}
+            </div>
           </div>
           <div className="space-y-2">
             <Label>Vetpercentage (indien bekend)</Label>
