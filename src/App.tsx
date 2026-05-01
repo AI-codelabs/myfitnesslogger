@@ -22,6 +22,7 @@ import ClientWorkoutSession from "./pages/ClientWorkoutSession.tsx";
 import WeeklyCheckin from "./pages/WeeklyCheckin.tsx";
 import Progression from "./pages/Progression.tsx";
 import { AppLayout } from "./components/AppLayout";
+import Settings from "./pages/Settings.tsx";
 
 const queryClient = new QueryClient();
 
