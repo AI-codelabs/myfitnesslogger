@@ -206,6 +206,8 @@ function CoachDashboard({
           <RecentActivityBlock data={data} loading={loading} />
           <OverviewStatsBlock data={data} loading={loading} />
         </div>
+
+        <DashboardNotifications />
       </div>
     </AppLayout>
   );
