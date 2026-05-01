@@ -172,4 +172,42 @@ const Index = () => {
   );
 };
 
+function CoachDashboard({
+  lang,
+  setLang,
+  tx,
+}: {
+  lang: Lang;
+  setLang: (l: Lang) => void;
+  tx: (b: { nl: string; en: string }) => string;
+}) {
+  const { user } = useAuth();
+  const { data, loading } = useCoachDashboardData(user?.id);
+
+  return (
+    <AppLayout>
+      <div className="px-4 py-6 sm:px-8 sm:py-8 max-w-6xl mx-auto w-full">
+        <div className="mb-6 flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+              {tx(copy.dashboard)}
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              {tx(copy.coachSubtitle)}
+            </p>
+          </div>
+          <LangToggle lang={lang} setLang={setLang} />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <ActionRequiredBlock data={data} loading={loading} />
+          <RiskAttentionBlock data={data} loading={loading} />
+          <RecentActivityBlock data={data} loading={loading} />
+          <OverviewStatsBlock data={data} loading={loading} />
+        </div>
+      </div>
+    </AppLayout>
+  );
+}
+
 export default Index;
