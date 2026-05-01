@@ -1,8 +1,12 @@
 import { useAuth } from "@/hooks/useAuth";
 import { AppLayout } from "@/components/AppLayout";
 import { Card } from "@/components/ui/card";
-import { Loader2, BarChart3, TrendingUp, Users, Dumbbell, Apple, ArrowRight } from "lucide-react";
-import { DashboardNotifications } from "@/components/DashboardNotifications";
+import { Loader2, Dumbbell, Apple, ArrowRight } from "lucide-react";
+import { ActionRequiredBlock } from "@/components/coach-dashboard/ActionRequiredBlock";
+import { RiskAttentionBlock } from "@/components/coach-dashboard/RiskAttentionBlock";
+import { RecentActivityBlock } from "@/components/coach-dashboard/RecentActivityBlock";
+import { OverviewStatsBlock } from "@/components/coach-dashboard/OverviewStatsBlock";
+import { useCoachDashboardData } from "@/lib/coachDashboard";
 import { ClientStartMessageCard } from "@/components/ClientStartMessageCard";
 import { WeeklyCheckinCard } from "@/components/WeeklyCheckinCard";
 import { ProgressionSummary } from "@/components/ProgressionSummary";
@@ -107,44 +111,7 @@ const Index = () => {
   }
 
   if (role === "coach") {
-    return (
-      <AppLayout>
-        <div className="px-4 py-6 sm:px-8 sm:py-8 max-w-5xl mx-auto w-full">
-          <div className="mb-6 flex items-start justify-between gap-4">
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-                {tx(copy.dashboard)}
-              </h1>
-              <p className="text-sm text-muted-foreground mt-1">
-                {tx(copy.coachSubtitle)}
-              </p>
-            </div>
-            <LangToggle lang={lang} setLang={setLang} />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-            {[
-              { icon: Users, title: tx(copy.clientOverview), desc: tx(copy.clientOverviewDesc) },
-              { icon: TrendingUp, title: tx(copy.engagement), desc: tx(copy.engagementDesc) },
-              { icon: BarChart3, title: tx(copy.progress), desc: tx(copy.progressDesc) },
-            ].map(({ icon: Icon, title, desc }) => (
-              <Card key={title} className="p-5 flex flex-col gap-3">
-                <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-                  <Icon className="h-5 w-5 text-muted-foreground" />
-                </div>
-                <div>
-                  <p className="font-medium">{title}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{desc}</p>
-                </div>
-                <p className="text-xs text-muted-foreground/70 mt-auto">{tx(copy.comingSoon)}</p>
-              </Card>
-            ))}
-          </div>
-
-          <DashboardNotifications />
-        </div>
-      </AppLayout>
-    );
+    return <CoachDashboard lang={lang} setLang={setLang} tx={tx} />;
   }
 
   // Client dashboard with quick-action cards
@@ -204,5 +171,43 @@ const Index = () => {
     </AppLayout>
   );
 };
+
+function CoachDashboard({
+  lang,
+  setLang,
+  tx,
+}: {
+  lang: Lang;
+  setLang: (l: Lang) => void;
+  tx: (b: { nl: string; en: string }) => string;
+}) {
+  const { user } = useAuth();
+  const { data, loading } = useCoachDashboardData(user?.id);
+
+  return (
+    <AppLayout>
+      <div className="px-4 py-6 sm:px-8 sm:py-8 max-w-6xl mx-auto w-full">
+        <div className="mb-6 flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+              {tx(copy.dashboard)}
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              {tx(copy.coachSubtitle)}
+            </p>
+          </div>
+          <LangToggle lang={lang} setLang={setLang} />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <ActionRequiredBlock data={data} loading={loading} />
+          <RiskAttentionBlock data={data} loading={loading} />
+          <RecentActivityBlock data={data} loading={loading} />
+          <OverviewStatsBlock data={data} loading={loading} />
+        </div>
+      </div>
+    </AppLayout>
+  );
+}
 
 export default Index;
