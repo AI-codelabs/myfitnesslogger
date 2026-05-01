@@ -1,4 +1,4 @@
-import { LayoutDashboard, User as UserIcon, LogOut, Users, Dumbbell, Apple, TrendingUp, ListTodo } from "lucide-react";
+import { LayoutDashboard, User as UserIcon, LogOut, Users, Dumbbell, Apple, TrendingUp, ListTodo, Settings as SettingsIcon } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   Sidebar,
