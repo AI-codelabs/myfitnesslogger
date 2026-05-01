@@ -84,6 +84,16 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}
+              {role === "coach" && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={isActive("/settings")}>
+                    <NavLink to="/settings" className={linkCls(isActive("/settings"))}>
+                      <SettingsIcon className="h-4 w-4 shrink-0" />
+                      {!collapsed && <span>Settings</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
               {role === "user" && (
                 <>
                   <SidebarMenuItem>
