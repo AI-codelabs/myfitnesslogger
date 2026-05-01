@@ -89,7 +89,7 @@ export function AppSidebar() {
                   <SidebarMenuButton asChild isActive={isActive("/settings")}>
                     <NavLink to="/settings" className={linkCls(isActive("/settings"))}>
                       <SettingsIcon className="h-4 w-4 shrink-0" />
-                      {!collapsed && <span>Settings</span>}
+                      {!collapsed && <span>Configuration</span>}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
