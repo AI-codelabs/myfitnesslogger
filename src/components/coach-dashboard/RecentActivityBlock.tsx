@@ -86,7 +86,7 @@ export function RecentActivityBlock({ data, loading }: Props) {
     <DashboardBlock
       title="Recent Activity"
       subtitle="Laatste 7 dagen"
-      icon={<MessageSquare className="h-4.5 w-4.5" />}
+      icon={<MessageSquare className="h-[18px] w-[18px]" />}
       iconBg="bg-blue-500/10"
       iconColor="text-blue-500"
       loading={loading}

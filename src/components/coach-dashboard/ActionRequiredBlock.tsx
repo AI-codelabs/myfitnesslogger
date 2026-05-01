@@ -108,7 +108,7 @@ export function ActionRequiredBlock({ data, loading }: Props) {
     <DashboardBlock
       title="Action Required"
       subtitle={items.length > 0 ? `${items.length} taken` : "Alles up-to-date"}
-      icon={<Flame className="h-4.5 w-4.5" />}
+      icon={<Flame className="h-[18px] w-[18px]" />}
       iconBg="bg-orange-500/10"
       iconColor="text-orange-500"
       loading={loading}

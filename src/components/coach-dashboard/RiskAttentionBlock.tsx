@@ -38,7 +38,7 @@ export function RiskAttentionBlock({ data, loading }: Props) {
           ? `${risks.length} client${risks.length === 1 ? "" : "en"} aandacht nodig`
           : "Iedereen lijkt op koers"
       }
-      icon={<AlertTriangle className="h-4.5 w-4.5" />}
+      icon={<AlertTriangle className="h-[18px] w-[18px]" />}
       iconBg="bg-destructive/10"
       iconColor="text-destructive"
       loading={loading}

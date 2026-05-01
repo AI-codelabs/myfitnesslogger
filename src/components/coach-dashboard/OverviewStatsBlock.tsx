@@ -74,7 +74,7 @@ export function OverviewStatsBlock({ data, loading }: Props) {
     <DashboardBlock
       title="Overview"
       subtitle="Je business in één oogopslag"
-      icon={<BarChart3 className="h-4.5 w-4.5" />}
+      icon={<BarChart3 className="h-[18px] w-[18px]" />}
       iconBg="bg-purple-500/10"
       iconColor="text-purple-500"
       loading={loading}
