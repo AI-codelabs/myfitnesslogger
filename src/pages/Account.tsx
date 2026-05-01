@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { LogOut, User as UserIcon, Mail, Shield } from "lucide-react";
-import { GmailConnectionCard } from "@/components/GmailConnectionCard";
+
 import { supabase } from "@/integrations/supabase/client";
 
 type PersonalInfo = {
