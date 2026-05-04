@@ -15,6 +15,7 @@ import { Card } from "@/components/ui/card";
 import { Loader2, Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { Lang } from "@/lib/onboardingSchema";
+import { pushTargetsToCronometer } from "@/lib/cronometerTargets";
 
 type Props = {
   clientId: string;
@@ -100,6 +101,20 @@ export const NutritionWizard = ({
   const finish = async () => {
     if (!(await persist(true))) return;
     toast.success(t("Voedingsschema opgeslagen", "Nutrition plan saved", lang));
+    // Fire-and-forget push to client's Cronometer (no-ops if not opted in)
+    const det: any = v;
+    const res = await pushTargetsToCronometer({
+      client_id: clientId,
+      calories: Number(det.calories) || 0,
+      protein_g: Number(det.protein_g) || 0,
+      carbs_g: Number(det.carbs_g) || 0,
+      fat_g: Number(det.fat_g) || 0,
+    });
+    if (res.success) {
+      toast.success(t("Doelen gesynchroniseerd met Cronometer", "Targets synced to Cronometer", lang));
+    } else if (res.error) {
+      toast.error(t(`Cronometer-sync mislukt: ${res.error}`, `Cronometer sync failed: ${res.error}`, lang));
+    }
     onCompleted?.();
   };
 

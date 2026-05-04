@@ -11,6 +11,8 @@ import { NutritionWeeklyOverview } from "@/components/NutritionWeeklyOverview";
 import { hasCronometerSession, syncCronometer } from "@/lib/cronometer";
 import { toast } from "sonner";
 
+import { Switch } from "@/components/ui/switch";
+
 interface NutritionLog {
   id: string;
   log_date: string;
@@ -34,12 +36,18 @@ const ClientNutrition = () => {
   const [reauth, setReauth] = useState(false);
   const t = (nl: string, en: string) => (lang === "nl" ? nl : en);
 
+  const [syncTargets, setSyncTargets] = useState(false);
+
   const loadAll = useCallback(async () => {
     if (!user?.id) return;
     setLoading(true);
-    const [planRes, sessionOk, logsRes] = await Promise.all([
+    const [planRes, sessionRes, logsRes] = await Promise.all([
       supabase.from("nutrition_plans").select("*").eq("client_id", user.id).maybeSingle(),
-      hasCronometerSession(user.id),
+      supabase
+        .from("cronometer_sessions")
+        .select("id, target_sync_enabled")
+        .eq("client_id", user.id)
+        .maybeSingle(),
       supabase
         .from("cronometer_nutrition_logs")
         .select("id, log_date, calories, protein_g, carbs_g, fat_g, fiber_g, synced_at")
@@ -48,10 +56,30 @@ const ClientNutrition = () => {
         .limit(14),
     ]);
     setNutrition(planRes.data);
-    setConnected(sessionOk);
+    setConnected(!!sessionRes.data);
+    setSyncTargets(!!(sessionRes.data as any)?.target_sync_enabled);
     setLogs((logsRes.data as NutritionLog[]) || []);
     setLoading(false);
   }, [user?.id]);
+
+  const toggleSyncTargets = async (next: boolean) => {
+    if (!user?.id) return;
+    setSyncTargets(next);
+    const { error } = await supabase
+      .from("cronometer_sessions")
+      .update({ target_sync_enabled: next })
+      .eq("client_id", user.id);
+    if (error) {
+      setSyncTargets(!next);
+      toast.error(error.message);
+    } else {
+      toast.success(
+        next
+          ? t("Coach mag macro-doelen synchroniseren", "Coach can sync macro targets")
+          : t("Synchronisatie uitgeschakeld", "Sync disabled"),
+      );
+    }
+  };
 
   useEffect(() => {
     loadAll();
@@ -153,6 +181,22 @@ const ClientNutrition = () => {
             )}
           </div>
         </div>
+        {connected && (
+          <div className="mt-4 pt-4 border-t flex items-start sm:items-center justify-between gap-3 flex-col sm:flex-row">
+            <div className="min-w-0">
+              <p className="text-sm font-medium">
+                {t("Coach mag macro-doelen pushen", "Allow coach to push macro targets")}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {t(
+                  "Wanneer je coach je voedingsplan bijwerkt, worden de calorie- en macrodoelen automatisch in jouw Cronometer ingesteld.",
+                  "When your coach updates your nutrition plan, the calorie and macro targets are set in your Cronometer automatically.",
+                )}
+              </p>
+            </div>
+            <Switch checked={syncTargets} onCheckedChange={toggleSyncTargets} />
+          </div>
+        )}
       </Card>
 
       {/* Weekly overview */}
