@@ -292,6 +292,19 @@ export function WeeklyReviewTab({ clientId, coachId, lang }: Props) {
     setApplying(false);
     if (error) return toast.error(error.message);
     toast.success(tx(lang, "Voedingsplan bijgewerkt", "Nutrition plan updated"));
+    // Push updated targets to client's Cronometer (no-op if not opted in)
+    const res = await pushTargetsToCronometer({
+      client_id: clientId,
+      calories: Number(next.calories) || 0,
+      protein_g: Number(next.protein_g) || 0,
+      carbs_g: Number(next.carbs_g) || 0,
+      fat_g: Number(next.fat_g) || 0,
+    });
+    if (res.success) {
+      toast.success(tx(lang, "Doelen gesynchroniseerd met Cronometer", "Targets synced to Cronometer"));
+    } else if (res.error) {
+      toast.error(tx(lang, `Cronometer-sync mislukt: ${res.error}`, `Cronometer sync failed: ${res.error}`));
+    }
     loadDrafts();
   };
 
