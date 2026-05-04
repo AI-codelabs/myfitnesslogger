@@ -36,12 +36,18 @@ const ClientNutrition = () => {
   const [reauth, setReauth] = useState(false);
   const t = (nl: string, en: string) => (lang === "nl" ? nl : en);
 
+  const [syncTargets, setSyncTargets] = useState(false);
+
   const loadAll = useCallback(async () => {
     if (!user?.id) return;
     setLoading(true);
-    const [planRes, sessionOk, logsRes] = await Promise.all([
+    const [planRes, sessionRes, logsRes] = await Promise.all([
       supabase.from("nutrition_plans").select("*").eq("client_id", user.id).maybeSingle(),
-      hasCronometerSession(user.id),
+      supabase
+        .from("cronometer_sessions")
+        .select("id, target_sync_enabled")
+        .eq("client_id", user.id)
+        .maybeSingle(),
       supabase
         .from("cronometer_nutrition_logs")
         .select("id, log_date, calories, protein_g, carbs_g, fat_g, fiber_g, synced_at")
@@ -50,10 +56,30 @@ const ClientNutrition = () => {
         .limit(14),
     ]);
     setNutrition(planRes.data);
-    setConnected(sessionOk);
+    setConnected(!!sessionRes.data);
+    setSyncTargets(!!(sessionRes.data as any)?.target_sync_enabled);
     setLogs((logsRes.data as NutritionLog[]) || []);
     setLoading(false);
   }, [user?.id]);
+
+  const toggleSyncTargets = async (next: boolean) => {
+    if (!user?.id) return;
+    setSyncTargets(next);
+    const { error } = await supabase
+      .from("cronometer_sessions")
+      .update({ target_sync_enabled: next })
+      .eq("client_id", user.id);
+    if (error) {
+      setSyncTargets(!next);
+      toast.error(error.message);
+    } else {
+      toast.success(
+        next
+          ? t("Coach mag macro-doelen synchroniseren", "Coach can sync macro targets")
+          : t("Synchronisatie uitgeschakeld", "Sync disabled"),
+      );
+    }
+  };
 
   useEffect(() => {
     loadAll();
