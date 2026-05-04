@@ -635,7 +635,94 @@ serve(async (req) => {
       return json({ success: true, ...parsed });
     }
 
-    return json({ error: "Invalid action. Use: connect_and_save, sync, connect, export, or login_and_export" }, 400);
+    // ==== push_targets: send macro targets to client's Cronometer ====
+    if (action === "push_targets") {
+      const auth = await authedClient(req);
+      if ("error" in auth) return json({ error: auth.error }, auth.status);
+
+      const { client_id, calories, protein_g, carbs_g, fat_g } = body;
+      if (!client_id) return json({ error: "client_id required" }, 400);
+      const c = Number(calories), p = Number(protein_g), cb = Number(carbs_g), f = Number(fat_g);
+      if (![c, p, cb, f].every((v) => Number.isFinite(v) && v >= 0 && v < 20000)) {
+        return json({ error: "Invalid macro values" }, 400);
+      }
+
+      // Authorization: caller must be the client themselves OR a coach of the client.
+      let isCoach = false;
+      if (auth.userId !== client_id) {
+        const { data: coachCheck } = await auth.supabase
+          .rpc("is_coach_of", { _coach_id: auth.userId, _client_id: client_id });
+        isCoach = !!coachCheck;
+        if (!isCoach) return json({ error: "Not authorized for this client" }, 403);
+      }
+
+      // Use service-role client so we can read the client's session even when caller is coach.
+      const admin = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      );
+
+      const { data: session } = await admin
+        .from("cronometer_sessions")
+        .select("*")
+        .eq("client_id", client_id)
+        .maybeSingle();
+
+      const logRow: any = {
+        client_id,
+        coach_id: isCoach ? auth.userId : null,
+        calories: c, protein_g: p, carbs_g: cb, fat_g: f,
+        success: false,
+      };
+
+      if (!session) {
+        logRow.error = "no_session";
+        await admin.from("cronometer_target_pushes").insert(logRow);
+        return json({ error: "no_session", message: "Client has not connected Cronometer" }, 400);
+      }
+      if (!session.target_sync_enabled) {
+        logRow.error = "sync_disabled";
+        await admin.from("cronometer_target_pushes").insert(logRow);
+        return json({ error: "sync_disabled", message: "Client has not enabled target sync" }, 403);
+      }
+
+      await refreshGwtValues();
+      cachedGwtPermutation = session.gwt_permutation || cachedGwtPermutation;
+      cachedGwtHeader = session.gwt_header || cachedGwtHeader;
+      const cookieJar = new Map<string, string>(
+        Object.entries(session.cookies as Record<string, string>),
+      );
+
+      try {
+        await updateDailyTargets(cookieJar, session.user_id_external, new Date(), {
+          calories: c, protein: p, carbs: cb, fat: f,
+        });
+        // Persist any refreshed cookies/nonce
+        await admin
+          .from("cronometer_sessions")
+          .update({
+            cookies: Object.fromEntries(cookieJar),
+            gwt_permutation: cachedGwtPermutation,
+            gwt_header: cachedGwtHeader,
+            last_error: null,
+          })
+          .eq("client_id", client_id);
+
+        logRow.success = true;
+        await admin.from("cronometer_target_pushes").insert(logRow);
+        return json({ success: true });
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        logRow.error = msg;
+        await admin.from("cronometer_target_pushes").insert(logRow);
+        await admin.from("cronometer_sessions")
+          .update({ last_error: msg })
+          .eq("client_id", client_id);
+        return json({ error: "push_failed", message: msg }, 502);
+      }
+    }
+
+    return json({ error: "Invalid action. Use: connect_and_save, sync, push_targets, connect, export, or login_and_export" }, 400);
   } catch (e) {
     console.error("Cronometer error:", e);
     const msg = e instanceof Error ? e.message : "Unknown error";
