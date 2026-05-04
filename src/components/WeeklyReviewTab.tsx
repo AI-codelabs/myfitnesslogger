@@ -33,6 +33,7 @@ import {
 import { toast } from "sonner";
 import { Lang } from "@/lib/onboardingSchema";
 import { formatHumanDate } from "@/lib/weeklyCheckin";
+import { pushTargetsToCronometer } from "@/lib/cronometerTargets";
 
 interface Props {
   clientId: string;
