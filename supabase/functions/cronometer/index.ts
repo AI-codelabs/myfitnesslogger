@@ -372,6 +372,50 @@ function mondayOf(d: Date): Date {
   return copy;
 }
 
+// Push macro targets to Cronometer for a given date.
+// Reverse-engineered GWT-RPC payload (updateDailyTargetTemplate).
+// Source: cphoskins/cronometer-mcp.
+async function updateDailyTargets(
+  cookieJar: Map<string, string>,
+  userId: string,
+  day: Date,
+  targets: { calories: number; protein: number; carbs: number; fat: number },
+  templateName = "Coach Targets",
+): Promise<void> {
+  const sesnonce = cookieJar.get("sesnonce") || "";
+  const fmt = (v: number) => (Number.isInteger(v) ? String(v) : String(v));
+  const payload =
+    `7|0|12|${GWT_MODULE_BASE}|${cachedGwtHeader}|` +
+    `com.cronometer.shared.rpc.CronometerService|` +
+    `updateDailyTargetTemplate|java.lang.String/2004016611|` +
+    `I|com.cronometer.shared.targets.models.MacroTargetTemplate/3691130822|` +
+    `${sesnonce}|` +
+    `java.lang.Boolean/476441737|` +
+    `java.lang.Double/858496421|` +
+    `com.cronometer.shared.entries.models.Day/782579793|` +
+    `${templateName}|` +
+    `1|2|3|4|3|5|6|7|8|${userId}|` +
+    `7|9|0|10|${fmt(targets.carbs)}|0|11|${day.getUTCDate()}|${day.getUTCMonth() + 1}|${day.getUTCFullYear()}|` +
+    `10|${fmt(targets.calories)}|10|${fmt(targets.fat)}|0|1|0|0|0|12|10|${fmt(targets.protein)}|0|`;
+
+  const resp = await fetch(GWT_BASE_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": GWT_CONTENT_TYPE,
+      "X-GWT-Module-Base": GWT_MODULE_BASE,
+      "X-GWT-Permutation": cachedGwtPermutation,
+      "User-Agent": "Mozilla/5.0",
+      Cookie: cookieString(cookieJar),
+    },
+    body: payload,
+  });
+  extractCookies(resp, cookieJar);
+  const text = await resp.text();
+  if (!text.includes("Success") && !text.startsWith("//OK")) {
+    throw new Error(`updateDailyTargetTemplate failed: ${text.substring(0, 250)}`);
+  }
+}
+
 async function authedClient(req: Request) {
   const authHeader = req.headers.get("Authorization");
   if (!authHeader?.startsWith("Bearer ")) {
