@@ -11,6 +11,8 @@ import { NutritionWeeklyOverview } from "@/components/NutritionWeeklyOverview";
 import { hasCronometerSession, syncCronometer } from "@/lib/cronometer";
 import { toast } from "sonner";
 
+import { Switch } from "@/components/ui/switch";
+
 interface NutritionLog {
   id: string;
   log_date: string;
