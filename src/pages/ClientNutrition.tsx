@@ -36,8 +36,6 @@ const ClientNutrition = () => {
   const [reauth, setReauth] = useState(false);
   const t = (nl: string, en: string) => (lang === "nl" ? nl : en);
 
-  const [syncTargets, setSyncTargets] = useState(false);
-
   const loadAll = useCallback(async () => {
     if (!user?.id) return;
     setLoading(true);
@@ -45,7 +43,7 @@ const ClientNutrition = () => {
       supabase.from("nutrition_plans").select("*").eq("client_id", user.id).maybeSingle(),
       supabase
         .from("cronometer_sessions")
-        .select("id, target_sync_enabled")
+        .select("id")
         .eq("client_id", user.id)
         .maybeSingle(),
       supabase
@@ -57,29 +55,9 @@ const ClientNutrition = () => {
     ]);
     setNutrition(planRes.data);
     setConnected(!!sessionRes.data);
-    setSyncTargets(!!(sessionRes.data as any)?.target_sync_enabled);
     setLogs((logsRes.data as NutritionLog[]) || []);
     setLoading(false);
   }, [user?.id]);
-
-  const toggleSyncTargets = async (next: boolean) => {
-    if (!user?.id) return;
-    setSyncTargets(next);
-    const { error } = await supabase
-      .from("cronometer_sessions")
-      .update({ target_sync_enabled: next })
-      .eq("client_id", user.id);
-    if (error) {
-      setSyncTargets(!next);
-      toast.error(error.message);
-    } else {
-      toast.success(
-        next
-          ? t("Coach mag macro-doelen synchroniseren", "Coach can sync macro targets")
-          : t("Synchronisatie uitgeschakeld", "Sync disabled"),
-      );
-    }
-  };
 
   useEffect(() => {
     loadAll();
