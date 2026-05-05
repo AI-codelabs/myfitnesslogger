@@ -181,23 +181,6 @@ const ClientNutrition = () => {
             )}
           </div>
         </div>
-        {connected && (
-          <div className="mt-4 pt-4 border-t flex items-start sm:items-center justify-between gap-3 flex-col sm:flex-row">
-            <div className="min-w-0">
-              <p className="text-sm font-medium">
-                {t("Coach mag macro-doelen pushen", "Allow coach to push macro targets")}
-              </p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {t(
-                  "Wanneer je coach je voedingsplan bijwerkt, worden de calorie- en macrodoelen automatisch in jouw Cronometer ingesteld.",
-                  "When your coach updates your nutrition plan, the calorie and macro targets are set in your Cronometer automatically.",
-                )}
-              </p>
-            </div>
-            <Switch checked={syncTargets} onCheckedChange={toggleSyncTargets} />
-          </div>
-        )}
-      </Card>
 
       {/* Weekly overview */}
       <NutritionWeeklyOverview
