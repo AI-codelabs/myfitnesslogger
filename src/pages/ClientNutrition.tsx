@@ -181,7 +181,7 @@ const ClientNutrition = () => {
             )}
           </div>
         </div>
-
+      </Card>
       {/* Weekly overview */}
       <NutritionWeeklyOverview
         lang={lang}
