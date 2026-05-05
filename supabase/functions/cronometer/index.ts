@@ -680,12 +680,6 @@ serve(async (req) => {
         await admin.from("cronometer_target_pushes").insert(logRow);
         return json({ error: "no_session", message: "Client has not connected Cronometer" }, 400);
       }
-      if (!session.target_sync_enabled) {
-        logRow.error = "sync_disabled";
-        await admin.from("cronometer_target_pushes").insert(logRow);
-        return json({ error: "sync_disabled", message: "Client has not enabled target sync" }, 403);
-      }
-
       await refreshGwtValues();
       cachedGwtPermutation = session.gwt_permutation || cachedGwtPermutation;
       cachedGwtHeader = session.gwt_header || cachedGwtHeader;
