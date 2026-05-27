@@ -34,6 +34,7 @@ const ClientNutrition = () => {
   const [syncing, setSyncing] = useState(false);
   const [connectOpen, setConnectOpen] = useState(false);
   const [reauth, setReauth] = useState(false);
+  const [disconnecting, setDisconnecting] = useState(false);
   const t = (nl: string, en: string) => (lang === "nl" ? nl : en);
 
   const loadAll = useCallback(async () => {
