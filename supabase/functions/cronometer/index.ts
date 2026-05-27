@@ -416,10 +416,23 @@ async function updateDailyTargets(
   }
 }
 
+// Cache JWKS for JWT verification
+let cachedJwks: any = null;
+async function getJwks() {
+  if (cachedJwks) return cachedJwks;
+  const jwksEnv = Deno.env.get("SUPABASE_JWKS");
+  if (jwksEnv) {
+    try { cachedJwks = JSON.parse(jwksEnv); return cachedJwks; } catch { /* fallthrough */ }
+  }
+  const url = `${Deno.env.get("SUPABASE_URL")}/auth/v1/.well-known/jwks.json`;
+  const res = await fetch(url);
+  cachedJwks = await res.json();
+  return cachedJwks;
+}
+
 async function authedClient(req: Request) {
   const authHeader = req.headers.get("Authorization");
   if (!authHeader?.startsWith("Bearer ")) {
-    console.error("[cronometer] No Authorization header");
     return { error: "Unauthorized" as const, status: 401 as const };
   }
   const token = authHeader.replace("Bearer ", "");
@@ -427,12 +440,23 @@ async function authedClient(req: Request) {
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
-  const { data, error } = await supabase.auth.getUser(token);
-  if (error || !data?.user) {
-    console.error("[cronometer] getUser failed:", error?.message, "token prefix:", token.substring(0, 20));
+
+  // Verify JWT signature locally via JWKS (no session lookup required)
+  try {
+    const jose = await import("https://deno.land/x/jose@v5.9.6/index.ts");
+    const jwks = await getJwks();
+    const keystore = jose.createLocalJWKSet(jwks);
+    const { payload } = await jose.jwtVerify(token, keystore);
+    const userId = payload.sub as string;
+    if (!userId) {
+      console.error("[cronometer] JWT missing sub");
+      return { error: "Unauthorized" as const, status: 401 as const };
+    }
+    return { supabase, userId };
+  } catch (e) {
+    console.error("[cronometer] JWT verify failed:", (e as Error).message);
     return { error: "Unauthorized" as const, status: 401 as const };
   }
-  return { supabase, userId: data.user.id };
 }
 
 serve(async (req) => {
