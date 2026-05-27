@@ -3,12 +3,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, RefreshCw, Plug, AlertTriangle } from "lucide-react";
+import { Loader2, RefreshCw, Plug, AlertTriangle, Unplug } from "lucide-react";
 import { Lang } from "@/lib/onboardingSchema";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import { CronometerConnectDialog } from "@/components/CronometerConnectDialog";
 import { NutritionWeeklyOverview } from "@/components/NutritionWeeklyOverview";
-import { hasCronometerSession, syncCronometer } from "@/lib/cronometer";
+import { hasCronometerSession, syncCronometer, disconnectCronometer } from "@/lib/cronometer";
 import { toast } from "sonner";
 
 
