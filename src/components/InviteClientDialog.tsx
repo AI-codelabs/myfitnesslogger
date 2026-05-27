@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Mail, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Loader2, Mail, AlertCircle, CheckCircle2, Copy, Link2 } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
 
@@ -27,15 +27,20 @@ interface Props {
   onInvited: () => void;
 }
 
+const PUBLIC_APP_URL = "https://myfitnesslogger.lovable.app";
+
 export function InviteClientDialog({ open, onOpenChange, onInvited }: Props) {
   const { user } = useAuth();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
+  const [linkLoading, setLinkLoading] = useState(false);
   const [gmailConnected, setGmailConnected] = useState<boolean | null>(null);
   const [coachEmail, setCoachEmail] = useState<string | null>(null);
+  const [generatedLink, setGeneratedLink] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open || !user) return;
+    setGeneratedLink(null);
     (async () => {
       const { data } = await supabase
         .from("coach_email_connections")
@@ -48,48 +53,53 @@ export function InviteClientDialog({ open, onOpenChange, onInvited }: Props) {
   }, [open, user]);
 
   const handleClose = (next: boolean) => {
-    if (!next) setEmail("");
+    if (!next) {
+      setEmail("");
+      setGeneratedLink(null);
+    }
     onOpenChange(next);
   };
 
-  const handleInvite = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const createInvitation = async () => {
     const parsed = schema.safeParse({ email });
     if (!parsed.success) {
       toast.error(parsed.error.errors[0].message);
-      return;
+      return null;
     }
-    if (!user) return;
-    setLoading(true);
-
-    // 1. Create invitation row
+    if (!user) return null;
     const { data: invite, error: inviteErr } = await supabase
       .from("invitations")
       .insert({ coach_id: user.id, email: parsed.data.email.toLowerCase() })
       .select("token")
       .single();
-
     if (inviteErr) {
-      setLoading(false);
       toast.error(inviteErr.message);
+      return null;
+    }
+    return {
+      token: invite.token as string,
+      email: parsed.data.email.toLowerCase(),
+      link: `${PUBLIC_APP_URL}/signup?token=${invite.token}`,
+    };
+  };
+
+  const handleSendEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    const invite = await createInvitation();
+    if (!invite) {
+      setLoading(false);
       return;
     }
-
-    const PUBLIC_APP_URL = "https://myfitnesslogger.lovable.app";
-    const inviteLink = `${PUBLIC_APP_URL}/signup?token=${invite.token}`;
-
-    // 2. Send email via coach's Gmail
     const { error: sendErr } = await supabase.functions.invoke("send-invite-email", {
       body: {
-        recipientEmail: parsed.data.email.toLowerCase(),
+        recipientEmail: invite.email,
         inviteToken: invite.token,
-        inviteLink,
-        coachName: user.user_metadata?.display_name || user.email,
+        inviteLink: invite.link,
+        coachName: user?.user_metadata?.display_name || user?.email,
       },
     });
-
     setLoading(false);
-
     if (sendErr) {
       toast.error(`Invitation created but email failed: ${sendErr.message}`);
     } else {
@@ -99,13 +109,31 @@ export function InviteClientDialog({ open, onOpenChange, onInvited }: Props) {
     handleClose(false);
   };
 
+  const handleGenerateLink = async () => {
+    setLinkLoading(true);
+    const invite = await createInvitation();
+    setLinkLoading(false);
+    if (!invite) return;
+    setGeneratedLink(invite.link);
+    onInvited();
+    toast.success("Invite link generated");
+  };
+
+  const copyLink = async () => {
+    if (!generatedLink) return;
+    await navigator.clipboard.writeText(generatedLink);
+    toast.success("Link copied to clipboard");
+  };
+
+  const showForm = gmailConnected !== null;
+
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Invite a client</DialogTitle>
           <DialogDescription>
-            We'll email them an invitation link from your connected Gmail.
+            Email them an invite or copy a personal signup link to share yourself.
           </DialogDescription>
         </DialogHeader>
 
@@ -113,35 +141,43 @@ export function InviteClientDialog({ open, onOpenChange, onInvited }: Props) {
           <div className="flex items-center gap-2 text-sm text-muted-foreground py-6 justify-center">
             <Loader2 className="h-4 w-4 animate-spin" /> Checking connection…
           </div>
-        ) : !gmailConnected ? (
+        ) : generatedLink ? (
           <div className="space-y-4">
             <div className="rounded-lg border border-border/60 bg-muted/40 p-4 space-y-2">
               <div className="flex items-center gap-2 text-sm font-medium">
-                <AlertCircle className="h-4 w-4 text-primary" />
-                Connect Gmail first
+                <CheckCircle2 className="h-4 w-4 text-primary" />
+                Invite link ready
               </div>
-              <p className="text-sm text-muted-foreground">
-                You need to connect a Gmail account before sending invites. Invitations will be sent from your address so clients can reply directly to you.
+              <p className="text-xs text-muted-foreground">
+                Share this link with {email}. Anyone who signs up via this link will be linked to you as their coach.
               </p>
             </div>
+            <div className="flex gap-2">
+              <Input readOnly value={generatedLink} className="h-11 font-mono text-xs" />
+              <Button type="button" onClick={copyLink} className="h-11">
+                <Copy className="h-4 w-4" />
+              </Button>
+            </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => handleClose(false)}>
-                Cancel
-              </Button>
-              <Button asChild>
-                <Link to="/account">
-                  <Mail className="h-4 w-4 mr-2" />
-                  Go to Account
-                </Link>
-              </Button>
+              <Button type="button" onClick={() => handleClose(false)}>Done</Button>
             </DialogFooter>
           </div>
         ) : (
-          <form onSubmit={handleInvite} className="space-y-4">
-            <div className="rounded-md bg-muted/40 border border-border/60 px-3 py-2 text-xs flex items-center gap-2">
-              <CheckCircle2 className="h-3.5 w-3.5 text-primary flex-shrink-0" />
-              <span className="truncate">Sending from {coachEmail}</span>
-            </div>
+          <form onSubmit={handleSendEmail} className="space-y-4">
+            {gmailConnected ? (
+              <div className="rounded-md bg-muted/40 border border-border/60 px-3 py-2 text-xs flex items-center gap-2">
+                <CheckCircle2 className="h-3.5 w-3.5 text-primary flex-shrink-0" />
+                <span className="truncate">Email will be sent from {coachEmail}</span>
+              </div>
+            ) : (
+              <div className="rounded-md bg-muted/40 border border-border/60 px-3 py-2 text-xs flex items-start gap-2">
+                <AlertCircle className="h-3.5 w-3.5 text-primary flex-shrink-0 mt-0.5" />
+                <span>
+                  Gmail not connected — you can still generate a link below, or{" "}
+                  <Link to="/account" className="underline">connect Gmail</Link> to send by email.
+                </span>
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="invite-email">Client email</Label>
               <Input
@@ -155,12 +191,32 @@ export function InviteClientDialog({ open, onOpenChange, onInvited }: Props) {
                 className="h-11"
               />
             </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => handleClose(false)}>
-                Cancel
+            <DialogFooter className="flex-col sm:flex-row gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleGenerateLink}
+                disabled={linkLoading || loading}
+                className="sm:mr-auto"
+              >
+                {linkLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <Link2 className="h-4 w-4 mr-2" />
+                    Generate link
+                  </>
+                )}
               </Button>
-              <Button type="submit" disabled={loading}>
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Send invite"}
+              <Button type="submit" disabled={loading || linkLoading || !gmailConnected}>
+                {loading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <Mail className="h-4 w-4 mr-2" />
+                    Send invite
+                  </>
+                )}
               </Button>
             </DialogFooter>
           </form>
