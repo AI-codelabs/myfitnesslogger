@@ -2,3 +2,7 @@ project_id = "zaxbjmdhzfldvnikxanv"
 
 [functions.gmail-oauth-callback]
 verify_jwt = false
+
+[functions.cronometer]
+verify_jwt = false
+
