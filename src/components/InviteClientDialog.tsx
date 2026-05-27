@@ -82,6 +82,7 @@ export function InviteClientDialog({ open, onOpenChange, onInvited }: Props) {
     const { error: sendErr } = await supabase.functions.invoke("send-invite-email", {
       body: {
         recipientEmail: parsed.data.email.toLowerCase(),
+        inviteToken: invite.token,
         inviteLink,
         coachName: user.user_metadata?.display_name || user.email,
       },

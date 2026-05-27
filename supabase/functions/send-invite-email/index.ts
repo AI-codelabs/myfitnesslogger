@@ -10,31 +10,35 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) return json({ error: "Unauthorized" }, 401);
-
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const clientId = Deno.env.get("GOOGLE_OAUTH_CLIENT_ID")!;
     const clientSecret = Deno.env.get("GOOGLE_OAUTH_CLIENT_SECRET")!;
 
-    const userClient = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const { data: { user } } = await userClient.auth.getUser();
-    if (!user) return json({ error: "Unauthorized" }, 401);
-
-    const { recipientEmail, inviteLink, coachName } = await req.json();
-    if (!recipientEmail || !inviteLink) {
-      return json({ error: "Missing recipientEmail or inviteLink" }, 400);
+    const { recipientEmail, inviteLink, inviteToken, coachName } = await req.json();
+    if (!recipientEmail || !inviteLink || !inviteToken) {
+      return json({ error: "Missing recipientEmail, inviteLink or inviteToken" }, 400);
     }
 
     const admin = createClient(supabaseUrl, serviceKey);
+    const { data: invite, error: inviteErr } = await admin
+      .from("invitations")
+      .select("coach_id, email")
+      .eq("token", inviteToken)
+      .maybeSingle();
+
+    if (inviteErr || !invite) {
+      return json({ error: "Invitation not found" }, 404);
+    }
+
+    if ((invite.email || "").toLowerCase() !== recipientEmail.toLowerCase()) {
+      return json({ error: "Invitation email mismatch" }, 400);
+    }
+
     const { data: conn, error: connErr } = await admin
       .from("coach_email_connections")
       .select("*")
-      .eq("coach_id", user.id)
+      .eq("coach_id", invite.coach_id)
       .maybeSingle();
 
     if (connErr || !conn) {
@@ -66,7 +70,7 @@ Deno.serve(async (req) => {
       await admin
         .from("coach_email_connections")
         .update({ access_token: accessToken, token_expires_at: newExpiresAt })
-        .eq("coach_id", user.id);
+        .eq("coach_id", invite.coach_id);
     }
 
     const fromName = coachName || conn.email;
