@@ -93,6 +93,21 @@ const ClientNutrition = () => {
     await loadAll();
   };
 
+  const handleDisconnect = async () => {
+    if (!user?.id) return;
+    if (!window.confirm(t("Cronometer ontkoppelen?", "Disconnect Cronometer?"))) return;
+    setDisconnecting(true);
+    const res = await disconnectCronometer(user.id);
+    setDisconnecting(false);
+    if (!res.success) {
+      toast.error(res.error || t("Ontkoppelen mislukt", "Disconnect failed"));
+      return;
+    }
+    toast.success(t("Cronometer ontkoppeld", "Cronometer disconnected"));
+    setConnected(false);
+    await loadAll();
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
