@@ -159,14 +159,29 @@ const ClientNutrition = () => {
           </div>
           <div className="flex gap-2 w-full sm:w-auto">
             {connected ? (
-              <Button onClick={handleSync} disabled={syncing} className="flex-1 sm:flex-none">
-                {syncing ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : (
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                )}
-                {t("Log", "Log")}
-              </Button>
+              <>
+                <Button onClick={handleSync} disabled={syncing} className="flex-1 sm:flex-none">
+                  {syncing ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                  )}
+                  {t("Log", "Log")}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleDisconnect}
+                  disabled={disconnecting}
+                  className="flex-1 sm:flex-none"
+                >
+                  {disconnecting ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <Unplug className="h-4 w-4 mr-2" />
+                  )}
+                  {t("Ontkoppelen", "Disconnect")}
+                </Button>
+              </>
             ) : (
               <Button onClick={() => setConnectOpen(true)} className="flex-1 sm:flex-none">
                 <Plug className="h-4 w-4 mr-2" />
