@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
+import logo from "@/assets/logo.png";
 
 export function AppSidebar() {
   const { state } = useSidebar();
