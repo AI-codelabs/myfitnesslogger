@@ -33,11 +33,7 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b border-border/60">
         <div className="flex items-center gap-2 px-2 py-2">
-          <div className="w-8 h-8 rounded-lg gradient-brand flex items-center justify-center flex-shrink-0">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M18 8h1a4 4 0 0 1 0 8h-1" /><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z" />
-            </svg>
-          </div>
+          <img src={logo} alt="L3 logo" className="w-8 h-8 object-contain flex-shrink-0" />
           {!collapsed && <span className="font-semibold tracking-tight">Coach</span>}
         </div>
       </SidebarHeader>
