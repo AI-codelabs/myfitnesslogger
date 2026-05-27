@@ -92,3 +92,13 @@ export async function hasCronometerSession(clientId: string): Promise<boolean> {
     .maybeSingle();
   return !!data;
 }
+
+/** Disconnect: remove the saved Cronometer session for this client. */
+export async function disconnectCronometer(clientId: string): Promise<{ success: boolean; error?: string }> {
+  const { error } = await supabase
+    .from("cronometer_sessions")
+    .delete()
+    .eq("client_id", clientId);
+  if (error) return { success: false, error: error.message };
+  return { success: true };
+}
