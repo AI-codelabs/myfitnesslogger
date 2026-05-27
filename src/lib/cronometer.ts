@@ -1,5 +1,32 @@
 import { supabase } from "@/integrations/supabase/client";
 
+type CronometerFunctionError = {
+  error?: string;
+  message?: string;
+};
+
+async function parseCronometerFunctionError(error: unknown): Promise<CronometerFunctionError | null> {
+  const context = (error as { context?: unknown } | null)?.context;
+
+  if (context instanceof Response) {
+    try {
+      const text = await context.text();
+      return text ? JSON.parse(text) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  const body = (context as { body?: unknown } | null)?.body;
+  if (!body) return null;
+
+  try {
+    return typeof body === "string" ? JSON.parse(body) : (body as CronometerFunctionError);
+  } catch {
+    return null;
+  }
+}
+
 /** Connect Cronometer and persist session server-side for this client. */
 export async function connectCronometerServer(
   username: string,
@@ -8,7 +35,10 @@ export async function connectCronometerServer(
   const { data, error } = await supabase.functions.invoke("cronometer", {
     body: { action: "connect_and_save", username, password },
   });
-  if (error) return { success: false, error: error.message };
+  if (error) {
+    const parsed = await parseCronometerFunctionError(error);
+    return { success: false, error: parsed?.message || parsed?.error || error.message };
+  }
   if ((data as any)?.error) return { success: false, error: (data as any).error };
   return { success: true };
 }
@@ -29,21 +59,15 @@ export async function syncCronometer(): Promise<SyncResult> {
     body: { action: "sync" },
   });
   if (error) {
-    // functions.invoke surfaces non-2xx as an error; check the body if available
-    const body = (error as any).context?.body;
-    if (body) {
-      try {
-        const parsed = typeof body === "string" ? JSON.parse(body) : body;
-        if (parsed?.error === "session_expired") {
-          return { success: false, sessionExpired: true, error: parsed.message };
-        }
-        if (parsed?.error === "no_session") {
-          return { success: false, error: "no_session" };
-        }
-        return { success: false, error: parsed?.message || parsed?.error || error.message };
-      } catch {
-        // ignore parse errors
-      }
+    const parsed = await parseCronometerFunctionError(error);
+    if (parsed?.error === "session_expired") {
+      return { success: false, sessionExpired: true, error: parsed.message };
+    }
+    if (parsed?.error === "no_session") {
+      return { success: false, error: "no_session" };
+    }
+    if (parsed) {
+      return { success: false, error: parsed.message || parsed.error || error.message };
     }
     return { success: false, error: error.message };
   }
