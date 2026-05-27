@@ -419,16 +419,19 @@ async function updateDailyTargets(
 async function authedClient(req: Request) {
   const authHeader = req.headers.get("Authorization");
   if (!authHeader?.startsWith("Bearer ")) {
+    console.error("[cronometer] No Authorization header");
     return { error: "Unauthorized" as const, status: 401 as const };
   }
   const token = authHeader.replace("Bearer ", "");
-  // Use service role to verify the JWT (compatible with signing-keys system)
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
   const { data, error } = await supabase.auth.getUser(token);
-  if (error || !data?.user) return { error: "Unauthorized" as const, status: 401 as const };
+  if (error || !data?.user) {
+    console.error("[cronometer] getUser failed:", error?.message, "token prefix:", token.substring(0, 20));
+    return { error: "Unauthorized" as const, status: 401 as const };
+  }
   return { supabase, userId: data.user.id };
 }
 
