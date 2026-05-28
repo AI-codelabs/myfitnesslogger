@@ -59,7 +59,9 @@ export function ExerciseDialog({ exercise, open: controlledOpen, onOpenChange, t
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState("");
   const [muscleGroup, setMuscleGroup] = useState<string>("chest");
+  const [customMuscle, setCustomMuscle] = useState<string>("");
   const [equipment, setEquipment] = useState<string>("barbell");
+  const [exerciseType, setExerciseType] = useState<string>("strength");
   const [notes, setNotes] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
   const [isPro, setIsPro] = useState(false);
@@ -67,13 +69,18 @@ export function ExerciseDialog({ exercise, open: controlledOpen, onOpenChange, t
   useEffect(() => {
     if (open) {
       setName(exercise?.name ?? "");
-      setMuscleGroup(exercise?.muscle_group ?? "chest");
+      const mg = exercise?.muscle_group ?? "chest";
+      const isKnown = MUSCLE_GROUPS.includes(mg);
+      setMuscleGroup(isKnown ? mg : "__custom__");
+      setCustomMuscle(isKnown ? "" : mg);
       setEquipment(exercise?.equipment ?? "barbell");
+      setExerciseType(exercise?.exercise_type ?? "strength");
       setNotes(exercise?.notes ?? "");
       setVideoUrl(exercise?.video_url ?? "");
       setIsPro(exercise?.is_pro ?? false);
     }
   }, [open, exercise]);
+
 
   async function handleSave() {
     if (!name.trim()) {
