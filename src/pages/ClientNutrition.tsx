@@ -258,6 +258,11 @@ const ClientNutrition = () => {
         </Card>
       )}
 
+      {user?.id && (
+        <ClientNutritionDocuments clientId={user.id} canUpload={false} lang={lang} />
+      )}
+
+
       <CronometerConnectDialog
         open={connectOpen}
         onOpenChange={setConnectOpen}
