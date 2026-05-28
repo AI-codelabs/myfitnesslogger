@@ -272,8 +272,12 @@ const LogWorkout = () => {
         set_number: row.set_number,
         reps: row.reps ? parseInt(row.reps) : null,
         weight_kg: row.weight_kg ? parseFloat(row.weight_kg) : null,
+        duration_seconds: row.duration_seconds ? parseInt(row.duration_seconds) : null,
+        distance_m: row.distance_m ? parseInt(row.distance_m) : null,
+        intensity: row.intensity || null,
         notes: row.notes || null,
       };
+
       if (row.id) {
         await supabase.from("workout_set_logs").update(payload).eq("id", row.id);
       } else {
