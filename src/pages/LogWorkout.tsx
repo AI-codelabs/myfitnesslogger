@@ -431,57 +431,148 @@ const LogWorkout = () => {
             </div>
 
 
-            <div className="space-y-2">
-              <div className="grid grid-cols-[2rem_1fr_1fr_auto] gap-2 text-[10px] uppercase tracking-wider text-muted-foreground px-1">
-                <span>{tx("Set", "Set")}</span>
-                <span>{tx("Herh.", "Reps")}</span>
-                <span>{tx("Kg", "Kg")}</span>
-                <span></span>
-              </div>
-              {activeSets.map((s, i) => (
-                <div
-                  key={i}
-                  className="grid grid-cols-[2rem_1fr_1fr_auto] gap-2 items-center"
+            {activeExercise.exercise?.exercise_type === "cardio" ? (
+              <div className="space-y-3">
+                {activeSets.map((s, i) => (
+                  <div key={i} className="rounded-md border p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-muted-foreground">
+                        {tx("Sessie", "Session")} {s.set_number}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeSet(i)}
+                        className="h-7 w-7 text-muted-foreground"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="space-y-1">
+                        <label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                          {tx("Duur (min)", "Duration (min)")}
+                        </label>
+                        <Input
+                          inputMode="numeric"
+                          placeholder="0"
+                          value={
+                            s.duration_seconds
+                              ? String(Math.round(parseInt(s.duration_seconds) / 60))
+                              : ""
+                          }
+                          onChange={(e) =>
+                            updateSet(i, {
+                              duration_seconds: e.target.value
+                                ? String(parseInt(e.target.value) * 60)
+                                : "",
+                            })
+                          }
+                          className="h-10 text-center"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                          {tx("Afstand (km)", "Distance (km)")}
+                        </label>
+                        <Input
+                          inputMode="decimal"
+                          placeholder="0"
+                          value={
+                            s.distance_m ? (parseInt(s.distance_m) / 1000).toString() : ""
+                          }
+                          onChange={(e) =>
+                            updateSet(i, {
+                              distance_m: e.target.value
+                                ? String(Math.round(parseFloat(e.target.value) * 1000))
+                                : "",
+                            })
+                          }
+                          className="h-10 text-center"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                          {tx("Intensiteit", "Intensity")}
+                        </label>
+                        <Input
+                          placeholder={tx("Z2, RPE 7…", "Z2, RPE 7…")}
+                          value={s.intensity}
+                          onChange={(e) => updateSet(i, { intensity: e.target.value })}
+                          className="h-10 text-center"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={addSet}
+                  className="w-full gap-1"
                 >
-                  <span className="text-sm font-semibold text-muted-foreground text-center">
-                    {s.set_number}
-                  </span>
-                  <Input
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    placeholder="0"
-                    value={s.reps}
-                    onChange={(e) => updateSet(i, { reps: e.target.value })}
-                    className="h-10 text-center"
-                  />
-                  <Input
-                    inputMode="decimal"
-                    placeholder="0"
-                    value={s.weight_kg}
-                    onChange={(e) => updateSet(i, { weight_kg: e.target.value })}
-                    className="h-10 text-center"
-                  />
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => removeSet(i)}
-                    aria-label={tx("Verwijder set", "Remove set")}
-                    className="h-9 w-9 text-muted-foreground"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <Plus className="h-4 w-4" />
+                  {tx("Sessie toevoegen", "Add session")}
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="grid grid-cols-[2rem_1fr_1fr_auto] gap-2 text-[10px] uppercase tracking-wider text-muted-foreground px-1">
+                  <span>{tx("Set", "Set")}</span>
+                  <span>{tx("Herh.", "Reps")}</span>
+                  <span>{tx("Kg", "Kg")}</span>
+                  <span></span>
                 </div>
-              ))}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={addSet}
-                className="w-full gap-1"
-              >
-                <Plus className="h-4 w-4" />
-                {tx("Set toevoegen", "Add set")}
-              </Button>
-            </div>
+                {activeSets.map((s, i) => (
+                  <div
+                    key={i}
+                    className="grid grid-cols-[2rem_1fr_1fr_auto] gap-2 items-center"
+                  >
+                    <span className="text-sm font-semibold text-muted-foreground text-center">
+                      {s.set_number}
+                    </span>
+                    <Input
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      placeholder={
+                        activeExercise.sets_reps
+                          ? extractRepRange(activeExercise.sets_reps) ?? "0"
+                          : "0"
+                      }
+                      value={s.reps}
+                      onChange={(e) => updateSet(i, { reps: e.target.value })}
+                      className="h-10 text-center"
+                    />
+                    <Input
+                      inputMode="decimal"
+                      placeholder="0"
+                      value={s.weight_kg}
+                      onChange={(e) => updateSet(i, { weight_kg: e.target.value })}
+                      className="h-10 text-center"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeSet(i)}
+                      aria-label={tx("Verwijder set", "Remove set")}
+                      className="h-9 w-9 text-muted-foreground"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={addSet}
+                  className="w-full gap-1"
+                >
+                  <Plus className="h-4 w-4" />
+                  {tx("Set toevoegen", "Add set")}
+                </Button>
+              </div>
+            )}
+
 
             <div className="space-y-1.5">
               <label className="text-xs uppercase tracking-wider text-muted-foreground">
