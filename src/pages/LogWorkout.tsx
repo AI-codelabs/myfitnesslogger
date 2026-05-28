@@ -165,9 +165,18 @@ const LogWorkout = () => {
 
       const { data: logs } = await supabase
         .from("workout_set_logs")
-        .select("id, plan_exercise_id, set_number, reps, weight_kg, notes")
+        .select("id, plan_exercise_id, set_number, reps, weight_kg, duration_seconds, distance_m, intensity, notes")
         .eq("session_id", sid!)
         .order("set_number");
+      const emptyRow = (n: number): SetRow => ({
+        set_number: n,
+        reps: "",
+        weight_kg: "",
+        duration_seconds: "",
+        distance_m: "",
+        intensity: "",
+        notes: "",
+      });
       const grouped: Record<string, SetRow[]> = {};
       for (const e of ex) {
         const mine = (logs ?? []).filter((l: any) => l.plan_exercise_id === e.id);
@@ -177,13 +186,17 @@ const LogWorkout = () => {
             set_number: l.set_number,
             reps: l.reps?.toString() ?? "",
             weight_kg: l.weight_kg?.toString() ?? "",
+            duration_seconds: l.duration_seconds?.toString() ?? "",
+            distance_m: l.distance_m?.toString() ?? "",
+            intensity: l.intensity ?? "",
             notes: l.notes ?? "",
             saved: true,
           }));
         } else {
-          grouped[e.id] = [{ set_number: 1, reps: "", weight_kg: "", notes: "" }];
+          grouped[e.id] = [emptyRow(1)];
         }
       }
+
       setSetsByExercise(grouped);
       setLoading(false);
     })();
