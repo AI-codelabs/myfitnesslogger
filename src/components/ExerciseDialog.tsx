@@ -93,14 +93,23 @@ export function ExerciseDialog({ exercise, open: controlledOpen, onOpenChange, t
     }
     setSaving(true);
     try {
+      const resolvedMuscle =
+        muscleGroup === "__custom__" ? customMuscle.trim().toLowerCase() : muscleGroup;
+      if (!resolvedMuscle) {
+        toast.error("Muscle group is required");
+        setSaving(false);
+        return;
+      }
       const payload = {
         name: name.trim(),
-        muscle_group: muscleGroup,
+        muscle_group: resolvedMuscle,
         equipment,
+        exercise_type: exerciseType,
         notes: notes.trim() || null,
         video_url: videoUrl.trim() || null,
         is_pro: isPro,
       };
+
       if (isEdit && exercise) {
         const { error } = await supabase.from("exercises").update(payload).eq("id", exercise.id);
         if (error) throw error;
