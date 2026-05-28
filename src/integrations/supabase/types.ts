@@ -357,6 +357,7 @@ export type Database = {
         Row: {
           created_at: string
           equipment: string | null
+          exercise_type: string
           id: string
           is_pro: boolean
           muscle_group: string | null
@@ -368,6 +369,7 @@ export type Database = {
         Insert: {
           created_at?: string
           equipment?: string | null
+          exercise_type?: string
           id?: string
           is_pro?: boolean
           muscle_group?: string | null
@@ -379,6 +381,7 @@ export type Database = {
         Update: {
           created_at?: string
           equipment?: string | null
+          exercise_type?: string
           id?: string
           is_pro?: boolean
           muscle_group?: string | null
@@ -1093,7 +1096,10 @@ export type Database = {
       workout_set_logs: {
         Row: {
           created_at: string
+          distance_m: number | null
+          duration_seconds: number | null
           id: string
+          intensity: string | null
           notes: string | null
           plan_exercise_id: string
           reps: number | null
@@ -1104,7 +1110,10 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          distance_m?: number | null
+          duration_seconds?: number | null
           id?: string
+          intensity?: string | null
           notes?: string | null
           plan_exercise_id: string
           reps?: number | null
@@ -1115,7 +1124,10 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          distance_m?: number | null
+          duration_seconds?: number | null
           id?: string
+          intensity?: string | null
           notes?: string | null
           plan_exercise_id?: string
           reps?: number | null

@@ -16,7 +16,12 @@ interface PlanExercise {
   sets_reps: string | null;
   notes: string | null;
   order_index: number;
-  exercise: { name: string; muscle_group: string | null; video_url: string | null } | null;
+  exercise: {
+    name: string;
+    muscle_group: string | null;
+    video_url: string | null;
+    exercise_type: string | null;
+  } | null;
 }
 
 
@@ -25,9 +30,27 @@ interface SetRow {
   set_number: number;
   reps: string;
   weight_kg: string;
+  duration_seconds: string;
+  distance_m: string;
+  intensity: string;
   notes: string;
   saved?: boolean;
 }
+
+// Extract a rep target like "8-10" or "10" from a free-form plan string
+// such as "4x 8-10" or "3x10". Used as the placeholder hint on the reps input.
+function extractRepRange(s: string): string | null {
+  const m = s.match(/(\d+\s*-\s*\d+)|(\d+)\s*x\s*(\d+)|(\d+)\s*reps?/i);
+  if (!m) return null;
+  if (m[1]) return m[1].replace(/\s+/g, "");
+  if (m[3]) return m[3];
+  if (m[4]) return m[4];
+  return null;
+}
+
+
+
+
 
 const LogWorkout = () => {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -147,7 +170,7 @@ const LogWorkout = () => {
       if (session.day_id) {
         const { data } = await supabase
           .from("workout_plan_exercises")
-          .select("id, order_index, sets_reps, notes, exercise:exercises(name, muscle_group, video_url)")
+          .select("id, order_index, sets_reps, notes, exercise:exercises(name, muscle_group, video_url, exercise_type)")
           .eq("day_id", session.day_id)
           .order("order_index");
         ex = (data ?? []) as any;
@@ -156,9 +179,18 @@ const LogWorkout = () => {
 
       const { data: logs } = await supabase
         .from("workout_set_logs")
-        .select("id, plan_exercise_id, set_number, reps, weight_kg, notes")
+        .select("id, plan_exercise_id, set_number, reps, weight_kg, duration_seconds, distance_m, intensity, notes")
         .eq("session_id", sid!)
         .order("set_number");
+      const emptyRow = (n: number): SetRow => ({
+        set_number: n,
+        reps: "",
+        weight_kg: "",
+        duration_seconds: "",
+        distance_m: "",
+        intensity: "",
+        notes: "",
+      });
       const grouped: Record<string, SetRow[]> = {};
       for (const e of ex) {
         const mine = (logs ?? []).filter((l: any) => l.plan_exercise_id === e.id);
@@ -168,13 +200,17 @@ const LogWorkout = () => {
             set_number: l.set_number,
             reps: l.reps?.toString() ?? "",
             weight_kg: l.weight_kg?.toString() ?? "",
+            duration_seconds: l.duration_seconds?.toString() ?? "",
+            distance_m: l.distance_m?.toString() ?? "",
+            intensity: l.intensity ?? "",
             notes: l.notes ?? "",
             saved: true,
           }));
         } else {
-          grouped[e.id] = [{ set_number: 1, reps: "", weight_kg: "", notes: "" }];
+          grouped[e.id] = [emptyRow(1)];
         }
       }
+
       setSetsByExercise(grouped);
       setLoading(false);
     })();
@@ -185,8 +221,16 @@ const LogWorkout = () => {
 
   const isExerciseLogged = (exId: string) => {
     const rows = setsByExercise[exId] ?? [];
-    return rows.some((r) => r.id || (r.reps && r.reps !== "") || (r.weight_kg && r.weight_kg !== ""));
+    return rows.some(
+      (r) =>
+        r.id ||
+        (r.reps && r.reps !== "") ||
+        (r.weight_kg && r.weight_kg !== "") ||
+        (r.duration_seconds && r.duration_seconds !== "") ||
+        (r.distance_m && r.distance_m !== ""),
+    );
   };
+
   const completedCount = useMemo(
     () => exercises.filter((e) => isExerciseLogged(e.id)).length,
     [exercises, setsByExercise]
@@ -209,11 +253,20 @@ const LogWorkout = () => {
         ...prev,
         [activeExercise.id]: [
           ...arr,
-          { set_number: arr.length + 1, reps: "", weight_kg: "", notes: "" },
+          {
+            set_number: arr.length + 1,
+            reps: "",
+            weight_kg: "",
+            duration_seconds: "",
+            distance_m: "",
+            intensity: "",
+            notes: "",
+          },
         ],
       };
     });
   };
+
 
   const removeSet = async (idx: number) => {
     if (!activeExercise) return;
@@ -241,8 +294,12 @@ const LogWorkout = () => {
         set_number: row.set_number,
         reps: row.reps ? parseInt(row.reps) : null,
         weight_kg: row.weight_kg ? parseFloat(row.weight_kg) : null,
+        duration_seconds: row.duration_seconds ? parseInt(row.duration_seconds) : null,
+        distance_m: row.distance_m ? parseInt(row.distance_m) : null,
+        intensity: row.intensity || null,
         notes: row.notes || null,
       };
+
       if (row.id) {
         await supabase.from("workout_set_logs").update(payload).eq("id", row.id);
       } else {
@@ -388,57 +445,148 @@ const LogWorkout = () => {
             </div>
 
 
-            <div className="space-y-2">
-              <div className="grid grid-cols-[2rem_1fr_1fr_auto] gap-2 text-[10px] uppercase tracking-wider text-muted-foreground px-1">
-                <span>{tx("Set", "Set")}</span>
-                <span>{tx("Herh.", "Reps")}</span>
-                <span>{tx("Kg", "Kg")}</span>
-                <span></span>
-              </div>
-              {activeSets.map((s, i) => (
-                <div
-                  key={i}
-                  className="grid grid-cols-[2rem_1fr_1fr_auto] gap-2 items-center"
+            {activeExercise.exercise?.exercise_type === "cardio" ? (
+              <div className="space-y-3">
+                {activeSets.map((s, i) => (
+                  <div key={i} className="rounded-md border p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-muted-foreground">
+                        {tx("Sessie", "Session")} {s.set_number}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeSet(i)}
+                        className="h-7 w-7 text-muted-foreground"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="space-y-1">
+                        <label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                          {tx("Duur (min)", "Duration (min)")}
+                        </label>
+                        <Input
+                          inputMode="numeric"
+                          placeholder="0"
+                          value={
+                            s.duration_seconds
+                              ? String(Math.round(parseInt(s.duration_seconds) / 60))
+                              : ""
+                          }
+                          onChange={(e) =>
+                            updateSet(i, {
+                              duration_seconds: e.target.value
+                                ? String(parseInt(e.target.value) * 60)
+                                : "",
+                            })
+                          }
+                          className="h-10 text-center"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                          {tx("Afstand (km)", "Distance (km)")}
+                        </label>
+                        <Input
+                          inputMode="decimal"
+                          placeholder="0"
+                          value={
+                            s.distance_m ? (parseInt(s.distance_m) / 1000).toString() : ""
+                          }
+                          onChange={(e) =>
+                            updateSet(i, {
+                              distance_m: e.target.value
+                                ? String(Math.round(parseFloat(e.target.value) * 1000))
+                                : "",
+                            })
+                          }
+                          className="h-10 text-center"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                          {tx("Intensiteit", "Intensity")}
+                        </label>
+                        <Input
+                          placeholder={tx("Z2, RPE 7…", "Z2, RPE 7…")}
+                          value={s.intensity}
+                          onChange={(e) => updateSet(i, { intensity: e.target.value })}
+                          className="h-10 text-center"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={addSet}
+                  className="w-full gap-1"
                 >
-                  <span className="text-sm font-semibold text-muted-foreground text-center">
-                    {s.set_number}
-                  </span>
-                  <Input
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    placeholder="0"
-                    value={s.reps}
-                    onChange={(e) => updateSet(i, { reps: e.target.value })}
-                    className="h-10 text-center"
-                  />
-                  <Input
-                    inputMode="decimal"
-                    placeholder="0"
-                    value={s.weight_kg}
-                    onChange={(e) => updateSet(i, { weight_kg: e.target.value })}
-                    className="h-10 text-center"
-                  />
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => removeSet(i)}
-                    aria-label={tx("Verwijder set", "Remove set")}
-                    className="h-9 w-9 text-muted-foreground"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <Plus className="h-4 w-4" />
+                  {tx("Sessie toevoegen", "Add session")}
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="grid grid-cols-[2rem_1fr_1fr_auto] gap-2 text-[10px] uppercase tracking-wider text-muted-foreground px-1">
+                  <span>{tx("Set", "Set")}</span>
+                  <span>{tx("Herh.", "Reps")}</span>
+                  <span>{tx("Kg", "Kg")}</span>
+                  <span></span>
                 </div>
-              ))}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={addSet}
-                className="w-full gap-1"
-              >
-                <Plus className="h-4 w-4" />
-                {tx("Set toevoegen", "Add set")}
-              </Button>
-            </div>
+                {activeSets.map((s, i) => (
+                  <div
+                    key={i}
+                    className="grid grid-cols-[2rem_1fr_1fr_auto] gap-2 items-center"
+                  >
+                    <span className="text-sm font-semibold text-muted-foreground text-center">
+                      {s.set_number}
+                    </span>
+                    <Input
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      placeholder={
+                        activeExercise.sets_reps
+                          ? extractRepRange(activeExercise.sets_reps) ?? "0"
+                          : "0"
+                      }
+                      value={s.reps}
+                      onChange={(e) => updateSet(i, { reps: e.target.value })}
+                      className="h-10 text-center"
+                    />
+                    <Input
+                      inputMode="decimal"
+                      placeholder="0"
+                      value={s.weight_kg}
+                      onChange={(e) => updateSet(i, { weight_kg: e.target.value })}
+                      className="h-10 text-center"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeSet(i)}
+                      aria-label={tx("Verwijder set", "Remove set")}
+                      className="h-9 w-9 text-muted-foreground"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={addSet}
+                  className="w-full gap-1"
+                >
+                  <Plus className="h-4 w-4" />
+                  {tx("Set toevoegen", "Add set")}
+                </Button>
+              </div>
+            )}
+
 
             <div className="space-y-1.5">
               <label className="text-xs uppercase tracking-wider text-muted-foreground">

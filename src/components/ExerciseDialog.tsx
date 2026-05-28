@@ -36,7 +36,9 @@ export interface ExerciseRecord {
   is_pro: boolean;
   notes?: string | null;
   video_url?: string | null;
+  exercise_type?: string | null;
 }
+
 
 interface Props {
   exercise?: ExerciseRecord | null;
@@ -57,7 +59,9 @@ export function ExerciseDialog({ exercise, open: controlledOpen, onOpenChange, t
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState("");
   const [muscleGroup, setMuscleGroup] = useState<string>("chest");
+  const [customMuscle, setCustomMuscle] = useState<string>("");
   const [equipment, setEquipment] = useState<string>("barbell");
+  const [exerciseType, setExerciseType] = useState<string>("strength");
   const [notes, setNotes] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
   const [isPro, setIsPro] = useState(false);
@@ -65,13 +69,18 @@ export function ExerciseDialog({ exercise, open: controlledOpen, onOpenChange, t
   useEffect(() => {
     if (open) {
       setName(exercise?.name ?? "");
-      setMuscleGroup(exercise?.muscle_group ?? "chest");
+      const mg = exercise?.muscle_group ?? "chest";
+      const isKnown = MUSCLE_GROUPS.includes(mg);
+      setMuscleGroup(isKnown ? mg : "__custom__");
+      setCustomMuscle(isKnown ? "" : mg);
       setEquipment(exercise?.equipment ?? "barbell");
+      setExerciseType(exercise?.exercise_type ?? "strength");
       setNotes(exercise?.notes ?? "");
       setVideoUrl(exercise?.video_url ?? "");
       setIsPro(exercise?.is_pro ?? false);
     }
   }, [open, exercise]);
+
 
   async function handleSave() {
     if (!name.trim()) {
@@ -84,14 +93,23 @@ export function ExerciseDialog({ exercise, open: controlledOpen, onOpenChange, t
     }
     setSaving(true);
     try {
+      const resolvedMuscle =
+        muscleGroup === "__custom__" ? customMuscle.trim().toLowerCase() : muscleGroup;
+      if (!resolvedMuscle) {
+        toast.error("Muscle group is required");
+        setSaving(false);
+        return;
+      }
       const payload = {
         name: name.trim(),
-        muscle_group: muscleGroup,
+        muscle_group: resolvedMuscle,
         equipment,
+        exercise_type: exerciseType,
         notes: notes.trim() || null,
         video_url: videoUrl.trim() || null,
         is_pro: isPro,
       };
+
       if (isEdit && exercise) {
         const { error } = await supabase.from("exercises").update(payload).eq("id", exercise.id);
         if (error) throw error;
@@ -140,8 +158,16 @@ export function ExerciseDialog({ exercise, open: controlledOpen, onOpenChange, t
                   {MUSCLE_GROUPS.map((m) => (
                     <SelectItem key={m} value={m} className="capitalize">{m.replace("_", " ")}</SelectItem>
                   ))}
+                  <SelectItem value="__custom__">Custom…</SelectItem>
                 </SelectContent>
               </Select>
+              {muscleGroup === "__custom__" && (
+                <Input
+                  value={customMuscle}
+                  onChange={(e) => setCustomMuscle(e.target.value)}
+                  placeholder="e.g. forearms"
+                />
+              )}
             </div>
             <div className="space-y-2">
               <Label>Equipment</Label>
@@ -155,6 +181,17 @@ export function ExerciseDialog({ exercise, open: controlledOpen, onOpenChange, t
               </Select>
             </div>
           </div>
+          <div className="space-y-2">
+            <Label>Exercise type</Label>
+            <Select value={exerciseType} onValueChange={setExerciseType}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="strength">Strength (sets × reps)</SelectItem>
+                <SelectItem value="cardio">Cardio (duration / distance)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="ex-video">Video link</Label>
             <Input
