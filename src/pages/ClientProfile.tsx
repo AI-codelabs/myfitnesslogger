@@ -465,7 +465,17 @@ const ClientProfile = () => {
               }}
             />
           )}
+
+          {coachId && clientId && (
+            <ClientNutritionDocuments
+              clientId={clientId}
+              coachId={coachId}
+              canUpload
+              lang={lang}
+            />
+          )}
         </TabsContent>
+
       </Tabs>
     </div>
   );
