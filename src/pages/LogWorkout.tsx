@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { ChevronLeft, Loader2, Plus, Trash2, Check, Dumbbell, ChevronRight, ListChecks } from "lucide-react";
+import { ChevronLeft, Loader2, Plus, Trash2, Check, Dumbbell, ChevronRight, ListChecks, Video } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { Lang } from "@/lib/onboardingSchema";
 
@@ -16,8 +16,9 @@ interface PlanExercise {
   sets_reps: string | null;
   notes: string | null;
   order_index: number;
-  exercise: { name: string; muscle_group: string | null } | null;
+  exercise: { name: string; muscle_group: string | null; video_url: string | null } | null;
 }
+
 
 interface SetRow {
   id?: string;
