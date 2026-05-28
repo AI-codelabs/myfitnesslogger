@@ -158,8 +158,16 @@ export function ExerciseDialog({ exercise, open: controlledOpen, onOpenChange, t
                   {MUSCLE_GROUPS.map((m) => (
                     <SelectItem key={m} value={m} className="capitalize">{m.replace("_", " ")}</SelectItem>
                   ))}
+                  <SelectItem value="__custom__">Custom…</SelectItem>
                 </SelectContent>
               </Select>
+              {muscleGroup === "__custom__" && (
+                <Input
+                  value={customMuscle}
+                  onChange={(e) => setCustomMuscle(e.target.value)}
+                  placeholder="e.g. forearms"
+                />
+              )}
             </div>
             <div className="space-y-2">
               <Label>Equipment</Label>
@@ -173,6 +181,17 @@ export function ExerciseDialog({ exercise, open: controlledOpen, onOpenChange, t
               </Select>
             </div>
           </div>
+          <div className="space-y-2">
+            <Label>Exercise type</Label>
+            <Select value={exerciseType} onValueChange={setExerciseType}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="strength">Strength (sets × reps)</SelectItem>
+                <SelectItem value="cardio">Cardio (duration / distance)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="ex-video">Video link</Label>
             <Input
