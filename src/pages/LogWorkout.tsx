@@ -72,13 +72,15 @@ const LogWorkout = () => {
           return;
         }
 
-        // Try to resume an existing (uncompleted) session for the same plan/day/date
+        // Try to resume an existing session for the same plan/day/date.
+        // Pick the most recent one regardless of completion — if the client
+        // already finished and comes back, we reopen that session so previously
+        // logged sets remain visible instead of starting from an empty grid.
         let existingQuery = supabase
           .from("workout_sessions")
           .select("id, plan_id, day_id, scheduled_date, completed_at")
           .eq("client_id", user.id)
-          .eq("plan_id", planId)
-          .is("completed_at", null);
+          .eq("plan_id", planId);
         if (date) existingQuery = existingQuery.eq("scheduled_date", date);
         else existingQuery = existingQuery.is("scheduled_date", null);
         if (dayId) existingQuery = existingQuery.eq("day_id", dayId);
@@ -90,6 +92,15 @@ const LogWorkout = () => {
           .maybeSingle();
 
         if (existing) {
+          // If it was already completed, reopen it so the client can review
+          // and continue logging without losing previously entered data.
+          if (existing.completed_at) {
+            await supabase
+              .from("workout_sessions")
+              .update({ completed_at: null })
+              .eq("id", existing.id);
+            existing.completed_at = null;
+          }
           session = existing;
           sid = existing.id;
           navigate(`/training/log/${sid}`, { replace: true });
@@ -114,6 +125,7 @@ const LogWorkout = () => {
           navigate(`/training/log/${sid}`, { replace: true });
         }
       }
+
 
       if (!session) {
         navigate("/training");
