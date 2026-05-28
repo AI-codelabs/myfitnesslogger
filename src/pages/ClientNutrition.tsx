@@ -8,8 +8,10 @@ import { Lang } from "@/lib/onboardingSchema";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import { CronometerConnectDialog } from "@/components/CronometerConnectDialog";
 import { NutritionWeeklyOverview } from "@/components/NutritionWeeklyOverview";
+import { ClientNutritionDocuments } from "@/components/ClientNutritionDocuments";
 import { hasCronometerSession, syncCronometer, disconnectCronometer } from "@/lib/cronometer";
 import { toast } from "sonner";
+
 
 
 
