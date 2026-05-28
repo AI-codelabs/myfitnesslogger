@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      client_nutrition_documents: {
+        Row: {
+          client_id: string
+          coach_id: string
+          created_at: string
+          file_name: string
+          file_path: string
+          id: string
+          mime_type: string | null
+          size_bytes: number | null
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          coach_id: string
+          created_at?: string
+          file_name: string
+          file_path: string
+          id?: string
+          mime_type?: string | null
+          size_bytes?: number | null
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          coach_id?: string
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          id?: string
+          mime_type?: string | null
+          size_bytes?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       client_workout_assignments: {
         Row: {
           assigned_at: string

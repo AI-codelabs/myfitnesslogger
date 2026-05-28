@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { ChevronLeft, Loader2, Plus, Trash2, Check, Dumbbell, ChevronRight, ListChecks } from "lucide-react";
+import { ChevronLeft, Loader2, Plus, Trash2, Check, Dumbbell, ChevronRight, ListChecks, Video } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { Lang } from "@/lib/onboardingSchema";
 
@@ -16,8 +16,9 @@ interface PlanExercise {
   sets_reps: string | null;
   notes: string | null;
   order_index: number;
-  exercise: { name: string; muscle_group: string | null } | null;
+  exercise: { name: string; muscle_group: string | null; video_url: string | null } | null;
 }
+
 
 interface SetRow {
   id?: string;
@@ -146,7 +147,7 @@ const LogWorkout = () => {
       if (session.day_id) {
         const { data } = await supabase
           .from("workout_plan_exercises")
-          .select("id, order_index, sets_reps, notes, exercise:exercises(name, muscle_group)")
+          .select("id, order_index, sets_reps, notes, exercise:exercises(name, muscle_group, video_url)")
           .eq("day_id", session.day_id)
           .order("order_index");
         ex = (data ?? []) as any;
@@ -373,7 +374,19 @@ const LogWorkout = () => {
                   {activeExercise.notes}
                 </p>
               )}
+              {activeExercise.exercise?.video_url && (
+                <a
+                  href={activeExercise.exercise.video_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 mt-2 text-xs font-medium text-primary hover:underline"
+                >
+                  <Video className="h-3.5 w-3.5" />
+                  {tx("Bekijk video", "Watch video")}
+                </a>
+              )}
             </div>
+
 
             <div className="space-y-2">
               <div className="grid grid-cols-[2rem_1fr_1fr_auto] gap-2 text-[10px] uppercase tracking-wider text-muted-foreground px-1">

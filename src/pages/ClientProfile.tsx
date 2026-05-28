@@ -28,6 +28,8 @@ import { WeeklyCheckinsTab } from "@/components/WeeklyCheckinsTab";
 import { WeeklyReviewTab } from "@/components/WeeklyReviewTab";
 import { ClientProgressionTab } from "@/components/ClientProgressionTab";
 import { NutritionWeeklyOverview, DailyLog } from "@/components/NutritionWeeklyOverview";
+import { ClientNutritionDocuments } from "@/components/ClientNutritionDocuments";
+
 
 const ClientProfile = () => {
   const { clientId } = useParams<{ clientId: string }>();
@@ -463,7 +465,17 @@ const ClientProfile = () => {
               }}
             />
           )}
+
+          {coachId && clientId && (
+            <ClientNutritionDocuments
+              clientId={clientId}
+              coachId={coachId}
+              canUpload
+              lang={lang}
+            />
+          )}
         </TabsContent>
+
       </Tabs>
     </div>
   );
