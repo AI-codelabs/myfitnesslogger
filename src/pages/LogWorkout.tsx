@@ -37,6 +37,17 @@ interface SetRow {
   saved?: boolean;
 }
 
+// Extract a rep target like "8-10" or "10" from a free-form plan string
+// such as "4x 8-10" or "3x10". Used as the placeholder hint on the reps input.
+function extractRepRange(s: string): string | null {
+  const m = s.match(/(\d+\s*-\s*\d+)|(\d+)\s*x\s*(\d+)|(\d+)\s*reps?/i);
+  if (!m) return null;
+  if (m[1]) return m[1].replace(/\s+/g, "");
+  if (m[3]) return m[3];
+  if (m[4]) return m[4];
+  return null;
+
+
 
 const LogWorkout = () => {
   const { sessionId } = useParams<{ sessionId: string }>();
