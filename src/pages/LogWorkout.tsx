@@ -16,7 +16,12 @@ interface PlanExercise {
   sets_reps: string | null;
   notes: string | null;
   order_index: number;
-  exercise: { name: string; muscle_group: string | null; video_url: string | null } | null;
+  exercise: {
+    name: string;
+    muscle_group: string | null;
+    video_url: string | null;
+    exercise_type: string | null;
+  } | null;
 }
 
 
@@ -25,9 +30,13 @@ interface SetRow {
   set_number: number;
   reps: string;
   weight_kg: string;
+  duration_seconds: string;
+  distance_m: string;
+  intensity: string;
   notes: string;
   saved?: boolean;
 }
+
 
 const LogWorkout = () => {
   const { sessionId } = useParams<{ sessionId: string }>();
