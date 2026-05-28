@@ -156,7 +156,7 @@ const LogWorkout = () => {
       if (session.day_id) {
         const { data } = await supabase
           .from("workout_plan_exercises")
-          .select("id, order_index, sets_reps, notes, exercise:exercises(name, muscle_group, video_url)")
+          .select("id, order_index, sets_reps, notes, exercise:exercises(name, muscle_group, video_url, exercise_type)")
           .eq("day_id", session.day_id)
           .order("order_index");
         ex = (data ?? []) as any;
