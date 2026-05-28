@@ -207,8 +207,16 @@ const LogWorkout = () => {
 
   const isExerciseLogged = (exId: string) => {
     const rows = setsByExercise[exId] ?? [];
-    return rows.some((r) => r.id || (r.reps && r.reps !== "") || (r.weight_kg && r.weight_kg !== ""));
+    return rows.some(
+      (r) =>
+        r.id ||
+        (r.reps && r.reps !== "") ||
+        (r.weight_kg && r.weight_kg !== "") ||
+        (r.duration_seconds && r.duration_seconds !== "") ||
+        (r.distance_m && r.distance_m !== ""),
+    );
   };
+
   const completedCount = useMemo(
     () => exercises.filter((e) => isExerciseLogged(e.id)).length,
     [exercises, setsByExercise]
