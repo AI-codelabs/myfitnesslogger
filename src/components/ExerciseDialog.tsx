@@ -36,7 +36,9 @@ export interface ExerciseRecord {
   is_pro: boolean;
   notes?: string | null;
   video_url?: string | null;
+  exercise_type?: string | null;
 }
+
 
 interface Props {
   exercise?: ExerciseRecord | null;
