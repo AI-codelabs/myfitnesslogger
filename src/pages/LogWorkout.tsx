@@ -231,11 +231,20 @@ const LogWorkout = () => {
         ...prev,
         [activeExercise.id]: [
           ...arr,
-          { set_number: arr.length + 1, reps: "", weight_kg: "", notes: "" },
+          {
+            set_number: arr.length + 1,
+            reps: "",
+            weight_kg: "",
+            duration_seconds: "",
+            distance_m: "",
+            intensity: "",
+            notes: "",
+          },
         ],
       };
     });
   };
+
 
   const removeSet = async (idx: number) => {
     if (!activeExercise) return;
