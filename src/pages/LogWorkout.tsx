@@ -374,7 +374,19 @@ const LogWorkout = () => {
                   {activeExercise.notes}
                 </p>
               )}
+              {activeExercise.exercise?.video_url && (
+                <a
+                  href={activeExercise.exercise.video_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 mt-2 text-xs font-medium text-primary hover:underline"
+                >
+                  <Video className="h-3.5 w-3.5" />
+                  {tx("Bekijk video", "Watch video")}
+                </a>
+              )}
             </div>
+
 
             <div className="space-y-2">
               <div className="grid grid-cols-[2rem_1fr_1fr_auto] gap-2 text-[10px] uppercase tracking-wider text-muted-foreground px-1">
