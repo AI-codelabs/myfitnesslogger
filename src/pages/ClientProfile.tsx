@@ -383,6 +383,77 @@ const ClientProfile = () => {
             </div>
           </Card>
 
+          <Card className="p-5 space-y-4">
+            <div className="flex items-center gap-2">
+              <CalendarClock className="h-4 w-4 text-muted-foreground" />
+              <h3 className="font-semibold">
+                {lang === "nl" ? "Coachingsperiode" : "Coaching period"}
+              </h3>
+            </div>
+            <p className="text-xs text-muted-foreground -mt-2">
+              {lang === "nl"
+                ? "Stel de start- en einddatum van het coachingscontract in. Je krijgt een waarschuwing 2 weken vóór de einddatum."
+                : "Set the start and end date of the coaching contract. You'll get an alert 2 weeks before it expires."}
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">
+                  {lang === "nl" ? "Startdatum" : "Start date"}
+                </label>
+                <Input
+                  type="date"
+                  value={coachingStart}
+                  onChange={(e) => setCoachingStart(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">
+                  {lang === "nl" ? "Einddatum" : "End date"}
+                </label>
+                <Input
+                  type="date"
+                  value={coachingEnd}
+                  onChange={(e) => setCoachingEnd(e.target.value)}
+                  min={coachingStart || undefined}
+                />
+              </div>
+            </div>
+            {(() => {
+              const info = getExpiryInfo(invite?.coaching_end_date);
+              if (!info) return null;
+              const cls =
+                info.kind === "expired"
+                  ? "text-destructive"
+                  : info.kind === "soon"
+                    ? "text-amber-600 dark:text-amber-400"
+                    : "text-muted-foreground";
+              const text =
+                info.kind === "expired"
+                  ? lang === "nl"
+                    ? `Verlopen sinds ${info.days} dag(en).`
+                    : `Expired ${info.days} day(s) ago.`
+                  : info.kind === "soon"
+                    ? lang === "nl"
+                      ? `Verloopt over ${info.days} dag(en).`
+                      : `Ends in ${info.days} day(s).`
+                    : lang === "nl"
+                      ? `Nog ${info.days} dag(en) te gaan.`
+                      : `${info.days} day(s) remaining.`;
+              return <p className={`text-xs ${cls}`}>{text}</p>;
+            })()}
+            <div className="flex justify-end">
+              <Button
+                size="sm"
+                onClick={saveCoachingPeriod}
+                disabled={savingPeriod}
+                className="gap-1"
+              >
+                <Save className="h-4 w-4" />
+                {lang === "nl" ? "Opslaan" : "Save"}
+              </Button>
+            </div>
+          </Card>
+
           {!response ? (
             <Card className="p-10 text-center text-sm text-muted-foreground">
               {lang === "nl"
