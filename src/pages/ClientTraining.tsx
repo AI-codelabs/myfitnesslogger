@@ -13,6 +13,7 @@ import {
   Dumbbell,
   ExternalLink,
   Loader2,
+  CheckCircle2,
 } from "lucide-react";
 import { Lang } from "@/lib/onboardingSchema";
 import { cn } from "@/lib/utils";
