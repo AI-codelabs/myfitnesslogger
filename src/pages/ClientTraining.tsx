@@ -13,6 +13,7 @@ import {
   Dumbbell,
   ExternalLink,
   Loader2,
+  CheckCircle2,
 } from "lucide-react";
 import { Lang } from "@/lib/onboardingSchema";
 import { cn } from "@/lib/utils";
@@ -78,11 +79,17 @@ const ClientTraining = () => {
   );
   const tx = (nl: string, en: string) => (lang === "nl" ? nl : en);
 
+  const isOccurrenceCompleted = (planId: string, dayId: string | undefined, date: string) => {
+    const key = `${planId}:${dayId || '_'}:${date}`;
+    return completedSessions.has(key);
+  };
+
   const [loading, setLoading] = useState(true);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [planDays, setPlanDays] = useState<Record<string, DayWithExercises[]>>({});
   const [currentDate, setCurrentDate] = useState<Date>(startOfDay(new Date()));
+  const [completedSessions, setCompletedSessions] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!user?.id) return;
@@ -139,6 +146,20 @@ const ClientTraining = () => {
         });
       }
       setPlanDays(grouped);
+
+      // Load completed workout sessions for this client
+      const { data: sessions } = await supabase
+        .from("workout_sessions")
+        .select("plan_id, day_id, scheduled_date, completed_at")
+        .eq("client_id", user.id)
+        .not("completed_at", "is", null);
+      const completed = new Set<string>();
+      for (const s of sessions ?? []) {
+        const key = `${s.plan_id}:${s.day_id || '_'}:${s.scheduled_date || '_'}`;
+        completed.add(key);
+      }
+      setCompletedSessions(completed);
+
       setLoading(false);
     })();
   }, [user?.id]);
@@ -370,20 +391,35 @@ const ClientTraining = () => {
                     .filter(Boolean) as string[]
                 )
               );
+              const isCompleted = isOccurrenceCompleted(occ.planId, dayForToday?.id, dateKey);
               return (
                 <div
                   key={occ.assignmentId}
-                  className="rounded-2xl border bg-card overflow-hidden shadow-sm"
+                  className={cn(
+                    "rounded-2xl border bg-card overflow-hidden shadow-sm",
+                    isCompleted && "border-l-success border-l-4"
+                  )}
                 >
                   <div className="p-5 space-y-4">
                     <div className="flex items-start gap-3">
-                      <div className="h-11 w-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                        <Dumbbell className="h-5 w-5 text-primary" />
+                      <div className={cn(
+                        "h-11 w-11 rounded-xl flex items-center justify-center shrink-0",
+                        isCompleted ? "bg-success/10" : "bg-primary/10"
+                      )}>
+                        <Dumbbell className={cn("h-5 w-5", isCompleted ? "text-success" : "text-primary")} />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <h4 className="font-semibold text-base leading-tight truncate">
-                          {dayForToday?.name || occ.planName || tx("Training", "Workout")}
-                        </h4>
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-semibold text-base leading-tight truncate">
+                            {dayForToday?.name || occ.planName || tx("Training", "Workout")}
+                          </h4>
+                          {isCompleted && (
+                            <Badge className="bg-success text-success-foreground gap-1 text-[10px]">
+                              <CheckCircle2 className="h-3 w-3" />
+                              {tx("Voltooid", "Completed")}
+                            </Badge>
+                          )}
+                        </div>
                         <p className="text-xs text-muted-foreground mt-0.5 truncate">
                           {occ.planName}
                         </p>
