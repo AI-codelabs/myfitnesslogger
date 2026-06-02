@@ -79,6 +79,11 @@ const ClientTraining = () => {
   );
   const tx = (nl: string, en: string) => (lang === "nl" ? nl : en);
 
+  const isOccurrenceCompleted = (planId: string, dayId: string | undefined, date: string) => {
+    const key = `${planId}:${dayId || '_'}:${date}`;
+    return completedSessions.has(key);
+  };
+
   const [loading, setLoading] = useState(true);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
