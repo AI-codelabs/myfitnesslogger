@@ -203,6 +203,16 @@ export default function WorkoutPlan() {
     } else {
       setItems([]);
     }
+    // load all distinct categories so coaches can reuse custom ones
+    const { data: allCats } = await supabase.from("workout_plans").select("category");
+    const extras = Array.from(
+      new Set(
+        (allCats ?? [])
+          .map((r: any) => (r.category || "").trim())
+          .filter((c: string) => c && !CATEGORIES.includes(c)),
+      ),
+    ) as string[];
+    setExtraCategories(extras);
     setLoading(false);
   }
 
