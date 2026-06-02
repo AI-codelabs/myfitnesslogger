@@ -362,6 +362,10 @@ function addDays(d: Date, n: number): Date {
   return copy;
 }
 
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 // Most recent Monday on/before given date
 function mondayOf(d: Date): Date {
   const copy = new Date(d);
@@ -629,23 +633,32 @@ async function saveMacroTargetTemplate(
   if (!raw.includes("//OK")) {
     throw new Error(`saveMacroTargetTemplate failed: ${raw.substring(0, 250)}`);
   }
-  // Look up the new template id by exact name, then by before/after diff as a fallback.
-  const templates = await getMacroTargetTemplates(cookieJar, userId);
-  let newest = 0;
-  for (const t of templates) {
-    if (t.template_name === templateName && t.template_id > newest) {
-      newest = t.template_id;
-    }
-  }
-  if (newest) return newest;
-
+  // Cronometer sometimes acknowledges the save before the new template is
+  // visible in getMacroTargetTemplates, so poll briefly before giving up.
   const beforeIds = new Set(beforeTemplates.map((t) => t.template_id));
-  for (const t of templates) {
-    if (!beforeIds.has(t.template_id)) {
-      return t.template_id;
+  for (let attempt = 0; attempt < 6; attempt++) {
+    if (attempt > 0) await sleep(350 * attempt);
+    const templates = await getMacroTargetTemplates(cookieJar, userId);
+
+    let newest = 0;
+    for (const t of templates) {
+      if (t.template_name === templateName && t.template_id > newest) {
+        newest = t.template_id;
+      }
     }
+    if (newest) return newest;
+
+    for (const t of templates) {
+      if (!beforeIds.has(t.template_id)) {
+        console.log(`Resolved new macro template by diff on attempt ${attempt + 1}: ${t.template_id}`);
+        return t.template_id;
+      }
+    }
+
+    console.log(`Template '${templateName}' not visible yet (attempt ${attempt + 1}), before=${beforeTemplates.length}, after=${templates.length}`);
   }
-  return newest;
+
+  throw new Error(`Could not resolve new template id for '${templateName}' after polling`);
 }
 
 // Assign a template to a day of the week. dayOfWeekIso: 0=Mon ... 6=Sun.
