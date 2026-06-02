@@ -69,16 +69,35 @@ function SectionCard({
 export function ClientStartMessageCard({ lang }: { lang: "nl" | "en" }) {
   const { user } = useAuth();
   const [msg, setMsg] = useState<Msg | null>(null);
+  const [source, setSource] = useState<"start" | "weekly">("start");
 
   useEffect(() => {
     if (!user) return;
-    supabase
-      .from("coach_messages")
-      .select("voice_memo, client_positive, client_attention, client_actions, published_at")
-      .eq("client_id", user.id)
-      .not("published_at", "is", null)
-      .maybeSingle()
-      .then(({ data }) => setMsg(data as Msg | null));
+    (async () => {
+      // Prefer the most recent published weekly review; fall back to the
+      // one-time start message if no weekly review has been published yet.
+      const { data: weekly } = await supabase
+        .from("weekly_review_drafts")
+        .select("voice_memo, client_positive, client_attention, client_actions, published_at, week_start")
+        .eq("client_id", user.id)
+        .not("published_at", "is", null)
+        .order("week_start", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (weekly) {
+        setMsg(weekly as unknown as Msg);
+        setSource("weekly");
+        return;
+      }
+      const { data: start } = await supabase
+        .from("coach_messages")
+        .select("voice_memo, client_positive, client_attention, client_actions, published_at")
+        .eq("client_id", user.id)
+        .not("published_at", "is", null)
+        .maybeSingle();
+      setMsg(start as Msg | null);
+      setSource("start");
+    })();
   }, [user]);
 
   if (!msg || !msg.published_at) return null;
