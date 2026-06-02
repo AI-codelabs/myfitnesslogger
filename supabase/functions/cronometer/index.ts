@@ -514,6 +514,14 @@ async function getMacroTargetTemplates(
 
   const stringTable = extractGwtStringTable(raw);
   const tokens = tokenizeGwtData(raw);
+  if (!stringTable.length || !tokens.length) {
+    console.warn("getMacroTargetTemplates parse precondition failed", {
+      rawPreview: raw.substring(0, 500),
+      rawLength: raw.length,
+      stringTableLength: stringTable.length,
+      tokenLength: tokens.length,
+    });
+  }
   if (!stringTable.length || !tokens.length) return [];
 
   // Find type-ref index for MacroTargetTemplate in string table
@@ -583,6 +591,14 @@ async function getMacroTargetTemplates(
     }
     blockIdx += 1;
   }
+  console.log(`getMacroTargetTemplates parsed ${results.length} templates from ${tokens.length} tokens / ${stringTable.length} strings`);
+  if (results.length === 0) {
+    console.warn("getMacroTargetTemplates returned zero parsed templates", {
+      rawPreview: raw.substring(0, 800),
+      stringTablePreview: stringTable.slice(0, 20),
+      tokenPreview: tokens.slice(0, 80),
+    });
+  }
   return results;
 }
 
@@ -633,6 +649,11 @@ async function saveMacroTargetTemplate(
   if (!raw.includes("//OK")) {
     throw new Error(`saveMacroTargetTemplate failed: ${raw.substring(0, 250)}`);
   }
+  console.log("saveMacroTargetTemplate OK", {
+    templateName,
+    rawPreview: raw.substring(0, 500),
+    rawLength: raw.length,
+  });
   // Cronometer sometimes acknowledges the save before the new template is
   // visible in getMacroTargetTemplates, so poll briefly before giving up.
   const beforeIds = new Set(beforeTemplates.map((t) => t.template_id));
