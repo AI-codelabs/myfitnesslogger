@@ -336,19 +336,53 @@ export default function WorkoutPlan() {
                 <label className="text-xs text-muted-foreground">Category</label>
                 <Select
                   value={plan.category ?? "other"}
-                  onValueChange={(v) => updatePlan({ category: v })}
+                  onValueChange={(v) => {
+                    if (v === "__new__") return;
+                    updatePlan({ category: v });
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {CATEGORIES.map((c) => (
+                    {CATEGORIES.filter((c) => c !== "other").map((c) => (
                       <SelectItem key={c} value={c} className="capitalize">
                         {c.replace("_", " ")}
                       </SelectItem>
                     ))}
+                    {extraCategories.map((c) => (
+                      <SelectItem key={c} value={c} className="capitalize">
+                        {c.replace("_", " ")}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="other">Other</SelectItem>
                   </SelectContent>
                 </Select>
+                <div className="flex gap-2 pt-1">
+                  <Input
+                    placeholder="New category name…"
+                    value={newCategory}
+                    onChange={(e) => setNewCategory(e.target.value)}
+                    className="h-8 text-xs"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-8"
+                    onClick={() => {
+                      const c = newCategory.trim().toLowerCase().replace(/\s+/g, "_");
+                      if (!c) return;
+                      if (!extraCategories.includes(c) && !CATEGORIES.includes(c)) {
+                        setExtraCategories((prev) => [...prev, c]);
+                      }
+                      updatePlan({ category: c });
+                      setNewCategory("");
+                    }}
+                  >
+                    Add
+                  </Button>
+                </div>
               </div>
               <div className="space-y-1">
                 <label className="text-xs text-muted-foreground">Frequency / week</label>
