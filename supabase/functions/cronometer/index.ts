@@ -1021,6 +1021,44 @@ serve(async (req) => {
       });
     }
 
+    if (action === "reapply_today_targets") {
+      if (!isServiceRoleRequest(req)) {
+        return json({ error: "Unauthorized" }, 401);
+      }
+
+      const admin = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      );
+
+      const { data: sessions, error: sessionsError } = await admin
+        .from("cronometer_sessions")
+        .select("client_id")
+        .eq("target_sync_enabled", true);
+
+      if (sessionsError) {
+        return json({ error: sessionsError.message }, 500);
+      }
+
+      const results: Array<{ client_id: string; ok: boolean; error?: string }> = [];
+      for (const session of sessions ?? []) {
+        const result = await reapplyTodayTargetsForClient(admin, session.client_id);
+        results.push({
+          client_id: session.client_id,
+          ok: result.ok,
+          error: result.ok ? undefined : result.error,
+        });
+      }
+
+      return json({
+        success: true,
+        scanned: (sessions ?? []).length,
+        updated: results.filter((r) => r.ok).length,
+        failed: results.filter((r) => !r.ok).length,
+        results,
+      });
+    }
+
     // ==== Legacy actions (unchanged) ====
     const { username, password, start, end, cookies, user_id, gwt_permutation, gwt_header } = body;
 
@@ -1176,6 +1214,7 @@ serve(async (req) => {
             cookies: Object.fromEntries(cookieJar),
             gwt_permutation: cachedGwtPermutation,
             gwt_header: cachedGwtHeader,
+            target_sync_enabled: true,
             last_error: recurringWarning,
           })
           .eq("client_id", client_id);
