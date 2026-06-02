@@ -484,12 +484,11 @@ function tokenizeGwtData(raw: string): Array<number | string | null> {
       tokens.push(part.slice(1, -1));
       continue;
     }
-    if (part.includes(".") && !isNaN(parseFloat(part))) {
-      tokens.push(parseFloat(part));
-      continue;
+    try {
+      tokens.push(part.includes(".") ? parseFloat(part) : parseInt(part, 10));
+    } catch {
+      tokens.push(null);
     }
-    const n = parseInt(part, 10);
-    tokens.push(isNaN(n) ? null : n);
   }
   return tokens;
 }
@@ -498,7 +497,7 @@ function tokenizeGwtData(raw: string): Array<number | string | null> {
 async function getMacroTargetTemplates(
   cookieJar: Map<string, string>,
   userId: string,
-): Promise<Array<{ template_id: number; template_name: string }>> {
+): Promise<Array<{ template_id: number; template_name: string; protein_g: number; fat_g: number; calories: number; carbs_g: number }>> {
   const sesnonce = cookieJar.get("sesnonce") || "";
   const payload =
     `7|0|7|${GWT_MODULE_BASE}|${cachedGwtHeader}|` +
@@ -545,13 +544,16 @@ async function getMacroTargetTemplates(
     }
   }
 
-  const results: Array<{ template_id: number; template_name: string }> = [];
+  const results: Array<{ template_id: number; template_name: string; protein_g: number; fat_g: number; calories: number; carbs_g: number }> = [];
   let blockIdx = 0;
   while (true) {
     const start = blockIdx * blockSize;
     const end = start + blockSize;
     if (end > tokens.length) break;
     const block = tokens.slice(start, end);
+
+    const floats = block.filter((t): t is number => typeof t === "number" && !Number.isInteger(t));
+
     let name = "";
     for (const t of block) {
       if (typeof t === "number" && Number.isInteger(t) && nameMap.has(t)) {
@@ -565,7 +567,16 @@ async function getMacroTargetTemplates(
         break;
       }
     }
-    if (templateId > 0) results.push({ template_id: templateId, template_name: name });
+    if (templateId > 0 && floats.length >= 4) {
+      results.push({
+        template_id: templateId,
+        template_name: name,
+        protein_g: floats[0],
+        fat_g: floats[1],
+        calories: floats[2],
+        carbs_g: floats[3],
+      });
+    }
     blockIdx += 1;
   }
   return results;
@@ -578,6 +589,7 @@ async function saveMacroTargetTemplate(
   templateName: string,
   targets: { calories: number; protein: number; carbs: number; fat: number },
 ): Promise<number> {
+  const beforeTemplates = await getMacroTargetTemplates(cookieJar, userId);
   const sesnonce = cookieJar.get("sesnonce") || "";
   const fmt = (v: number) => (Number.isInteger(v) ? String(v) : String(v));
   const carbsStr = fmt(targets.carbs);
@@ -617,12 +629,20 @@ async function saveMacroTargetTemplate(
   if (!raw.includes("//OK")) {
     throw new Error(`saveMacroTargetTemplate failed: ${raw.substring(0, 250)}`);
   }
-  // Look up the new template id by name (most recent match).
+  // Look up the new template id by exact name, then by before/after diff as a fallback.
   const templates = await getMacroTargetTemplates(cookieJar, userId);
   let newest = 0;
   for (const t of templates) {
     if (t.template_name === templateName && t.template_id > newest) {
       newest = t.template_id;
+    }
+  }
+  if (newest) return newest;
+
+  const beforeIds = new Set(beforeTemplates.map((t) => t.template_id));
+  for (const t of templates) {
+    if (!beforeIds.has(t.template_id)) {
+      return t.template_id;
     }
   }
   return newest;
