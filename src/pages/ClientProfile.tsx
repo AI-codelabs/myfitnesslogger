@@ -147,6 +147,8 @@ const ClientProfile = () => {
           .limit(60),
       ]);
       setInvite(invQ.data);
+      setCoachingStart((invQ.data as any)?.coaching_start_date ?? "");
+      setCoachingEnd((invQ.data as any)?.coaching_end_date ?? "");
       setResponse(respQ.data);
       setNutrition(nutQ.data);
       setNutritionLogs((logsQ.data as DailyLog[]) || []);
