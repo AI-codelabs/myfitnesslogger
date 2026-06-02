@@ -1000,9 +1000,17 @@ serve(async (req) => {
         const targets = { calories: c, protein: p, carbs: cb, fat: f };
         // 1. Update today's daily target so the change shows up immediately.
         await updateDailyTargets(cookieJar, session.user_id_external, new Date(), targets);
-        // 2. Replace the recurring weekly macro schedule so every future day uses
-        //    these targets indefinitely (until the coach updates them again).
-        await applyRecurringCoachTargets(cookieJar, session.user_id_external, targets);
+        // 2. Best-effort: replace the recurring weekly macro schedule so every
+        //    future day inherits these targets. The reverse-engineered GWT
+        //    template API is brittle; if it fails we still treat the push as
+        //    successful (today is updated) and surface a warning instead of 502.
+        let recurringWarning: string | null = null;
+        try {
+          await applyRecurringCoachTargets(cookieJar, session.user_id_external, targets);
+        } catch (re) {
+          recurringWarning = re instanceof Error ? re.message : String(re);
+          console.warn("applyRecurringCoachTargets failed:", recurringWarning);
+        }
         // Persist any refreshed cookies/nonce
         await admin
           .from("cronometer_sessions")
@@ -1010,13 +1018,14 @@ serve(async (req) => {
             cookies: Object.fromEntries(cookieJar),
             gwt_permutation: cachedGwtPermutation,
             gwt_header: cachedGwtHeader,
-            last_error: null,
+            last_error: recurringWarning,
           })
           .eq("client_id", client_id);
 
         logRow.success = true;
+        if (recurringWarning) logRow.error = `recurring_warning: ${recurringWarning}`;
         await admin.from("cronometer_target_pushes").insert(logRow);
-        return json({ success: true });
+        return json({ success: true, recurring_warning: recurringWarning });
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         logRow.error = msg;
