@@ -40,7 +40,26 @@ export function ClientNutritionDocuments({ clientId, coachId, canUpload, lang }:
       .select("id, file_path, file_name, mime_type, size_bytes, created_at")
       .eq("client_id", clientId)
       .order("created_at", { ascending: false });
-    setDocs((data as Doc[]) ?? []);
+    const base = (data as Doc[]) ?? [];
+    // Pre-sign URLs so the list can render real <a> tags. iOS standalone
+    // PWAs only "escape" to Safari when a user clicks an anchor element
+    // with a real href — window.open / programmatic downloads silently fail.
+    const enriched = await Promise.all(
+      base.map(async (d) => {
+        const [viewRes, dlRes] = await Promise.all([
+          supabase.storage.from(BUCKET).createSignedUrl(d.file_path, 60 * 60),
+          supabase.storage
+            .from(BUCKET)
+            .createSignedUrl(d.file_path, 60 * 60, { download: d.file_name }),
+        ]);
+        return {
+          ...d,
+          view_url: viewRes.data?.signedUrl,
+          download_url: dlRes.data?.signedUrl,
+        };
+      }),
+    );
+    setDocs(enriched);
     setLoading(false);
   }
 
