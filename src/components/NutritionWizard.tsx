@@ -328,9 +328,11 @@ const Field = ({
 const NumberInput = ({
   value,
   onChange,
+  disabled,
 }: {
   value: any;
   onChange: (v: string) => void;
+  disabled?: boolean;
 }) => (
   <Input
     type="number"
@@ -338,6 +340,7 @@ const NumberInput = ({
     value={value ?? ""}
     onChange={(e) => onChange(e.target.value)}
     onWheel={(e) => e.currentTarget.blur()}
+    disabled={disabled}
     className="h-11"
   />
 );
@@ -483,23 +486,61 @@ const MacroStep = ({
       )}
 
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h4 className="text-sm font-semibold">{tt("Macroverdeling", "Macro split")}</h4>
-          <span className={`text-xs ${totalPct === 100 ? "text-muted-foreground" : "text-destructive"}`}>
-            {tt("Totaal", "Total")}: {totalPct}%
-          </span>
-        </div>
-        <div className="grid grid-cols-3 gap-3">
-          <Field label={tt("Eiwit %", "Protein %")}>
-            <NumberInput value={v.macro_p_pct ?? 30} onChange={(val) => set("macro_p_pct", val)} />
-          </Field>
-          <Field label={tt("Koolhydraten %", "Carbs %")}>
-            <NumberInput value={v.macro_c_pct ?? 40} onChange={(val) => set("macro_c_pct", val)} />
-          </Field>
-          <Field label={tt("Vet %", "Fat %")}>
-            <NumberInput value={v.macro_f_pct ?? 30} onChange={(val) => set("macro_f_pct", val)} />
-          </Field>
-        </div>
+        {(() => {
+          const macroKcalLive = finalProtein * 4 + finalCarbs * 4 + finalFat * 9;
+          const denom = macroKcalLive > 0 ? macroKcalLive : 1;
+          const displayP = overrideMode
+            ? Math.round((finalProtein * 4 * 100) / denom)
+            : Number(v.macro_p_pct ?? 30);
+          const displayC = overrideMode
+            ? Math.round((finalCarbs * 4 * 100) / denom)
+            : Number(v.macro_c_pct ?? 40);
+          const displayF = overrideMode
+            ? Math.round((finalFat * 9 * 100) / denom)
+            : Number(v.macro_f_pct ?? 30);
+          const displayTotal = overrideMode ? displayP + displayC + displayF : totalPct;
+          return (
+            <>
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-semibold">{tt("Macroverdeling", "Macro split")}</h4>
+                <span className={`text-xs ${displayTotal === 100 ? "text-muted-foreground" : "text-destructive"}`}>
+                  {tt("Totaal", "Total")}: {displayTotal}%
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <Field label={tt("Eiwit %", "Protein %")}>
+                  <NumberInput
+                    value={displayP}
+                    onChange={(val) => set("macro_p_pct", val)}
+                    disabled={overrideMode}
+                  />
+                </Field>
+                <Field label={tt("Koolhydraten %", "Carbs %")}>
+                  <NumberInput
+                    value={displayC}
+                    onChange={(val) => set("macro_c_pct", val)}
+                    disabled={overrideMode}
+                  />
+                </Field>
+                <Field label={tt("Vet %", "Fat %")}>
+                  <NumberInput
+                    value={displayF}
+                    onChange={(val) => set("macro_f_pct", val)}
+                    disabled={overrideMode}
+                  />
+                </Field>
+              </div>
+              {overrideMode && (
+                <p className="text-xs text-muted-foreground">
+                  {tt(
+                    "Percentages worden automatisch berekend uit de handmatige grammen.",
+                    "Percentages are auto-calculated from the manual gram values.",
+                  )}
+                </p>
+              )}
+            </>
+          );
+        })()}
         <div className="grid grid-cols-3 gap-3">
           <Stat2 label={tt("Eiwit", "Protein")} value={`${finalProtein} g · ${finalProtein * 4} kcal`} />
           <Stat2 label={tt("Koolhydraten", "Carbs")} value={`${finalCarbs} g · ${finalCarbs * 4} kcal`} />
