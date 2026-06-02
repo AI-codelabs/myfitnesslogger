@@ -310,11 +310,31 @@ export default function WorkoutPlan() {
 
   return (
     <div className="space-y-6 p-4 md:p-8 max-w-6xl mx-auto">
-      <Link to="/workouts">
-        <Button variant="ghost" size="sm" className="gap-2">
-          <ArrowLeft className="h-4 w-4" /> Back to Workouts
-        </Button>
-      </Link>
+      <div className="flex items-center justify-between gap-2">
+        <Link to="/workouts">
+          <Button variant="ghost" size="sm" className="gap-2">
+            <ArrowLeft className="h-4 w-4" /> Back to Workouts
+          </Button>
+        </Link>
+        {canEditPlan && (
+          <Button
+            variant={editMode ? "default" : "outline"}
+            size="sm"
+            className="gap-2"
+            onClick={() => setEditMode((v) => !v)}
+          >
+            {editMode ? (
+              <>
+                <Check className="h-4 w-4" /> Done
+              </>
+            ) : (
+              <>
+                <Pencil className="h-4 w-4" /> Edit
+              </>
+            )}
+          </Button>
+        )}
+      </div>
 
       {/* Header / plan info */}
       <Card className="p-5 space-y-3">
