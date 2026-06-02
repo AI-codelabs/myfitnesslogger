@@ -501,10 +501,33 @@ const MacroStep = ({
           </Field>
         </div>
         <div className="grid grid-cols-3 gap-3">
-          <Stat2 label={tt("Eiwit", "Protein")} value={`${finalProtein} g`} />
-          <Stat2 label={tt("Koolhydraten", "Carbs")} value={`${finalCarbs} g`} />
-          <Stat2 label={tt("Vet", "Fat")} value={`${finalFat} g`} />
+          <Stat2 label={tt("Eiwit", "Protein")} value={`${finalProtein} g · ${finalProtein * 4} kcal`} />
+          <Stat2 label={tt("Koolhydraten", "Carbs")} value={`${finalCarbs} g · ${finalCarbs * 4} kcal`} />
+          <Stat2 label={tt("Vet", "Fat")} value={`${finalFat} g · ${finalFat * 9} kcal`} />
         </div>
+        {(() => {
+          const macroKcal = finalProtein * 4 + finalCarbs * 4 + finalFat * 9;
+          const diff = macroKcal - finalCalories;
+          const mismatch = Math.abs(diff) > 20 && finalCalories > 0;
+          return (
+            <div className={`rounded-md border p-3 text-xs ${mismatch ? "border-destructive/60 bg-destructive/5" : "bg-muted/40"}`}>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">
+                  {tt("Macro's → kcal", "Macros → kcal")} (P×4 + C×4 + F×9)
+                </span>
+                <span className="font-semibold">{macroKcal} kcal</span>
+              </div>
+              {mismatch && (
+                <p className="text-destructive mt-1">
+                  {tt(
+                    `Wijkt ${diff > 0 ? "+" : ""}${diff} kcal af van doel (${finalCalories} kcal).`,
+                    `Off by ${diff > 0 ? "+" : ""}${diff} kcal vs target (${finalCalories} kcal).`,
+                  )}
+                </p>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
       <div className="rounded-md border p-4 space-y-3">
