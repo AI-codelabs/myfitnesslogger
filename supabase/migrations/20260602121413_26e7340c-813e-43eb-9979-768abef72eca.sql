@@ -1,0 +1,1 @@
+ALTER TABLE public.weekly_review_drafts ADD COLUMN IF NOT EXISTS voice_memo_recorded_at TIMESTAMPTZ;
