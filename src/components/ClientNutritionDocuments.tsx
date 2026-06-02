@@ -175,15 +175,26 @@ export function ClientNutritionDocuments({ clientId, coachId, canUpload, lang }:
                   {d.size_bytes ? ` · ${Math.round(d.size_bytes / 1024)} KB` : ""}
                 </p>
               </div>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => openDoc(d)}
-                disabled={busyId === d.id}
-                className="gap-1"
-              >
-                <Download className="h-4 w-4" />
-                {tx("Open", "Open")}
+              <Button asChild size="sm" variant="ghost" className="gap-1" disabled={!d.view_url}>
+                <a
+                  href={d.view_url || "#"}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={tx("Open in browser", "Open in browser")}
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  {tx("Open", "Open")}
+                </a>
+              </Button>
+              <Button asChild size="sm" variant="ghost" className="gap-1" disabled={!d.download_url}>
+                <a
+                  href={d.download_url || "#"}
+                  rel="noopener noreferrer"
+                  aria-label={tx("Download", "Download")}
+                >
+                  <Download className="h-4 w-4" />
+                  {tx("Download", "Download")}
+                </a>
               </Button>
               {canUpload && (
                 <Button
