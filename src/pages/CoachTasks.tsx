@@ -55,6 +55,12 @@ export default function CoachTasks() {
   const { user } = useAuth();
   const [rows, setRows] = useState<TaskRow[]>([]);
   const [checkins, setCheckins] = useState<Array<{ client_id: string; submitted_at: string }>>([]);
+  const [reviewsState, setReviewsState] = useState<Array<{
+    client_id: string;
+    generated_at: string | null;
+    published_at: string | null;
+    voice_memo_recorded_at: string | null;
+  }>>([]);
   const [loading, setLoading] = useState(true);
   const weekStart = formatWeekStart();
 
