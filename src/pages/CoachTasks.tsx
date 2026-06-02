@@ -195,16 +195,67 @@ export default function CoachTasks() {
 
   const weeklyTasks = useMemo(() => {
     const submittedMap = new Map(checkins.map((c) => [c.client_id, c.submitted_at]));
+    const reviewMap = new Map(
+      (reviewsState ?? []).map((r) => [r.client_id, r]),
+    );
     return rows
       .filter((r) => r.hasOnboarding)
-      .map((r) => ({
-        row: r,
-        submittedAt: submittedMap.get(r.client.user_id) ?? null,
-      }));
-  }, [rows, checkins]);
+      .map((r) => {
+        const review = reviewMap.get(r.client.user_id);
+        const submittedAt = submittedMap.get(r.client.user_id) ?? null;
+        const checkinDone = !!submittedAt;
+        const generated = !!review?.generated_at;
+        const published = !!review?.published_at;
+        const voiceRecorded = !!review?.voice_memo_recorded_at;
+        const subtasks = [
+          {
+            key: "generate",
+            label: "Genereer weekreview",
+            done: generated,
+            blocked: !checkinDone,
+            icon: Sparkles,
+          },
+          {
+            key: "publish",
+            label: "Publiceer naar client",
+            done: published,
+            blocked: !generated,
+            icon: Send,
+          },
+          {
+            key: "voice",
+            label: "Voice memo opnemen",
+            done: voiceRecorded,
+            blocked: !published,
+            icon: Mic,
+          },
+        ];
+        const openCount = checkinDone ? subtasks.filter((s) => !s.done).length : 0;
+        const allDone = checkinDone && subtasks.every((s) => s.done);
+        return { row: r, submittedAt, subtasks, openCount, allDone, checkinDone };
+      });
+  }, [rows, checkins, reviewsState]);
 
-  const weeklyPending = weeklyTasks.filter((t) => !t.submittedAt);
-  const weeklyDone = weeklyTasks.filter((t) => t.submittedAt);
+  const weeklyAwaitingClient = weeklyTasks.filter((t) => !t.checkinDone);
+  const weeklyPending = weeklyTasks.filter((t) => t.checkinDone && !t.allDone);
+  const weeklyCompleted = weeklyTasks.filter((t) => t.allDone);
+
+  const markWeeklyVoiceRecorded = async (clientId: string, current: boolean) => {
+    if (!user) return;
+    const value = current ? null : new Date().toISOString();
+    const { error } = await supabase
+      .from("weekly_review_drafts")
+      .update({ voice_memo_recorded_at: value })
+      .eq("client_id", clientId)
+      .eq("coach_id", user.id)
+      .eq("week_start", weekStart);
+    if (error) {
+      toast.error("Kon status niet bijwerken");
+      return;
+    }
+    toast.success(current ? "Voice memo gemarkeerd als open" : "Voice memo afgevinkt");
+    load();
+  };
 
   const markVoiceRecorded = async (clientId: string, current: boolean) => {
     if (!user) return;
