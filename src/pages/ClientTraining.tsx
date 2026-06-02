@@ -84,6 +84,7 @@ const ClientTraining = () => {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [planDays, setPlanDays] = useState<Record<string, DayWithExercises[]>>({});
   const [currentDate, setCurrentDate] = useState<Date>(startOfDay(new Date()));
+  const [completedSessions, setCompletedSessions] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!user?.id) return;
