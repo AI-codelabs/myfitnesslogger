@@ -42,6 +42,7 @@ interface Props {
 }
 
 export function ClientWorkouts({ clientId, coachId, preferredFrequency, preferredDays, lang }: Props) {
+  const navigate = useNavigate();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(true);
