@@ -303,6 +303,8 @@ const LogWorkout = () => {
         (row.weight_kg && row.weight_kg !== "") ||
         (row.duration_seconds && row.duration_seconds !== "") ||
         (row.distance_m && row.distance_m !== "") ||
+        (row.speed_kmh && row.speed_kmh !== "") ||
+        (row.incline_pct && row.incline_pct !== "") ||
         (row.intensity && row.intensity !== "") ||
         (row.notes && row.notes !== "");
 
@@ -312,7 +314,7 @@ const LogWorkout = () => {
         continue;
       }
 
-      const payload = {
+      const payload: any = {
         session_id: sessionId,
         plan_exercise_id: planExerciseId,
         set_number: row.set_number,
@@ -320,6 +322,8 @@ const LogWorkout = () => {
         weight_kg: row.weight_kg ? parseFloat(row.weight_kg) : null,
         duration_seconds: row.duration_seconds ? parseInt(row.duration_seconds) : null,
         distance_m: row.distance_m ? parseInt(row.distance_m) : null,
+        speed_kmh: row.speed_kmh ? parseFloat(row.speed_kmh) : null,
+        incline_pct: row.incline_pct ? parseFloat(row.incline_pct) : null,
         intensity: row.intensity || null,
         notes: row.notes || null,
       };
