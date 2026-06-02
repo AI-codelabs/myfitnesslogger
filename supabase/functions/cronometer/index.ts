@@ -1056,23 +1056,31 @@ serve(async (req) => {
         //    next 90 daily targets one-by-one so the client still sees the new
         //    macros for the foreseeable future.
         let recurringWarning: string | null = null;
+        let recurringCode: string | null = null;
         let fallbackDays = 0;
         try {
           await applyRecurringCoachTargets(cookieJar, session.user_id_external, targets);
         } catch (re) {
-          recurringWarning = re instanceof Error ? re.message : String(re);
-          console.warn("applyRecurringCoachTargets failed, falling back to per-day writes:", recurringWarning);
-          const FALLBACK_DAYS = 90;
-          const base = new Date();
-          for (let i = 1; i <= FALLBACK_DAYS; i++) {
-            const d = new Date(base);
-            d.setUTCDate(base.getUTCDate() + i);
-            try {
-              await updateDailyTargets(cookieJar, session.user_id_external, d, targets);
-              fallbackDays++;
-            } catch (de) {
-              console.warn(`per-day fallback failed at +${i}d:`, de instanceof Error ? de.message : de);
-              break;
+          const rawMessage = re instanceof Error ? re.message : String(re);
+          if (rawMessage === "requires_gold_recurring_targets") {
+            recurringCode = "requires_gold";
+            recurringWarning = "Cronometer requires Gold on the client account to update recurring macro targets for future days. Today's targets were updated, but future days keep their existing schedule.";
+          } else {
+            recurringCode = "recurring_failed";
+            recurringWarning = rawMessage;
+            console.warn("applyRecurringCoachTargets failed, falling back to per-day writes:", recurringWarning);
+            const FALLBACK_DAYS = 90;
+            const base = new Date();
+            for (let i = 1; i <= FALLBACK_DAYS; i++) {
+              const d = new Date(base);
+              d.setUTCDate(base.getUTCDate() + i);
+              try {
+                await updateDailyTargets(cookieJar, session.user_id_external, d, targets);
+                fallbackDays++;
+              } catch (de) {
+                console.warn(`per-day fallback failed at +${i}d:`, de instanceof Error ? de.message : de);
+                break;
+              }
             }
           }
         }
@@ -1089,10 +1097,10 @@ serve(async (req) => {
 
         logRow.success = true;
         if (recurringWarning) {
-          logRow.error = `recurring_warning: ${recurringWarning}; fallback_days=${fallbackDays}`;
+          logRow.error = `recurring_warning(${recurringCode ?? "unknown"}): ${recurringWarning}; fallback_days=${fallbackDays}`;
         }
         await admin.from("cronometer_target_pushes").insert(logRow);
-        return json({ success: true, recurring_warning: recurringWarning, fallback_days: fallbackDays });
+        return json({ success: true, recurring_warning: recurringWarning, recurring_code: recurringCode, fallback_days: fallbackDays });
 
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
