@@ -48,21 +48,35 @@ export function AddExerciseToDayDialog({
   const [filter, setFilter] = useState("");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+
+  async function loadExercises(selectNewest = false) {
+    setLoading(true);
+    const { data } = await supabase
+      .from("exercises")
+      .select("id,name,muscle_group,equipment,created_at")
+      .order("muscle_group")
+      .order("name");
+    const list = (data ?? []) as (Exercise & { created_at: string })[];
+    setExercises(list);
+    setLoading(false);
+    if (selectNewest && list.length) {
+      const newest = [...list].sort((a, b) =>
+        (b.created_at ?? "").localeCompare(a.created_at ?? ""),
+      )[0];
+      if (newest && !existingExerciseIds.includes(newest.id)) {
+        setSelected((prev) => new Set(prev).add(newest.id));
+        setFilter(newest.name);
+      }
+    }
+  }
 
   useEffect(() => {
     if (!open) return;
     setSelected(new Set());
     setFilter("");
-    setLoading(true);
-    supabase
-      .from("exercises")
-      .select("id,name,muscle_group,equipment")
-      .order("muscle_group")
-      .order("name")
-      .then(({ data }) => {
-        setExercises(data ?? []);
-        setLoading(false);
-      });
+    loadExercises();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   const filtered = useMemo(() => {
