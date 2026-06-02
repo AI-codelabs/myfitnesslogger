@@ -1105,12 +1105,14 @@ export type Database = {
           distance_m: number | null
           duration_seconds: number | null
           id: string
+          incline_pct: number | null
           intensity: string | null
           notes: string | null
           plan_exercise_id: string
           reps: number | null
           session_id: string
           set_number: number
+          speed_kmh: number | null
           updated_at: string
           weight_kg: number | null
         }
@@ -1119,12 +1121,14 @@ export type Database = {
           distance_m?: number | null
           duration_seconds?: number | null
           id?: string
+          incline_pct?: number | null
           intensity?: string | null
           notes?: string | null
           plan_exercise_id: string
           reps?: number | null
           session_id: string
           set_number: number
+          speed_kmh?: number | null
           updated_at?: string
           weight_kg?: number | null
         }
@@ -1133,12 +1137,14 @@ export type Database = {
           distance_m?: number | null
           duration_seconds?: number | null
           id?: string
+          incline_pct?: number | null
           intensity?: string | null
           notes?: string | null
           plan_exercise_id?: string
           reps?: number | null
           session_id?: string
           set_number?: number
+          speed_kmh?: number | null
           updated_at?: string
           weight_kg?: number | null
         }
