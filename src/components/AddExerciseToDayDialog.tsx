@@ -199,6 +199,12 @@ export function AddExerciseToDayDialog({
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      <ExerciseDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        onSaved={() => loadExercises(true)}
+      />
     </Dialog>
   );
 }
