@@ -49,6 +49,126 @@ interface PlanExercise {
 
 const CATEGORIES = ["full_body", "upper_lower", "push_pull_legs", "bro_split", "other"];
 
+type DayTypeKey =
+  | "lower"
+  | "upper"
+  | "push"
+  | "pull"
+  | "legs"
+  | "full"
+  | "core"
+  | "cardio"
+  | "rest"
+  | "other";
+
+const DAY_TYPE_THEME: Record<
+  DayTypeKey,
+  { label: string; header: string; ring: string; dot: string; chip: string }
+> = {
+  lower: {
+    label: "Lower",
+    header: "bg-blue-500/10 border-b-blue-500/30",
+    ring: "border-l-4 border-l-blue-500",
+    dot: "bg-blue-500",
+    chip: "bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30",
+  },
+  upper: {
+    label: "Upper",
+    header: "bg-orange-500/10 border-b-orange-500/30",
+    ring: "border-l-4 border-l-orange-500",
+    dot: "bg-orange-500",
+    chip: "bg-orange-500/15 text-orange-700 dark:text-orange-300 border-orange-500/30",
+  },
+  push: {
+    label: "Push",
+    header: "bg-rose-500/10 border-b-rose-500/30",
+    ring: "border-l-4 border-l-rose-500",
+    dot: "bg-rose-500",
+    chip: "bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30",
+  },
+  pull: {
+    label: "Pull",
+    header: "bg-violet-500/10 border-b-violet-500/30",
+    ring: "border-l-4 border-l-violet-500",
+    dot: "bg-violet-500",
+    chip: "bg-violet-500/15 text-violet-700 dark:text-violet-300 border-violet-500/30",
+  },
+  legs: {
+    label: "Legs",
+    header: "bg-emerald-500/10 border-b-emerald-500/30",
+    ring: "border-l-4 border-l-emerald-500",
+    dot: "bg-emerald-500",
+    chip: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30",
+  },
+  full: {
+    label: "Full body",
+    header: "bg-amber-500/10 border-b-amber-500/30",
+    ring: "border-l-4 border-l-amber-500",
+    dot: "bg-amber-500",
+    chip: "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30",
+  },
+  core: {
+    label: "Core",
+    header: "bg-teal-500/10 border-b-teal-500/30",
+    ring: "border-l-4 border-l-teal-500",
+    dot: "bg-teal-500",
+    chip: "bg-teal-500/15 text-teal-700 dark:text-teal-300 border-teal-500/30",
+  },
+  cardio: {
+    label: "Cardio",
+    header: "bg-pink-500/10 border-b-pink-500/30",
+    ring: "border-l-4 border-l-pink-500",
+    dot: "bg-pink-500",
+    chip: "bg-pink-500/15 text-pink-700 dark:text-pink-300 border-pink-500/30",
+  },
+  rest: {
+    label: "Rest",
+    header: "bg-muted border-b",
+    ring: "border-l-4 border-l-muted-foreground/30",
+    dot: "bg-muted-foreground/40",
+    chip: "bg-muted text-muted-foreground border-border",
+  },
+  other: {
+    label: "Mixed",
+    header: "bg-muted/40 border-b",
+    ring: "border-l-4 border-l-border",
+    dot: "bg-muted-foreground/40",
+    chip: "bg-muted text-muted-foreground border-border",
+  },
+};
+
+function detectDayType(dayName: string, muscleGroups: string[]): DayTypeKey {
+  const n = dayName.toLowerCase();
+  if (/(rust|rest|off)/.test(n)) return "rest";
+  if (/(full\s*body|full|ganzk|total)/.test(n)) return "full";
+  if (/(push|duw)/.test(n)) return "push";
+  if (/(pull|trek)/.test(n)) return "pull";
+  if (/(leg|been|quad|hamstring|glute|kuit|calf)/.test(n)) return "legs";
+  if (/(lower|onder|benen)/.test(n)) return "lower";
+  if (/(upper|boven)/.test(n)) return "upper";
+  if (/(core|buik|abs)/.test(n)) return "core";
+  if (/(cardio|hiit|condit)/.test(n)) return "cardio";
+
+  // Fallback: infer from exercise muscle groups
+  const groups = muscleGroups.map((g) => (g || "").toLowerCase());
+  const lowerSet = ["quads", "hamstrings", "glutes", "calves", "legs"];
+  const upperSet = ["chest", "back", "shoulders", "biceps", "triceps", "lats", "traps"];
+  const pushSet = ["chest", "shoulders", "triceps"];
+  const pullSet = ["back", "biceps", "lats"];
+  const lowerHits = groups.filter((g) => lowerSet.includes(g)).length;
+  const upperHits = groups.filter((g) => upperSet.includes(g)).length;
+  if (lowerHits && !upperHits) return "lower";
+  if (upperHits && !lowerHits) {
+    const pushHits = groups.filter((g) => pushSet.includes(g)).length;
+    const pullHits = groups.filter((g) => pullSet.includes(g)).length;
+    if (pushHits && !pullHits) return "push";
+    if (pullHits && !pushHits) return "pull";
+    return "upper";
+  }
+  if (lowerHits && upperHits) return "full";
+  return "other";
+}
+
 export default function WorkoutPlan() {
   const { planId } = useParams();
   const { user, role } = useAuth();
@@ -255,28 +375,42 @@ export default function WorkoutPlan() {
           const dayItems = items
             .filter((i) => i.day_id === d.id)
             .sort((a, b) => a.order_index - b.order_index);
+          const muscles = dayItems.map((i) => i.exercise?.muscle_group ?? "");
+          const type = detectDayType(d.name, muscles);
+          const theme = DAY_TYPE_THEME[type];
+          const uniqueMuscles = Array.from(
+            new Set(muscles.filter(Boolean).map((m) => m.toLowerCase())),
+          );
           return (
-            <Card key={d.id} className="overflow-hidden flex flex-col">
-              <CardHeader className="bg-muted/40 border-b py-3">
+            <Card
+              key={d.id}
+              className={`overflow-hidden flex flex-col shadow-sm hover:shadow-md transition-shadow ${theme.ring}`}
+            >
+              <CardHeader className={`py-3 ${theme.header}`}>
                 <div className="flex items-center justify-between gap-2">
-                  {canEdit ? (
-                    <Input
-                      value={d.name}
-                      onChange={(e) =>
-                        setDays((prev) =>
-                          prev.map((x) => (x.id === d.id ? { ...x, name: e.target.value } : x)),
-                        )
-                      }
-                      onBlur={(e) => renameDay(d.id, e.target.value.trim() || "Day")}
-                      className="h-8 font-semibold"
-                    />
-                  ) : (
-                    <CardTitle className="text-base">{d.name}</CardTitle>
-                  )}
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <span className={`h-2.5 w-2.5 rounded-full shrink-0 ${theme.dot}`} />
+                    {canEdit ? (
+                      <Input
+                        value={d.name}
+                        onChange={(e) =>
+                          setDays((prev) =>
+                            prev.map((x) => (x.id === d.id ? { ...x, name: e.target.value } : x)),
+                          )
+                        }
+                        onBlur={(e) => renameDay(d.id, e.target.value.trim() || "Day")}
+                        className="h-8 font-semibold bg-background/60"
+                      />
+                    ) : (
+                      <CardTitle className="text-base truncate">{d.name}</CardTitle>
+                    )}
+                  </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <Badge variant="outline" className="text-[10px] font-normal">
-                      {dayItems.length} {dayItems.length === 1 ? "exercise" : "exercises"}
-                    </Badge>
+                    <span
+                      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${theme.chip}`}
+                    >
+                      {theme.label}
+                    </span>
                     {canEdit && (
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
@@ -310,13 +444,29 @@ export default function WorkoutPlan() {
                     )}
                   </div>
                 </div>
+                <div className="flex items-center gap-2 mt-1 pl-4 text-[11px] text-muted-foreground">
+                  <span>
+                    {dayItems.length} {dayItems.length === 1 ? "exercise" : "exercises"}
+                  </span>
+                  {uniqueMuscles.length > 0 && (
+                    <>
+                      <span>·</span>
+                      <span className="truncate capitalize">
+                        {uniqueMuscles.slice(0, 4).join(", ")}
+                        {uniqueMuscles.length > 4 ? "…" : ""}
+                      </span>
+                    </>
+                  )}
+                </div>
               </CardHeader>
               <CardContent className="p-0 flex-1 flex flex-col">
                 <ol className="divide-y flex-1">
                   {dayItems.map((it, idx) => (
                     <li key={it.id} className="px-4 py-3">
                       <div className="flex items-start gap-3">
-                        <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-medium text-muted-foreground">
+                        <span
+                          className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white ${theme.dot}`}
+                        >
                           {idx + 1}
                         </span>
                         <div className="min-w-0 flex-1 space-y-1.5">
