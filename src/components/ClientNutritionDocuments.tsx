@@ -85,12 +85,49 @@ export function ClientNutritionDocuments({ clientId, coachId, canUpload, lang }:
 
   async function openDoc(d: Doc) {
     setBusyId(d.id);
-    const { data, error } = await supabase.storage
-      .from(BUCKET)
-      .createSignedUrl(d.file_path, 60 * 10);
-    setBusyId(null);
-    if (error || !data) return toast.error(error?.message || "Failed to open");
-    window.open(data.signedUrl, "_blank", "noopener");
+    try {
+      const { data, error } = await supabase.storage
+        .from(BUCKET)
+        .createSignedUrl(d.file_path, 60 * 10, { download: d.file_name });
+      if (error || !data) {
+        toast.error(error?.message || tx("Openen mislukt", "Failed to open"));
+        return;
+      }
+
+      // Detect standalone PWA (iOS "Add to Home Screen") and in-app browsers where
+      // window.open() is blocked or opens a blank page.
+      const nav = window.navigator as Navigator & { standalone?: boolean };
+      const isStandalone =
+        nav.standalone === true ||
+        window.matchMedia?.("(display-mode: standalone)").matches;
+
+      if (isStandalone) {
+        // Fetch as blob and trigger a download via anchor — this works inside
+        // iOS standalone PWAs where window.open is unreliable.
+        const res = await fetch(data.signedUrl);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const blob = await res.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = blobUrl;
+        a.download = d.file_name;
+        a.rel = "noopener";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+      } else {
+        const win = window.open(data.signedUrl, "_blank", "noopener");
+        if (!win) {
+          // Popup blocked — fall back to same-tab navigation.
+          window.location.href = data.signedUrl;
+        }
+      }
+    } catch (e: any) {
+      toast.error(e?.message || tx("Openen mislukt", "Failed to open"));
+    } finally {
+      setBusyId(null);
+    }
   }
 
   async function removeDoc(d: Doc) {
