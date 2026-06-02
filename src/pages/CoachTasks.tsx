@@ -107,7 +107,7 @@ export default function CoachTasks() {
         .in("client_id", clientIds),
       supabase
         .from("weekly_review_drafts")
-        .select("client_id, week_start, generated_at, published_at")
+        .select("client_id, week_start, generated_at, published_at, voice_memo_recorded_at")
         .eq("coach_id", user.id)
         .eq("week_start", weekStart)
         .in("client_id", clientIds),
