@@ -298,6 +298,24 @@ export function ClientWorkouts({ clientId, coachId, preferredFrequency, preferre
                     <Button
                       variant="outline"
                       size="sm"
+                      onClick={() => editForClient(a)}
+                      disabled={busyId === a.id}
+                      className="gap-1"
+                      title={tx(
+                        "Pas dit schema aan voor deze klant (zonder de template te wijzigen)",
+                        "Customize this plan for this client (without changing the template)",
+                      )}
+                    >
+                      {busyId === a.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Pencil className="h-4 w-4" />
+                      )}
+                      {tx("Aanpassen", "Customize")}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={() => setActive(a.id, false)}
                       disabled={busyId === a.id}
                     >
