@@ -409,7 +409,7 @@ export function WeeklyCheckinsTab({ clientId, lang }: Props) {
           icon={Heart}
           label={t("Gevoel", "Feeling")}
           value={latest.feeling}
-          unit="/10"
+          unit="/5"
           delta={<Delta current={latest.feeling} previous={previous?.feeling ?? null} decimals={0} />}
           spark={<Sparkline values={sparkSeries.feeling} />}
         />
@@ -417,7 +417,7 @@ export function WeeklyCheckinsTab({ clientId, lang }: Props) {
           icon={Zap}
           label={t("Energie", "Energy")}
           value={latest.energy}
-          unit="/10"
+          unit="/5"
           delta={<Delta current={latest.energy} previous={previous?.energy ?? null} decimals={0} />}
           spark={<Sparkline values={sparkSeries.energy} />}
         />
@@ -441,7 +441,7 @@ export function WeeklyCheckinsTab({ clientId, lang }: Props) {
           icon={Zap}
           label={t("RPE", "RPE")}
           value={latest.intensity_rpe}
-          unit="/10"
+          unit="/5"
           delta={<Delta current={latest.intensity_rpe} previous={previous?.intensity_rpe ?? null} decimals={0} />}
           spark={<Sparkline values={sparkSeries.rpe} />}
         />
@@ -449,7 +449,7 @@ export function WeeklyCheckinsTab({ clientId, lang }: Props) {
           icon={Droplet}
           label={t("Hydratatie", "Hydration")}
           value={latest.hydration}
-          unit="/10"
+          unit="/5"
           delta={<Delta current={latest.hydration} previous={previous?.hydration ?? null} decimals={0} />}
           spark={<Sparkline values={sparkSeries.hydration} />}
         />
@@ -457,7 +457,7 @@ export function WeeklyCheckinsTab({ clientId, lang }: Props) {
           icon={Heart}
           label={t("Spierpijn", "Soreness")}
           value={latest.soreness}
-          unit="/10"
+          unit="/5"
           delta={<Delta current={latest.soreness} previous={previous?.soreness ?? null} decimals={0} positiveDown />}
           spark={<Sparkline values={sparkSeries.soreness} positiveDown />}
         />
