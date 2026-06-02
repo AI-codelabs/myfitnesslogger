@@ -3,9 +3,10 @@ import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Loader2, Trash2, UserCheck, UserX } from "lucide-react";
+import { ArrowLeft, CalendarClock, Loader2, Save, Trash2, UserCheck, UserX } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
