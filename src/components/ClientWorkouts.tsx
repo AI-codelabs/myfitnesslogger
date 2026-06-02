@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Search, X, Sparkles, User as UserIcon, ExternalLink } from "lucide-react";
+import { Loader2, Search, X, Sparkles, User as UserIcon, ExternalLink, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { Lang } from "@/lib/onboardingSchema";
 import { ScheduleWorkoutDialog, ScheduleData } from "@/components/ScheduleWorkoutDialog";
@@ -42,6 +42,7 @@ interface Props {
 }
 
 export function ClientWorkouts({ clientId, coachId, preferredFrequency, preferredDays, lang }: Props) {
+  const navigate = useNavigate();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -113,6 +114,103 @@ export function ClientWorkouts({ clientId, coachId, preferredFrequency, preferre
     setBusyId(null);
     if (error) return toast.error(error.message);
     load();
+  };
+
+  // Opens the plan editor for this client. If the plan is a template or is
+  // also assigned to other clients, first clone it into a client-specific
+  // copy owned by this coach, then repoint the assignment to that copy so
+  // edits only affect this client (the template/shared plan stays intact).
+  const editForClient = async (a: Assignment) => {
+    const plan = planById(a.plan_id);
+    if (!plan) return;
+    setBusyId(a.id);
+    try {
+      const { count } = await supabase
+        .from("client_workout_assignments")
+        .select("id", { count: "exact", head: true })
+        .eq("plan_id", plan.id)
+        .neq("client_id", clientId);
+      const shared = plan.is_template || (count ?? 0) > 0;
+
+      let targetPlanId = plan.id;
+      if (shared) {
+        const { data: newPlan, error: planErr } = await supabase
+          .from("workout_plans")
+          .insert({
+            name: `${plan.name} (custom)`,
+            description: plan.description,
+            category: plan.category,
+            frequency_per_week: plan.frequency_per_week,
+            is_template: false,
+            coach_id: coachId,
+          })
+          .select()
+          .single();
+        if (planErr || !newPlan) throw planErr || new Error("Failed to clone plan");
+
+        const { data: srcDays } = await supabase
+          .from("workout_plan_days")
+          .select("*")
+          .eq("plan_id", plan.id)
+          .order("day_index");
+
+        const dayIdMap: Record<string, string> = {};
+        if (srcDays && srcDays.length) {
+          const { data: insertedDays, error: dErr } = await supabase
+            .from("workout_plan_days")
+            .insert(
+              srcDays.map((d: any) => ({
+                plan_id: newPlan.id,
+                name: d.name,
+                day_index: d.day_index,
+              })),
+            )
+            .select();
+          if (dErr) throw dErr;
+          srcDays.forEach((s: any) => {
+            const m = insertedDays?.find((n: any) => n.day_index === s.day_index);
+            if (m) dayIdMap[s.id] = m.id;
+          });
+
+          const { data: srcEx } = await supabase
+            .from("workout_plan_exercises")
+            .select("*")
+            .in(
+              "day_id",
+              srcDays.map((d: any) => d.id),
+            );
+          if (srcEx && srcEx.length) {
+            const { error: eErr } = await supabase.from("workout_plan_exercises").insert(
+              srcEx.map((e: any) => ({
+                day_id: dayIdMap[e.day_id],
+                exercise_id: e.exercise_id,
+                order_index: e.order_index,
+                sets_reps: e.sets_reps,
+                notes: e.notes,
+              })),
+            );
+            if (eErr) throw eErr;
+          }
+        }
+
+        const { error: aErr } = await supabase
+          .from("client_workout_assignments")
+          .update({ plan_id: newPlan.id })
+          .eq("id", a.id);
+        if (aErr) throw aErr;
+
+        targetPlanId = newPlan.id;
+        toast.success(
+          tx("Persoonlijke kopie gemaakt", "Personal copy created"),
+        );
+      }
+
+      navigate(`/workouts/${targetPlanId}`);
+    } catch (e: any) {
+      toast.error(e?.message || tx("Aanpassen mislukt", "Failed to customize"));
+    } finally {
+      setBusyId(null);
+    }
   };
 
   const allCategories = useMemo(
@@ -197,6 +295,24 @@ export function ClientWorkouts({ clientId, coachId, preferredFrequency, preferre
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => editForClient(a)}
+                      disabled={busyId === a.id}
+                      className="gap-1"
+                      title={tx(
+                        "Pas dit schema aan voor deze klant (zonder de template te wijzigen)",
+                        "Customize this plan for this client (without changing the template)",
+                      )}
+                    >
+                      {busyId === a.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Pencil className="h-4 w-4" />
+                      )}
+                      {tx("Aanpassen", "Customize")}
+                    </Button>
                     <Button
                       variant="outline"
                       size="sm"
