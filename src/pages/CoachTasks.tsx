@@ -152,6 +152,12 @@ export default function CoachTasks() {
 
     setRows(built);
     setCheckins((checkinsRes.data ?? []) as Array<{ client_id: string; submitted_at: string }>);
+    setReviewsState((reviewsRes.data ?? []) as Array<{
+      client_id: string;
+      generated_at: string | null;
+      published_at: string | null;
+      voice_memo_recorded_at: string | null;
+    }>);
     setLoading(false);
   };
 
