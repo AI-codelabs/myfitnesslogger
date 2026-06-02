@@ -401,10 +401,10 @@ const LogWorkout = () => {
           </Link>
         </Button>
         {completedAt && (
-          <Badge variant="secondary" className="gap-1">
-            <Check className="h-3 w-3" />
+          <div className="flex items-center gap-1.5 bg-success/10 text-success px-3 py-1.5 rounded-full text-xs font-medium">
+            <CheckCircle2 className="h-4 w-4" />
             {tx("Voltooid", "Completed")}
-          </Badge>
+          </div>
         )}
       </div>
 
