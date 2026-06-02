@@ -3,9 +3,10 @@ import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Loader2, Trash2, UserCheck, UserX } from "lucide-react";
+import { ArrowLeft, CalendarClock, Loader2, Save, Trash2, UserCheck, UserX } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -44,6 +45,40 @@ const ClientProfile = () => {
   const [editingNutrition, setEditingNutrition] = useState(false);
   const [coachId, setCoachId] = useState<string | null>(null);
   const [nutritionLogs, setNutritionLogs] = useState<DailyLog[]>([]);
+  const [coachingStart, setCoachingStart] = useState<string>("");
+  const [coachingEnd, setCoachingEnd] = useState<string>("");
+  const [savingPeriod, setSavingPeriod] = useState(false);
+
+  const saveCoachingPeriod = async () => {
+    if (!invite) return;
+    setSavingPeriod(true);
+    const { error } = await supabase
+      .from("invitations")
+      .update({
+        coaching_start_date: coachingStart || null,
+        coaching_end_date: coachingEnd || null,
+      })
+      .eq("id", invite.id);
+    setSavingPeriod(false);
+    if (error) return toast.error(error.message);
+    setInvite({
+      ...invite,
+      coaching_start_date: coachingStart || null,
+      coaching_end_date: coachingEnd || null,
+    });
+    toast.success(lang === "nl" ? "Coachingsperiode opgeslagen" : "Coaching period saved");
+  };
+
+  const getExpiryInfo = (endDate?: string | null) => {
+    if (!endDate) return null;
+    const end = new Date(endDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const diffDays = Math.ceil((end.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays < 0) return { kind: "expired" as const, days: Math.abs(diffDays) };
+    if (diffDays <= 14) return { kind: "soon" as const, days: diffDays };
+    return { kind: "ok" as const, days: diffDays };
+  };
 
   const updateStatus = async (status: "active" | "inactive") => {
     if (!invite) return;
@@ -91,7 +126,7 @@ const ClientProfile = () => {
       const [invQ, respQ, nutQ, logsQ] = await Promise.all([
         supabase
           .from("invitations")
-          .select("id, email, status, accepted_at, created_at")
+          .select("id, email, status, accepted_at, created_at, coaching_start_date, coaching_end_date")
           .eq("accepted_user_id", clientId)
           .maybeSingle(),
         supabase
@@ -112,6 +147,8 @@ const ClientProfile = () => {
           .limit(60),
       ]);
       setInvite(invQ.data);
+      setCoachingStart((invQ.data as any)?.coaching_start_date ?? "");
+      setCoachingEnd((invQ.data as any)?.coaching_end_date ?? "");
       setResponse(respQ.data);
       setNutrition(nutQ.data);
       setNutritionLogs((logsQ.data as DailyLog[]) || []);
@@ -195,6 +232,27 @@ const ClientProfile = () => {
         </div>
         <div className="flex items-center gap-2 flex-wrap justify-end">
           <Badge variant={statusVariant as any} className="capitalize h-8 px-3 rounded-md text-xs flex items-center">{invite?.status}</Badge>
+          {(() => {
+            const info = getExpiryInfo(invite?.coaching_end_date);
+            if (!info) return null;
+            if (info.kind === "expired") {
+              return (
+                <Badge variant="destructive" className="h-8 px-3 rounded-md text-xs flex items-center gap-1">
+                  <CalendarClock className="h-3.5 w-3.5" />
+                  {lang === "nl" ? `Verlopen (${info.days}d)` : `Expired (${info.days}d)`}
+                </Badge>
+              );
+            }
+            if (info.kind === "soon") {
+              return (
+                <Badge className="h-8 px-3 rounded-md text-xs flex items-center gap-1 bg-amber-500 hover:bg-amber-500 text-white">
+                  <CalendarClock className="h-3.5 w-3.5" />
+                  {lang === "nl" ? `Verloopt over ${info.days}d` : `Ends in ${info.days}d`}
+                </Badge>
+              );
+            }
+            return null;
+          })()}
           <div className="flex items-center gap-1 rounded-md border h-8 p-0.5">
             {(["nl", "en"] as Lang[]).map((l) => (
               <button
@@ -322,6 +380,77 @@ const ClientProfile = () => {
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">{lang === "nl" ? "Onboarding voltooid" : "Onboarding completed"}</span>
               <span>{response?.completed_at ? new Date(response.completed_at).toLocaleDateString() : "—"}</span>
+            </div>
+          </Card>
+
+          <Card className="p-5 space-y-4">
+            <div className="flex items-center gap-2">
+              <CalendarClock className="h-4 w-4 text-muted-foreground" />
+              <h3 className="font-semibold">
+                {lang === "nl" ? "Coachingsperiode" : "Coaching period"}
+              </h3>
+            </div>
+            <p className="text-xs text-muted-foreground -mt-2">
+              {lang === "nl"
+                ? "Stel de start- en einddatum van het coachingscontract in. Je krijgt een waarschuwing 2 weken vóór de einddatum."
+                : "Set the start and end date of the coaching contract. You'll get an alert 2 weeks before it expires."}
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">
+                  {lang === "nl" ? "Startdatum" : "Start date"}
+                </label>
+                <Input
+                  type="date"
+                  value={coachingStart}
+                  onChange={(e) => setCoachingStart(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">
+                  {lang === "nl" ? "Einddatum" : "End date"}
+                </label>
+                <Input
+                  type="date"
+                  value={coachingEnd}
+                  onChange={(e) => setCoachingEnd(e.target.value)}
+                  min={coachingStart || undefined}
+                />
+              </div>
+            </div>
+            {(() => {
+              const info = getExpiryInfo(invite?.coaching_end_date);
+              if (!info) return null;
+              const cls =
+                info.kind === "expired"
+                  ? "text-destructive"
+                  : info.kind === "soon"
+                    ? "text-amber-600 dark:text-amber-400"
+                    : "text-muted-foreground";
+              const text =
+                info.kind === "expired"
+                  ? lang === "nl"
+                    ? `Verlopen sinds ${info.days} dag(en).`
+                    : `Expired ${info.days} day(s) ago.`
+                  : info.kind === "soon"
+                    ? lang === "nl"
+                      ? `Verloopt over ${info.days} dag(en).`
+                      : `Ends in ${info.days} day(s).`
+                    : lang === "nl"
+                      ? `Nog ${info.days} dag(en) te gaan.`
+                      : `${info.days} day(s) remaining.`;
+              return <p className={`text-xs ${cls}`}>{text}</p>;
+            })()}
+            <div className="flex justify-end">
+              <Button
+                size="sm"
+                onClick={saveCoachingPeriod}
+                disabled={savingPeriod}
+                className="gap-1"
+              >
+                <Save className="h-4 w-4" />
+                {lang === "nl" ? "Opslaan" : "Save"}
+              </Button>
             </div>
           </Card>
 
