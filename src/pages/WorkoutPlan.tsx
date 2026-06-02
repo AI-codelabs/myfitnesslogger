@@ -19,7 +19,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { ArrowLeft, ArrowDown, ArrowUp, Plus, Trash2, Video, Loader2 } from "lucide-react";
+import { ArrowLeft, ArrowDown, ArrowUp, Plus, Trash2, Video, Loader2, Pencil, Check } from "lucide-react";
 import { toast } from "sonner";
 import { AddExerciseToDayDialog } from "@/components/AddExerciseToDayDialog";
 
