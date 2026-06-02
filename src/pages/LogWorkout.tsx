@@ -181,7 +181,7 @@ const LogWorkout = () => {
 
       const { data: logs } = await supabase
         .from("workout_set_logs")
-        .select("id, plan_exercise_id, set_number, reps, weight_kg, duration_seconds, distance_m, intensity, notes")
+        .select("id, plan_exercise_id, set_number, reps, weight_kg, duration_seconds, distance_m, intensity, notes, speed_kmh, incline_pct" as any)
         .eq("session_id", sid!)
         .order("set_number");
       const emptyRow = (n: number): SetRow => ({
@@ -190,6 +190,8 @@ const LogWorkout = () => {
         weight_kg: "",
         duration_seconds: "",
         distance_m: "",
+        speed_kmh: "",
+        incline_pct: "",
         intensity: "",
         notes: "",
       });
@@ -204,6 +206,8 @@ const LogWorkout = () => {
             weight_kg: l.weight_kg?.toString() ?? "",
             duration_seconds: l.duration_seconds?.toString() ?? "",
             distance_m: l.distance_m?.toString() ?? "",
+            speed_kmh: l.speed_kmh?.toString() ?? "",
+            incline_pct: l.incline_pct?.toString() ?? "",
             intensity: l.intensity ?? "",
             notes: l.notes ?? "",
             saved: true,
@@ -212,6 +216,7 @@ const LogWorkout = () => {
           grouped[e.id] = [emptyRow(1)];
         }
       }
+
 
       setSetsByExercise(grouped);
       setLoading(false);
