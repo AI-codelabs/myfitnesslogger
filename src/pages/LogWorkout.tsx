@@ -32,6 +32,8 @@ interface SetRow {
   weight_kg: string;
   duration_seconds: string;
   distance_m: string;
+  speed_kmh: string;
+  incline_pct: string;
   intensity: string;
   notes: string;
   saved?: boolean;
@@ -179,7 +181,7 @@ const LogWorkout = () => {
 
       const { data: logs } = await supabase
         .from("workout_set_logs")
-        .select("id, plan_exercise_id, set_number, reps, weight_kg, duration_seconds, distance_m, intensity, notes")
+        .select("id, plan_exercise_id, set_number, reps, weight_kg, duration_seconds, distance_m, intensity, notes, speed_kmh, incline_pct" as any)
         .eq("session_id", sid!)
         .order("set_number");
       const emptyRow = (n: number): SetRow => ({
@@ -188,6 +190,8 @@ const LogWorkout = () => {
         weight_kg: "",
         duration_seconds: "",
         distance_m: "",
+        speed_kmh: "",
+        incline_pct: "",
         intensity: "",
         notes: "",
       });
@@ -202,6 +206,8 @@ const LogWorkout = () => {
             weight_kg: l.weight_kg?.toString() ?? "",
             duration_seconds: l.duration_seconds?.toString() ?? "",
             distance_m: l.distance_m?.toString() ?? "",
+            speed_kmh: l.speed_kmh?.toString() ?? "",
+            incline_pct: l.incline_pct?.toString() ?? "",
             intensity: l.intensity ?? "",
             notes: l.notes ?? "",
             saved: true,
@@ -210,6 +216,7 @@ const LogWorkout = () => {
           grouped[e.id] = [emptyRow(1)];
         }
       }
+
 
       setSetsByExercise(grouped);
       setLoading(false);
@@ -227,7 +234,9 @@ const LogWorkout = () => {
         (r.reps && r.reps !== "") ||
         (r.weight_kg && r.weight_kg !== "") ||
         (r.duration_seconds && r.duration_seconds !== "") ||
-        (r.distance_m && r.distance_m !== ""),
+        (r.distance_m && r.distance_m !== "") ||
+        (r.speed_kmh && r.speed_kmh !== "") ||
+        (r.incline_pct && r.incline_pct !== ""),
     );
   };
 
@@ -259,6 +268,8 @@ const LogWorkout = () => {
             weight_kg: "",
             duration_seconds: "",
             distance_m: "",
+            speed_kmh: "",
+            incline_pct: "",
             intensity: "",
             notes: "",
           },
@@ -292,6 +303,8 @@ const LogWorkout = () => {
         (row.weight_kg && row.weight_kg !== "") ||
         (row.duration_seconds && row.duration_seconds !== "") ||
         (row.distance_m && row.distance_m !== "") ||
+        (row.speed_kmh && row.speed_kmh !== "") ||
+        (row.incline_pct && row.incline_pct !== "") ||
         (row.intensity && row.intensity !== "") ||
         (row.notes && row.notes !== "");
 
@@ -301,7 +314,7 @@ const LogWorkout = () => {
         continue;
       }
 
-      const payload = {
+      const payload: any = {
         session_id: sessionId,
         plan_exercise_id: planExerciseId,
         set_number: row.set_number,
@@ -309,6 +322,8 @@ const LogWorkout = () => {
         weight_kg: row.weight_kg ? parseFloat(row.weight_kg) : null,
         duration_seconds: row.duration_seconds ? parseInt(row.duration_seconds) : null,
         distance_m: row.distance_m ? parseInt(row.distance_m) : null,
+        speed_kmh: row.speed_kmh ? parseFloat(row.speed_kmh) : null,
+        incline_pct: row.incline_pct ? parseFloat(row.incline_pct) : null,
         intensity: row.intensity || null,
         notes: row.notes || null,
       };
@@ -526,32 +541,25 @@ const LogWorkout = () => {
                       </div>
                       <div className="space-y-1">
                         <label className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                          {tx("Afstand (km)", "Distance (km)")}
+                          {tx("Snelheid (km/u)", "Speed (km/h)")}
                         </label>
                         <Input
                           inputMode="decimal"
                           placeholder="0"
-                          value={
-                            s.distance_m ? (parseInt(s.distance_m) / 1000).toString() : ""
-                          }
-                          onChange={(e) =>
-                            updateSet(i, {
-                              distance_m: e.target.value
-                                ? String(Math.round(parseFloat(e.target.value) * 1000))
-                                : "",
-                            })
-                          }
+                          value={s.speed_kmh}
+                          onChange={(e) => updateSet(i, { speed_kmh: e.target.value })}
                           className="h-10 text-center"
                         />
                       </div>
                       <div className="space-y-1">
                         <label className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                          {tx("Intensiteit", "Intensity")}
+                          {tx("Helling (%)", "Incline (%)")}
                         </label>
                         <Input
-                          placeholder={tx("Z2, RPE 7…", "Z2, RPE 7…")}
-                          value={s.intensity}
-                          onChange={(e) => updateSet(i, { intensity: e.target.value })}
+                          inputMode="decimal"
+                          placeholder="0"
+                          value={s.incline_pct}
+                          onChange={(e) => updateSet(i, { incline_pct: e.target.value })}
                           className="h-10 text-center"
                         />
                       </div>
