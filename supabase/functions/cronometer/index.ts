@@ -366,6 +366,22 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function extractGwtResponseMessage(raw: string): string | null {
+  const matches = [...raw.matchAll(/"([^"]+)"/g)];
+  for (let i = matches.length - 1; i >= 0; i--) {
+    const value = matches[i][1];
+    if (
+      value &&
+      !value.startsWith("com.") &&
+      !value.startsWith("java.") &&
+      !/^[A-F0-9]{32}$/i.test(value)
+    ) {
+      return value;
+    }
+  }
+  return null;
+}
+
 // Most recent Monday on/before given date
 function mondayOf(d: Date): Date {
   const copy = new Date(d);
@@ -514,14 +530,6 @@ async function getMacroTargetTemplates(
 
   const stringTable = extractGwtStringTable(raw);
   const tokens = tokenizeGwtData(raw);
-  if (!stringTable.length || !tokens.length) {
-    console.warn("getMacroTargetTemplates parse precondition failed", {
-      rawPreview: raw.substring(0, 500),
-      rawLength: raw.length,
-      stringTableLength: stringTable.length,
-      tokenLength: tokens.length,
-    });
-  }
   if (!stringTable.length || !tokens.length) return [];
 
   // Find type-ref index for MacroTargetTemplate in string table
@@ -591,14 +599,6 @@ async function getMacroTargetTemplates(
     }
     blockIdx += 1;
   }
-  console.log(`getMacroTargetTemplates parsed ${results.length} templates from ${tokens.length} tokens / ${stringTable.length} strings`);
-  if (results.length === 0) {
-    console.warn("getMacroTargetTemplates returned zero parsed templates", {
-      rawPreview: raw.substring(0, 800),
-      stringTablePreview: stringTable.slice(0, 20),
-      tokenPreview: tokens.slice(0, 80),
-    });
-  }
   return results;
 }
 
@@ -649,11 +649,10 @@ async function saveMacroTargetTemplate(
   if (!raw.includes("//OK")) {
     throw new Error(`saveMacroTargetTemplate failed: ${raw.substring(0, 250)}`);
   }
-  console.log("saveMacroTargetTemplate OK", {
-    templateName,
-    rawPreview: raw.substring(0, 500),
-    rawLength: raw.length,
-  });
+  const responseMessage = extractGwtResponseMessage(raw);
+  if (responseMessage?.toLowerCase().includes("you must be gold to create templates")) {
+    throw new Error("requires_gold_recurring_targets");
+  }
   // Cronometer sometimes acknowledges the save before the new template is
   // visible in getMacroTargetTemplates, so poll briefly before giving up.
   const beforeIds = new Set(beforeTemplates.map((t) => t.template_id));
@@ -671,12 +670,9 @@ async function saveMacroTargetTemplate(
 
     for (const t of templates) {
       if (!beforeIds.has(t.template_id)) {
-        console.log(`Resolved new macro template by diff on attempt ${attempt + 1}: ${t.template_id}`);
         return t.template_id;
       }
     }
-
-    console.log(`Template '${templateName}' not visible yet (attempt ${attempt + 1}), before=${beforeTemplates.length}, after=${templates.length}`);
   }
 
   throw new Error(`Could not resolve new template id for '${templateName}' after polling`);
