@@ -137,11 +137,20 @@ export function ClientStartMessageCard({ lang }: { lang: "nl" | "en" }) {
 
   if (sections.length === 0) return null;
 
+  const heading = source === "weekly"
+    ? tx("Je weekupdate van je coach", "Your weekly update from your coach")
+    : tx("Bericht van je coach", "Message from your coach");
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6 items-start">
-      {sections.map((s) => (
-        <SectionCard key={s.title} {...s} countLabel={countLabel} />
-      ))}
+    <div className="mb-6">
+      <p className="text-xs uppercase tracking-wide font-semibold text-muted-foreground mb-2">
+        {heading}
+      </p>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-start">
+        {sections.map((s) => (
+          <SectionCard key={s.title} {...s} countLabel={countLabel} />
+        ))}
+      </div>
     </div>
   );
 }
