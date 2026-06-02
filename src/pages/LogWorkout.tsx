@@ -266,6 +266,8 @@ const LogWorkout = () => {
             weight_kg: "",
             duration_seconds: "",
             distance_m: "",
+            speed_kmh: "",
+            incline_pct: "",
             intensity: "",
             notes: "",
           },
