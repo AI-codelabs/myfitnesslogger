@@ -416,6 +416,287 @@ async function updateDailyTargets(
   }
 }
 
+// ===== Helpers for recurring macro target schedules =====
+// These let us push targets that persist across all future days, not just today.
+
+async function gwtPost(cookieJar: Map<string, string>, payload: string): Promise<string> {
+  const resp = await fetch(GWT_BASE_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": GWT_CONTENT_TYPE,
+      "X-GWT-Module-Base": GWT_MODULE_BASE,
+      "X-GWT-Permutation": cachedGwtPermutation,
+      "User-Agent": "Mozilla/5.0",
+      Cookie: cookieString(cookieJar),
+    },
+    body: payload,
+  });
+  extractCookies(resp, cookieJar);
+  return await resp.text();
+}
+
+// Extract the string table from a `//OK[...,["a","b",...],0,7]` GWT response.
+function extractGwtStringTable(raw: string): string[] {
+  const closing = ",0,7]";
+  const stClose = raw.length - closing.length - 1;
+  let depth = 1, pos = stClose - 1, inStr = false;
+  while (pos >= 0 && depth > 0) {
+    const ch = raw[pos];
+    if (ch === '"' && (pos === 0 || raw[pos - 1] !== "\\")) {
+      inStr = !inStr;
+    } else if (!inStr) {
+      if (ch === "]") depth += 1;
+      else if (ch === "[") depth -= 1;
+    }
+    pos -= 1;
+  }
+  const stOpen = pos + 1;
+  try {
+    return JSON.parse(raw.substring(stOpen, stClose + 1));
+  } catch {
+    return [];
+  }
+}
+
+// Tokenize data section (everything between `//OK[` and the string table).
+function tokenizeGwtData(raw: string): Array<number | string | null> {
+  const closing = ",0,7]";
+  const stClose = raw.length - closing.length - 1;
+  let depth = 1, pos = stClose - 1, inStr = false;
+  while (pos >= 0 && depth > 0) {
+    const ch = raw[pos];
+    if (ch === '"' && (pos === 0 || raw[pos - 1] !== "\\")) {
+      inStr = !inStr;
+    } else if (!inStr) {
+      if (ch === "]") depth += 1;
+      else if (ch === "[") depth -= 1;
+    }
+    pos -= 1;
+  }
+  const stOpen = pos + 1;
+  const dataSection = raw.substring(5, stOpen).replace(/,$/, "");
+  if (!dataSection) return [];
+  const tokens: Array<number | string | null> = [];
+  for (const partRaw of dataSection.split(",")) {
+    const part = partRaw.trim();
+    if (!part) continue;
+    if (part.startsWith('"') && part.endsWith('"')) {
+      tokens.push(part.slice(1, -1));
+      continue;
+    }
+    if (part.includes(".") && !isNaN(parseFloat(part))) {
+      tokens.push(parseFloat(part));
+      continue;
+    }
+    const n = parseInt(part, 10);
+    tokens.push(isNaN(n) ? null : n);
+  }
+  return tokens;
+}
+
+// Fetch saved macro target templates -> [{ template_id, template_name }]
+async function getMacroTargetTemplates(
+  cookieJar: Map<string, string>,
+  userId: string,
+): Promise<Array<{ template_id: number; template_name: string }>> {
+  const sesnonce = cookieJar.get("sesnonce") || "";
+  const payload =
+    `7|0|7|${GWT_MODULE_BASE}|${cachedGwtHeader}|` +
+    `com.cronometer.shared.rpc.CronometerService|` +
+    `getMacroTargetTemplates|java.lang.String/2004016611|` +
+    `I|${sesnonce}|` +
+    `1|2|3|4|2|5|6|7|${userId}|`;
+  const raw = await gwtPost(cookieJar, payload);
+  if (!raw.startsWith("//OK[")) return [];
+
+  const stringTable = extractGwtStringTable(raw);
+  const tokens = tokenizeGwtData(raw);
+  if (!stringTable.length || !tokens.length) return [];
+
+  // Find type-ref index for MacroTargetTemplate in string table
+  let templateTypeIdx: number | null = null;
+  for (let i = 0; i < stringTable.length; i++) {
+    if (stringTable[i].includes("MacroTargetTemplate/")) {
+      templateTypeIdx = i + 1;
+      break;
+    }
+  }
+  if (templateTypeIdx == null) return [];
+
+  // Block size = first occurrence index + 1
+  let firstPos: number | null = null;
+  for (let i = 0; i < tokens.length; i++) {
+    if (tokens[i] === templateTypeIdx) { firstPos = i; break; }
+  }
+  if (firstPos == null) return [];
+  const blockSize = firstPos + 1;
+
+  // String-table index -> name map (skip class refs)
+  const nameMap = new Map<number, string>();
+  for (let i = 0; i < stringTable.length; i++) {
+    const entry = stringTable[i];
+    if (
+      !entry.startsWith("com.") &&
+      !entry.startsWith("java.") &&
+      !entry.startsWith("[")
+    ) {
+      nameMap.set(i + 1, entry);
+      nameMap.set(-(i + 1), entry);
+    }
+  }
+
+  const results: Array<{ template_id: number; template_name: string }> = [];
+  let blockIdx = 0;
+  while (true) {
+    const start = blockIdx * blockSize;
+    const end = start + blockSize;
+    if (end > tokens.length) break;
+    const block = tokens.slice(start, end);
+    let name = "";
+    for (const t of block) {
+      if (typeof t === "number" && Number.isInteger(t) && nameMap.has(t)) {
+        name = nameMap.get(t)!;
+      }
+    }
+    let templateId = 0;
+    for (const t of block) {
+      if (typeof t === "number" && Number.isInteger(t) && t > stringTable.length) {
+        templateId = t;
+        break;
+      }
+    }
+    if (templateId > 0) results.push({ template_id: templateId, template_name: name });
+    blockIdx += 1;
+  }
+  return results;
+}
+
+// Create a new saved macro target template. Returns server-assigned template_id, or 0 on failure.
+async function saveMacroTargetTemplate(
+  cookieJar: Map<string, string>,
+  userId: string,
+  templateName: string,
+  targets: { calories: number; protein: number; carbs: number; fat: number },
+): Promise<number> {
+  const sesnonce = cookieJar.get("sesnonce") || "";
+  const fmt = (v: number) => (Number.isInteger(v) ? String(v) : String(v));
+  const carbsStr = fmt(targets.carbs);
+  const fatStr = fmt(targets.fat);
+  const calStr = fmt(targets.calories);
+  const proStr = fmt(targets.protein);
+
+  // GWT encodes back-references when fat == carbs (Double object reuse).
+  let dataSection: string;
+  if (targets.fat === targets.carbs) {
+    dataSection =
+      `8|${userId}|` +
+      `7|9|0|10|${carbsStr}|-3|0|10|${calStr}|-3|-3|0|` +
+      `11|0|12|0|13|10|${proStr}|-6|`;
+  } else {
+    dataSection =
+      `8|${userId}|` +
+      `7|9|0|10|${carbsStr}|10|${fatStr}|0|10|${calStr}|` +
+      `10|${fatStr}|10|${fatStr}|0|` +
+      `11|0|12|0|13|10|${proStr}|10|${calStr}|`;
+  }
+
+  const header =
+    `7|0|13|${GWT_MODULE_BASE}|${cachedGwtHeader}|` +
+    `com.cronometer.shared.rpc.CronometerService|` +
+    `saveMacroTargetTemplate|java.lang.String/2004016611|` +
+    `I|com.cronometer.shared.targets.models.MacroTargetTemplate/3691130822|` +
+    `${sesnonce}|` +
+    `java.lang.Boolean/476441737|` +
+    `java.lang.Double/858496421|` +
+    `java.lang.Integer/3438268394|` +
+    `Rigorous|` +
+    `${templateName}|` +
+    `1|2|3|4|3|5|6|7|`;
+
+  const raw = await gwtPost(cookieJar, header + dataSection);
+  if (!raw.includes("//OK")) {
+    throw new Error(`saveMacroTargetTemplate failed: ${raw.substring(0, 250)}`);
+  }
+  // Look up the new template id by name (most recent match).
+  const templates = await getMacroTargetTemplates(cookieJar, userId);
+  let newest = 0;
+  for (const t of templates) {
+    if (t.template_name === templateName && t.template_id > newest) {
+      newest = t.template_id;
+    }
+  }
+  return newest;
+}
+
+// Assign a template to a day of the week. dayOfWeekIso: 0=Mon ... 6=Sun.
+async function saveMacroSchedule(
+  cookieJar: Map<string, string>,
+  userId: string,
+  dayOfWeekIso: number,
+  templateId: number,
+): Promise<void> {
+  const sesnonce = cookieJar.get("sesnonce") || "";
+  const payload =
+    `7|0|9|${GWT_MODULE_BASE}|${cachedGwtHeader}|` +
+    `com.cronometer.shared.rpc.CronometerService|` +
+    `saveMacroSchedule|java.lang.String/2004016611|` +
+    `I|com.cronometer.shared.targets.DayOfWeek/913617675|` +
+    `${sesnonce}|` +
+    `com.cronometer.shared.targets.DayOfWeek$DayOfWeekEnum/3974900421|` +
+    `1|2|3|4|4|5|6|7|6|8|${userId}|7|9|${dayOfWeekIso}|${templateId}|`;
+  const raw = await gwtPost(cookieJar, payload);
+  if (!raw.includes("//OK")) {
+    throw new Error(`saveMacroSchedule failed: ${raw.substring(0, 250)}`);
+  }
+}
+
+async function deleteMacroTargetTemplate(
+  cookieJar: Map<string, string>,
+  userId: string,
+  templateId: number,
+): Promise<void> {
+  const sesnonce = cookieJar.get("sesnonce") || "";
+  const payload =
+    `7|0|7|${GWT_MODULE_BASE}|${cachedGwtHeader}|` +
+    `com.cronometer.shared.rpc.CronometerService|` +
+    `deleteMacroTargetTemplate|java.lang.String/2004016611|` +
+    `I|${sesnonce}|` +
+    `1|2|3|4|3|5|6|6|7|${userId}|${templateId}|`;
+  await gwtPost(cookieJar, payload); // best effort
+}
+
+// Replace the client's recurring macro schedule with a fresh "Coach Targets" template,
+// applied to all 7 days of the week (so future days inherit it indefinitely).
+// Also cleans up any previous "Coach Targets *" templates.
+const COACH_TEMPLATE_PREFIX = "Coach Targets";
+async function applyRecurringCoachTargets(
+  cookieJar: Map<string, string>,
+  userId: string,
+  targets: { calories: number; protein: number; carbs: number; fat: number },
+): Promise<void> {
+  const existing = await getMacroTargetTemplates(cookieJar, userId);
+  const oldIds = existing
+    .filter((t) => t.template_name.startsWith(COACH_TEMPLATE_PREFIX))
+    .map((t) => t.template_id);
+
+  // Use a timestamp suffix so the new template has a unique name (avoids
+  // server collapsing duplicates and lets us identify the new id reliably).
+  const stamp = new Date().toISOString().replace(/[-:T]/g, "").substring(0, 14);
+  const newName = `${COACH_TEMPLATE_PREFIX} ${stamp}`;
+  const newId = await saveMacroTargetTemplate(cookieJar, userId, newName, targets);
+  if (!newId) throw new Error("Could not resolve new template id");
+
+  // Assign the new template to every day of the week (ISO: 0=Mon..6=Sun).
+  for (let dow = 0; dow < 7; dow++) {
+    await saveMacroSchedule(cookieJar, userId, dow, newId);
+  }
+
+  // Clean up previous Coach Targets templates.
+  for (const id of oldIds) {
+    try { await deleteMacroTargetTemplate(cookieJar, userId, id); } catch { /* ignore */ }
+  }
+}
+
 // Cache JWKS for JWT verification
 let cachedJwks: any = null;
 async function getJwks() {
