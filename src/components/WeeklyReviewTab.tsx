@@ -441,10 +441,36 @@ export function WeeklyReviewTab({ clientId, coachId, lang }: Props) {
                 <Mic className="h-4 w-4" />
                 {tx(lang, "Spraakmemo (alleen voor coach)", "Voice memo (coach only)")}
               </h3>
-              <Button variant="ghost" size="sm" onClick={copyVoice} className="gap-1.5 h-8">
-                <Copy className="h-3.5 w-3.5" />
-                {tx(lang, "Kopieer", "Copy")}
-              </Button>
+              <div className="flex items-center gap-1.5">
+                <Button
+                  variant={selected.voice_memo_recorded_at ? "secondary" : "outline"}
+                  size="sm"
+                  onClick={async () => {
+                    const value = selected.voice_memo_recorded_at ? null : new Date().toISOString();
+                    const { error } = await supabase
+                      .from("weekly_review_drafts")
+                      .update({ voice_memo_recorded_at: value })
+                      .eq("id", selected.id);
+                    if (error) return toast.error(error.message);
+                    toast.success(
+                      value
+                        ? tx(lang, "Spraakmemo gemarkeerd", "Voice memo marked")
+                        : tx(lang, "Markering ongedaan", "Mark removed"),
+                    );
+                    loadDrafts();
+                  }}
+                  className="gap-1.5 h-8"
+                >
+                  <Check className="h-3.5 w-3.5" />
+                  {selected.voice_memo_recorded_at
+                    ? tx(lang, "Opgenomen", "Recorded")
+                    : tx(lang, "Markeer opgenomen", "Mark recorded")}
+                </Button>
+                <Button variant="ghost" size="sm" onClick={copyVoice} className="gap-1.5 h-8">
+                  <Copy className="h-3.5 w-3.5" />
+                  {tx(lang, "Kopieer", "Copy")}
+                </Button>
+              </div>
             </div>
             <Textarea
               value={voice}
