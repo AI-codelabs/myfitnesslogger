@@ -223,7 +223,8 @@ const LogWorkout = () => {
             saved: true,
           }));
         } else {
-          grouped[e.id] = [emptyRow(1)];
+          const target = extractSetCount(e.sets_reps) ?? 1;
+          grouped[e.id] = Array.from({ length: target }, (_, i) => emptyRow(i + 1));
         }
       }
 
