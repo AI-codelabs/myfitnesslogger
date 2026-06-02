@@ -790,6 +790,91 @@ async function authedClient(req: Request) {
   }
 }
 
+function isServiceRoleRequest(req: Request) {
+  const authHeader = req.headers.get("Authorization");
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  return !!serviceRoleKey && authHeader === `Bearer ${serviceRoleKey}`;
+}
+
+async function reapplyTodayTargetsForClient(
+  admin: ReturnType<typeof createClient>,
+  clientId: string,
+) {
+  const { data: session, error: sessionError } = await admin
+    .from("cronometer_sessions")
+    .select("*")
+    .eq("client_id", clientId)
+    .maybeSingle();
+
+  if (sessionError) {
+    return { ok: false as const, error: sessionError.message };
+  }
+
+  if (!session) {
+    return { ok: false as const, error: "no_session" };
+  }
+
+  if (!session.target_sync_enabled) {
+    return { ok: false as const, error: "sync_disabled" };
+  }
+
+  const { data: latestPush, error: pushError } = await admin
+    .from("cronometer_target_pushes")
+    .select("calories, protein_g, carbs_g, fat_g, pushed_at")
+    .eq("client_id", clientId)
+    .eq("success", true)
+    .order("pushed_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (pushError) {
+    return { ok: false as const, error: pushError.message };
+  }
+
+  if (!latestPush) {
+    return { ok: false as const, error: "no_saved_targets" };
+  }
+
+  await refreshGwtValues();
+  cachedGwtPermutation = session.gwt_permutation || cachedGwtPermutation;
+  cachedGwtHeader = session.gwt_header || cachedGwtHeader;
+  const cookieJar = new Map<string, string>(
+    Object.entries(session.cookies as Record<string, string>),
+  );
+
+  try {
+    await updateDailyTargets(cookieJar, session.user_id_external, new Date(), {
+      calories: Number(latestPush.calories) || 0,
+      protein: Number(latestPush.protein_g) || 0,
+      carbs: Number(latestPush.carbs_g) || 0,
+      fat: Number(latestPush.fat_g) || 0,
+    });
+
+    await admin
+      .from("cronometer_sessions")
+      .update({
+        cookies: Object.fromEntries(cookieJar),
+        gwt_permutation: cachedGwtPermutation,
+        gwt_header: cachedGwtHeader,
+        last_error: null,
+      })
+      .eq("client_id", clientId);
+
+    return {
+      ok: true as const,
+      pushedAt: latestPush.pushed_at,
+    };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    await admin
+      .from("cronometer_sessions")
+      .update({ last_error: msg })
+      .eq("client_id", clientId);
+
+    return { ok: false as const, error: msg };
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -933,6 +1018,44 @@ serve(async (req) => {
         days_synced: rows.length,
         from: isoDate(startDate),
         to: isoDate(today),
+      });
+    }
+
+    if (action === "reapply_today_targets") {
+      if (!isServiceRoleRequest(req)) {
+        return json({ error: "Unauthorized" }, 401);
+      }
+
+      const admin = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      );
+
+      const { data: sessions, error: sessionsError } = await admin
+        .from("cronometer_sessions")
+        .select("client_id")
+        .eq("target_sync_enabled", true);
+
+      if (sessionsError) {
+        return json({ error: sessionsError.message }, 500);
+      }
+
+      const results: Array<{ client_id: string; ok: boolean; error?: string }> = [];
+      for (const session of sessions ?? []) {
+        const result = await reapplyTodayTargetsForClient(admin, session.client_id);
+        results.push({
+          client_id: session.client_id,
+          ok: result.ok,
+          error: result.ok ? undefined : result.error,
+        });
+      }
+
+      return json({
+        success: true,
+        scanned: (sessions ?? []).length,
+        updated: results.filter((r) => r.ok).length,
+        failed: results.filter((r) => !r.ok).length,
+        results,
       });
     }
 
@@ -1091,6 +1214,7 @@ serve(async (req) => {
             cookies: Object.fromEntries(cookieJar),
             gwt_permutation: cachedGwtPermutation,
             gwt_header: cachedGwtHeader,
+            target_sync_enabled: true,
             last_error: recurringWarning,
           })
           .eq("client_id", client_id);
