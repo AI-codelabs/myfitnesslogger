@@ -45,6 +45,40 @@ const ClientProfile = () => {
   const [editingNutrition, setEditingNutrition] = useState(false);
   const [coachId, setCoachId] = useState<string | null>(null);
   const [nutritionLogs, setNutritionLogs] = useState<DailyLog[]>([]);
+  const [coachingStart, setCoachingStart] = useState<string>("");
+  const [coachingEnd, setCoachingEnd] = useState<string>("");
+  const [savingPeriod, setSavingPeriod] = useState(false);
+
+  const saveCoachingPeriod = async () => {
+    if (!invite) return;
+    setSavingPeriod(true);
+    const { error } = await supabase
+      .from("invitations")
+      .update({
+        coaching_start_date: coachingStart || null,
+        coaching_end_date: coachingEnd || null,
+      })
+      .eq("id", invite.id);
+    setSavingPeriod(false);
+    if (error) return toast.error(error.message);
+    setInvite({
+      ...invite,
+      coaching_start_date: coachingStart || null,
+      coaching_end_date: coachingEnd || null,
+    });
+    toast.success(lang === "nl" ? "Coachingsperiode opgeslagen" : "Coaching period saved");
+  };
+
+  const getExpiryInfo = (endDate?: string | null) => {
+    if (!endDate) return null;
+    const end = new Date(endDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const diffDays = Math.ceil((end.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays < 0) return { kind: "expired" as const, days: Math.abs(diffDays) };
+    if (diffDays <= 14) return { kind: "soon" as const, days: diffDays };
+    return { kind: "ok" as const, days: diffDays };
+  };
 
   const updateStatus = async (status: "active" | "inactive") => {
     if (!invite) return;
