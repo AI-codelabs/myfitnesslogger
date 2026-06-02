@@ -91,7 +91,7 @@ const ClientProfile = () => {
       const [invQ, respQ, nutQ, logsQ] = await Promise.all([
         supabase
           .from("invitations")
-          .select("id, email, status, accepted_at, created_at")
+          .select("id, email, status, accepted_at, created_at, coaching_start_date, coaching_end_date")
           .eq("accepted_user_id", clientId)
           .maybeSingle(),
         supabase
