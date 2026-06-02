@@ -407,10 +407,12 @@ const MacroStep = ({
   const totalPct =
     Number(v.macro_p_pct ?? 30) + Number(v.macro_c_pct ?? 40) + Number(v.macro_f_pct ?? 30);
   const overrideMode = !!v.macro_override;
-  const finalCalories = overrideMode ? Number(v.calories || 0) : result?.calories ?? 0;
   const finalProtein = overrideMode ? Number(v.protein_g || 0) : result?.protein_g ?? 0;
   const finalCarbs = overrideMode ? Number(v.carbs_g || 0) : result?.carbs_g ?? 0;
   const finalFat = overrideMode ? Number(v.fat_g || 0) : result?.fat_g ?? 0;
+  const finalCalories = overrideMode
+    ? finalProtein * 4 + finalCarbs * 4 + finalFat * 9
+    : result?.calories ?? 0;
 
   useEffect(() => {
     if (!overrideMode && result) {
@@ -426,6 +428,11 @@ const MacroStep = ({
     v.age, v.gender, v.height_cm, v.weight_kg, v.activity_level,
     v.macro_goal, v.macro_p_pct, v.macro_c_pct, v.macro_f_pct, overrideMode,
   ]);
+
+  useEffect(() => {
+    if (overrideMode) set("calories", finalCalories);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [overrideMode, finalCalories]);
 
   const tt = (nl: string, en: string) => (lang === "nl" ? nl : en);
 
@@ -588,7 +595,9 @@ const MacroStep = ({
         </div>
         {overrideMode && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <Field label="kcal"><NumberInput value={v.calories} onChange={(val) => set("calories", val)} /></Field>
+            <Field label="kcal" suffix={tt("auto", "auto")}>
+              <NumberInput value={finalCalories} onChange={() => {}} disabled />
+            </Field>
             <Field label={tt("Eiwit (g)", "Protein (g)")}><NumberInput value={v.protein_g} onChange={(val) => set("protein_g", val)} /></Field>
             <Field label={tt("KH (g)", "Carbs (g)")}><NumberInput value={v.carbs_g} onChange={(val) => set("carbs_g", val)} /></Field>
             <Field label={tt("Vet (g)", "Fat (g)")}><NumberInput value={v.fat_g} onChange={(val) => set("fat_g", val)} /></Field>
