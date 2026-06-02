@@ -595,7 +595,9 @@ const MacroStep = ({
         </div>
         {overrideMode && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <Field label="kcal"><NumberInput value={v.calories} onChange={(val) => set("calories", val)} /></Field>
+            <Field label="kcal" suffix={tt("auto", "auto")}>
+              <NumberInput value={finalCalories} onChange={() => {}} disabled />
+            </Field>
             <Field label={tt("Eiwit (g)", "Protein (g)")}><NumberInput value={v.protein_g} onChange={(val) => set("protein_g", val)} /></Field>
             <Field label={tt("KH (g)", "Carbs (g)")}><NumberInput value={v.carbs_g} onChange={(val) => set("carbs_g", val)} /></Field>
             <Field label={tt("Vet (g)", "Fat (g)")}><NumberInput value={v.fat_g} onChange={(val) => set("fat_g", val)} /></Field>
