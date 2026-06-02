@@ -141,6 +141,20 @@ const ClientTraining = () => {
         });
       }
       setPlanDays(grouped);
+
+      // Load completed workout sessions for this client
+      const { data: sessions } = await supabase
+        .from("workout_sessions")
+        .select("plan_id, day_id, scheduled_date, completed_at")
+        .eq("client_id", user.id)
+        .not("completed_at", "is", null);
+      const completed = new Set<string>();
+      for (const s of sessions ?? []) {
+        const key = `${s.plan_id}:${s.day_id || '_'}:${s.scheduled_date || '_'}`;
+        completed.add(key);
+      }
+      setCompletedSessions(completed);
+
       setLoading(false);
     })();
   }, [user?.id]);
