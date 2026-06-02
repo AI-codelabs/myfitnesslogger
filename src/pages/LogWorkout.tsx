@@ -354,6 +354,15 @@ const LogWorkout = () => {
         continue;
       }
 
+      // Skip prefilled rows the user never touched.
+      // Prefilled rows have `saved` undefined; user edits set `saved: false`;
+      // rows loaded from DB have `saved: true`. Only persist new rows when
+      // the user actually edited them.
+      if (!row.id && row.saved !== false) {
+        updated.push(row);
+        continue;
+      }
+
       const payload: any = {
         session_id: sessionId,
         plan_exercise_id: planExerciseId,
