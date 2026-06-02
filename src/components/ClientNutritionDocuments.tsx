@@ -2,8 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { FileText, Upload, Trash2, Download, Loader2 } from "lucide-react";
+import { FileText, Upload, Trash2, ExternalLink, Download, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Lang } from "@/lib/onboardingSchema";
 
@@ -14,6 +13,8 @@ interface Doc {
   mime_type: string | null;
   size_bytes: number | null;
   created_at: string;
+  view_url?: string;
+  download_url?: string;
 }
 
 interface Props {
@@ -39,7 +40,26 @@ export function ClientNutritionDocuments({ clientId, coachId, canUpload, lang }:
       .select("id, file_path, file_name, mime_type, size_bytes, created_at")
       .eq("client_id", clientId)
       .order("created_at", { ascending: false });
-    setDocs((data as Doc[]) ?? []);
+    const base = (data as Doc[]) ?? [];
+    // Pre-sign URLs so the list can render real <a> tags. iOS standalone
+    // PWAs only "escape" to Safari when a user clicks an anchor element
+    // with a real href — window.open / programmatic downloads silently fail.
+    const enriched = await Promise.all(
+      base.map(async (d) => {
+        const [viewRes, dlRes] = await Promise.all([
+          supabase.storage.from(BUCKET).createSignedUrl(d.file_path, 60 * 60),
+          supabase.storage
+            .from(BUCKET)
+            .createSignedUrl(d.file_path, 60 * 60, { download: d.file_name }),
+        ]);
+        return {
+          ...d,
+          view_url: viewRes.data?.signedUrl,
+          download_url: dlRes.data?.signedUrl,
+        };
+      }),
+    );
+    setDocs(enriched);
     setLoading(false);
   }
 
@@ -83,52 +103,6 @@ export function ClientNutritionDocuments({ clientId, coachId, canUpload, lang }:
     load();
   }
 
-  async function openDoc(d: Doc) {
-    setBusyId(d.id);
-    try {
-      const { data, error } = await supabase.storage
-        .from(BUCKET)
-        .createSignedUrl(d.file_path, 60 * 10, { download: d.file_name });
-      if (error || !data) {
-        toast.error(error?.message || tx("Openen mislukt", "Failed to open"));
-        return;
-      }
-
-      // Detect standalone PWA (iOS "Add to Home Screen") and in-app browsers where
-      // window.open() is blocked or opens a blank page.
-      const nav = window.navigator as Navigator & { standalone?: boolean };
-      const isStandalone =
-        nav.standalone === true ||
-        window.matchMedia?.("(display-mode: standalone)").matches;
-
-      if (isStandalone) {
-        // Fetch as blob and trigger a download via anchor — this works inside
-        // iOS standalone PWAs where window.open is unreliable.
-        const res = await fetch(data.signedUrl);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const blob = await res.blob();
-        const blobUrl = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = blobUrl;
-        a.download = d.file_name;
-        a.rel = "noopener";
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
-      } else {
-        const win = window.open(data.signedUrl, "_blank", "noopener");
-        if (!win) {
-          // Popup blocked — fall back to same-tab navigation.
-          window.location.href = data.signedUrl;
-        }
-      }
-    } catch (e: any) {
-      toast.error(e?.message || tx("Openen mislukt", "Failed to open"));
-    } finally {
-      setBusyId(null);
-    }
-  }
 
   async function removeDoc(d: Doc) {
     if (!canUpload) return;
@@ -201,15 +175,26 @@ export function ClientNutritionDocuments({ clientId, coachId, canUpload, lang }:
                   {d.size_bytes ? ` · ${Math.round(d.size_bytes / 1024)} KB` : ""}
                 </p>
               </div>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => openDoc(d)}
-                disabled={busyId === d.id}
-                className="gap-1"
-              >
-                <Download className="h-4 w-4" />
-                {tx("Open", "Open")}
+              <Button asChild size="sm" variant="ghost" className="gap-1" disabled={!d.view_url}>
+                <a
+                  href={d.view_url || "#"}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={tx("Open in browser", "Open in browser")}
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  {tx("Open", "Open")}
+                </a>
+              </Button>
+              <Button asChild size="sm" variant="ghost" className="gap-1" disabled={!d.download_url}>
+                <a
+                  href={d.download_url || "#"}
+                  rel="noopener noreferrer"
+                  aria-label={tx("Download", "Download")}
+                >
+                  <Download className="h-4 w-4" />
+                  {tx("Download", "Download")}
+                </a>
               </Button>
               {canUpload && (
                 <Button
