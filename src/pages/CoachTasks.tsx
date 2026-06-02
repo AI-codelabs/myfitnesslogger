@@ -55,6 +55,12 @@ export default function CoachTasks() {
   const { user } = useAuth();
   const [rows, setRows] = useState<TaskRow[]>([]);
   const [checkins, setCheckins] = useState<Array<{ client_id: string; submitted_at: string }>>([]);
+  const [reviewsState, setReviewsState] = useState<Array<{
+    client_id: string;
+    generated_at: string | null;
+    published_at: string | null;
+    voice_memo_recorded_at: string | null;
+  }>>([]);
   const [loading, setLoading] = useState(true);
   const weekStart = formatWeekStart();
 
@@ -74,6 +80,8 @@ export default function CoachTasks() {
     const clientIds = (inv ?? []).map((i: any) => i.accepted_user_id).filter(Boolean);
     if (clientIds.length === 0) {
       setRows([]);
+      setReviewsState([]);
+      setCheckins([]);
       setLoading(false);
       return;
     }
@@ -107,7 +115,7 @@ export default function CoachTasks() {
         .in("client_id", clientIds),
       supabase
         .from("weekly_review_drafts")
-        .select("client_id, week_start, generated_at, published_at")
+        .select("client_id, week_start, generated_at, published_at, voice_memo_recorded_at")
         .eq("coach_id", user.id)
         .eq("week_start", weekStart)
         .in("client_id", clientIds),
@@ -146,6 +154,12 @@ export default function CoachTasks() {
 
     setRows(built);
     setCheckins((checkinsRes.data ?? []) as Array<{ client_id: string; submitted_at: string }>);
+    setReviewsState((reviewsRes.data ?? []) as Array<{
+      client_id: string;
+      generated_at: string | null;
+      published_at: string | null;
+      voice_memo_recorded_at: string | null;
+    }>);
     setLoading(false);
   };
 
@@ -195,16 +209,67 @@ export default function CoachTasks() {
 
   const weeklyTasks = useMemo(() => {
     const submittedMap = new Map(checkins.map((c) => [c.client_id, c.submitted_at]));
+    const reviewMap = new Map(
+      (reviewsState ?? []).map((r) => [r.client_id, r]),
+    );
     return rows
       .filter((r) => r.hasOnboarding)
-      .map((r) => ({
-        row: r,
-        submittedAt: submittedMap.get(r.client.user_id) ?? null,
-      }));
-  }, [rows, checkins]);
+      .map((r) => {
+        const review = reviewMap.get(r.client.user_id);
+        const submittedAt = submittedMap.get(r.client.user_id) ?? null;
+        const checkinDone = !!submittedAt;
+        const generated = !!review?.generated_at;
+        const published = !!review?.published_at;
+        const voiceRecorded = !!review?.voice_memo_recorded_at;
+        const subtasks = [
+          {
+            key: "generate",
+            label: "Genereer weekreview",
+            done: generated,
+            blocked: !checkinDone,
+            icon: Sparkles,
+          },
+          {
+            key: "publish",
+            label: "Publiceer naar client",
+            done: published,
+            blocked: !generated,
+            icon: Send,
+          },
+          {
+            key: "voice",
+            label: "Voice memo opnemen",
+            done: voiceRecorded,
+            blocked: !published,
+            icon: Mic,
+          },
+        ];
+        const openCount = checkinDone ? subtasks.filter((s) => !s.done).length : 0;
+        const allDone = checkinDone && subtasks.every((s) => s.done);
+        return { row: r, submittedAt, subtasks, openCount, allDone, checkinDone };
+      });
+  }, [rows, checkins, reviewsState]);
 
-  const weeklyPending = weeklyTasks.filter((t) => !t.submittedAt);
-  const weeklyDone = weeklyTasks.filter((t) => t.submittedAt);
+  const weeklyAwaitingClient = weeklyTasks.filter((t) => !t.checkinDone);
+  const weeklyPending = weeklyTasks.filter((t) => t.checkinDone && !t.allDone);
+  const weeklyCompleted = weeklyTasks.filter((t) => t.allDone);
+
+  const markWeeklyVoiceRecorded = async (clientId: string, current: boolean) => {
+    if (!user) return;
+    const value = current ? null : new Date().toISOString();
+    const { error } = await supabase
+      .from("weekly_review_drafts")
+      .update({ voice_memo_recorded_at: value })
+      .eq("client_id", clientId)
+      .eq("coach_id", user.id)
+      .eq("week_start", weekStart);
+    if (error) {
+      toast.error("Kon status niet bijwerken");
+      return;
+    }
+    toast.success(current ? "Voice memo gemarkeerd als open" : "Voice memo afgevinkt");
+    load();
+  };
 
   const markVoiceRecorded = async (clientId: string, current: boolean) => {
     if (!user) return;
@@ -349,41 +414,60 @@ export default function CoachTasks() {
             </Card>
           ) : (
             <>
+              {/* Section 1: check-in not yet submitted */}
               <SectionHeader
-                title="Nog niet ingevuld"
-                count={weeklyPending.length}
+                title="Wacht op client (check-in open)"
+                count={weeklyAwaitingClient.length}
                 tone="amber"
               />
-              {weeklyPending.length === 0 ? (
+              {weeklyAwaitingClient.length === 0 ? (
                 <EmptyHint text="Iedereen heeft zijn check-in ingevuld 🎉" />
               ) : (
                 <div className="space-y-2">
-                  {weeklyPending.map(({ row }) => (
+                  {weeklyAwaitingClient.map(({ row }) => (
                     <Card key={row.client.user_id} className="px-4 py-3 flex items-center gap-3">
                       <Circle className="h-4 w-4 text-amber-500 shrink-0" />
                       <span className="flex-1 text-sm font-medium truncate">
                         {row.client.display_name ?? "Naamloos"}
                       </span>
-                      <Button asChild size="sm" variant="outline">
-                        <Link to={`/clients/${row.client.user_id}?tab=checkins`}>
-                          Open
-                          <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
-                        </Link>
+                      <Badge variant="outline" className="text-amber-600 border-amber-300 dark:text-amber-400">
+                        Check-in open
+                      </Badge>
+                      <Button asChild size="sm" variant="ghost">
+                        <Link to={`/clients/${row.client.user_id}?tab=checkins`}>Bekijk</Link>
                       </Button>
                     </Card>
                   ))}
                 </div>
               )}
 
-              {weeklyDone.length > 0 && (
+              {/* Section 2: check-in done, review work pending */}
+              <SectionHeader title="Jouw weekreview openstaand" count={weeklyPending.length} />
+              {weeklyPending.length === 0 ? (
+                <EmptyHint text="Geen openstaande weekreviews." />
+              ) : (
+                <div className="space-y-2">
+                  {weeklyPending.map(({ row, subtasks, openCount }) => (
+                    <ClientTaskCollapsible
+                      key={row.client.user_id}
+                      row={row}
+                      subtasks={subtasks}
+                      intakeReady={true}
+                      openCount={openCount}
+                      defaultOpen={false}
+                      onMarkVoice={markWeeklyVoiceRecorded}
+                      reviewTab="review"
+                    />
+                  ))}
+                </div>
+              )}
+
+              {/* Section 3: completed */}
+              {weeklyCompleted.length > 0 && (
                 <>
-                  <SectionHeader
-                    title="Ingevuld"
-                    count={weeklyDone.length}
-                    tone="emerald"
-                  />
+                  <SectionHeader title="Afgerond" count={weeklyCompleted.length} tone="emerald" />
                   <div className="space-y-2">
-                    {weeklyDone.map(({ row, submittedAt }) => (
+                    {weeklyCompleted.map(({ row, submittedAt }) => (
                       <Card key={row.client.user_id} className="px-4 py-3 flex items-center gap-3">
                         <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
                         <div className="flex-1 min-w-0">
@@ -391,11 +475,11 @@ export default function CoachTasks() {
                             {row.client.display_name ?? "Naamloos"}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            Ingevuld {formatHumanDate(submittedAt!, "nl")}
+                            Check-in {formatHumanDate(submittedAt!, "nl")} · review gepubliceerd
                           </p>
                         </div>
                         <Button asChild size="sm" variant="ghost">
-                          <Link to={`/clients/${row.client.user_id}?tab=checkins`}>Bekijk</Link>
+                          <Link to={`/clients/${row.client.user_id}?tab=review`}>Bekijk</Link>
                         </Button>
                       </Card>
                     ))}
@@ -450,6 +534,7 @@ function ClientTaskCollapsible({
   openCount,
   defaultOpen,
   onMarkVoice,
+  reviewTab = "message",
 }: {
   row: TaskRow;
   subtasks: Array<{
@@ -463,6 +548,7 @@ function ClientTaskCollapsible({
   openCount: number;
   defaultOpen: boolean;
   onMarkVoice: (clientId: string, current: boolean) => void;
+  reviewTab?: string;
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
@@ -544,7 +630,7 @@ function ClientTaskCollapsible({
                   )}
                   {(s.key === "generate" || s.key === "publish") && !s.done && !s.blocked && (
                     <Button asChild size="sm" variant="secondary">
-                      <Link to={`/clients/${row.client.user_id}?tab=message`}>
+                      <Link to={`/clients/${row.client.user_id}?tab=${reviewTab}`}>
                         Doe nu
                       </Link>
                     </Button>
