@@ -332,17 +332,17 @@ export function WeeklyCheckinsTab({ clientId, lang }: Props) {
     {
       label: t("Gevoel", "Feeling"),
       icon: Heart,
-      render: (c) => <ScaleCell value={c.feeling} max={10} />,
+      render: (c) => <ScaleCell value={c.feeling} max={5} />,
     },
-    { label: t("Energie", "Energy"), icon: Zap, render: (c) => <ScaleCell value={c.energy} max={10} /> },
-    { label: t("Spierpijn", "Soreness"), render: (c) => <ScaleCell value={c.soreness} max={10} /> },
+    { label: t("Energie", "Energy"), icon: Zap, render: (c) => <ScaleCell value={c.energy} max={5} /> },
+    { label: t("Spierpijn", "Soreness"), render: (c) => <ScaleCell value={c.soreness} max={5} /> },
     {
       label: t("Trainingen", "Workouts"),
       icon: Dumbbell,
       render: (c) => <span className="tabular-nums">{trainingCountValue(c)}</span>,
     },
-    { label: t("Intensiteit (RPE)", "Intensity (RPE)"), render: (c) => <ScaleCell value={c.intensity_rpe} max={10} /> },
-    { label: t("Progressie", "Progression"), render: (c) => <ScaleCell value={c.progression} max={10} /> },
+    { label: t("Intensiteit (RPE)", "Intensity (RPE)"), render: (c) => <ScaleCell value={c.intensity_rpe} max={5} /> },
+    { label: t("Progressie", "Progression"), render: (c) => <ScaleCell value={c.progression} max={5} /> },
     {
       label: t("Voeding", "Nutrition"),
       icon: Utensils,
@@ -351,7 +351,7 @@ export function WeeklyCheckinsTab({ clientId, lang }: Props) {
     {
       label: t("Hydratatie", "Hydration"),
       icon: Droplet,
-      render: (c) => <ScaleCell value={c.hydration} max={10} />,
+      render: (c) => <ScaleCell value={c.hydration} max={5} />,
     },
     {
       label: t("Supplementen", "Supplements"),
