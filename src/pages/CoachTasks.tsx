@@ -534,6 +534,7 @@ function ClientTaskCollapsible({
   openCount,
   defaultOpen,
   onMarkVoice,
+  reviewTab = "message",
 }: {
   row: TaskRow;
   subtasks: Array<{
@@ -547,6 +548,7 @@ function ClientTaskCollapsible({
   openCount: number;
   defaultOpen: boolean;
   onMarkVoice: (clientId: string, current: boolean) => void;
+  reviewTab?: string;
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
