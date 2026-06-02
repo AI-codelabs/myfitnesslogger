@@ -1002,14 +1002,29 @@ serve(async (req) => {
         await updateDailyTargets(cookieJar, session.user_id_external, new Date(), targets);
         // 2. Best-effort: replace the recurring weekly macro schedule so every
         //    future day inherits these targets. The reverse-engineered GWT
-        //    template API is brittle; if it fails we still treat the push as
-        //    successful (today is updated) and surface a warning instead of 502.
+        //    template API is brittle; if it fails we fall back to writing the
+        //    next 90 daily targets one-by-one so the client still sees the new
+        //    macros for the foreseeable future.
         let recurringWarning: string | null = null;
+        let fallbackDays = 0;
         try {
           await applyRecurringCoachTargets(cookieJar, session.user_id_external, targets);
         } catch (re) {
           recurringWarning = re instanceof Error ? re.message : String(re);
-          console.warn("applyRecurringCoachTargets failed:", recurringWarning);
+          console.warn("applyRecurringCoachTargets failed, falling back to per-day writes:", recurringWarning);
+          const FALLBACK_DAYS = 90;
+          const base = new Date();
+          for (let i = 1; i <= FALLBACK_DAYS; i++) {
+            const d = new Date(base);
+            d.setUTCDate(base.getUTCDate() + i);
+            try {
+              await updateDailyTargets(cookieJar, session.user_id_external, d, targets);
+              fallbackDays++;
+            } catch (de) {
+              console.warn(`per-day fallback failed at +${i}d:`, de instanceof Error ? de.message : de);
+              break;
+            }
+          }
         }
         // Persist any refreshed cookies/nonce
         await admin
@@ -1023,9 +1038,12 @@ serve(async (req) => {
           .eq("client_id", client_id);
 
         logRow.success = true;
-        if (recurringWarning) logRow.error = `recurring_warning: ${recurringWarning}`;
+        if (recurringWarning) {
+          logRow.error = `recurring_warning: ${recurringWarning}; fallback_days=${fallbackDays}`;
+        }
         await admin.from("cronometer_target_pushes").insert(logRow);
-        return json({ success: true, recurring_warning: recurringWarning });
+        return json({ success: true, recurring_warning: recurringWarning, fallback_days: fallbackDays });
+
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         logRow.error = msg;
