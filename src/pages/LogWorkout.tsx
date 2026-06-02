@@ -541,32 +541,25 @@ const LogWorkout = () => {
                       </div>
                       <div className="space-y-1">
                         <label className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                          {tx("Afstand (km)", "Distance (km)")}
+                          {tx("Snelheid (km/u)", "Speed (km/h)")}
                         </label>
                         <Input
                           inputMode="decimal"
                           placeholder="0"
-                          value={
-                            s.distance_m ? (parseInt(s.distance_m) / 1000).toString() : ""
-                          }
-                          onChange={(e) =>
-                            updateSet(i, {
-                              distance_m: e.target.value
-                                ? String(Math.round(parseFloat(e.target.value) * 1000))
-                                : "",
-                            })
-                          }
+                          value={s.speed_kmh}
+                          onChange={(e) => updateSet(i, { speed_kmh: e.target.value })}
                           className="h-10 text-center"
                         />
                       </div>
                       <div className="space-y-1">
                         <label className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                          {tx("Intensiteit", "Intensity")}
+                          {tx("Helling (%)", "Incline (%)")}
                         </label>
                         <Input
-                          placeholder={tx("Z2, RPE 7…", "Z2, RPE 7…")}
-                          value={s.intensity}
-                          onChange={(e) => updateSet(i, { intensity: e.target.value })}
+                          inputMode="decimal"
+                          placeholder="0"
+                          value={s.incline_pct}
+                          onChange={(e) => updateSet(i, { incline_pct: e.target.value })}
                           className="h-10 text-center"
                         />
                       </div>
