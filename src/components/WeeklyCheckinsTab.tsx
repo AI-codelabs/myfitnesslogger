@@ -332,17 +332,17 @@ export function WeeklyCheckinsTab({ clientId, lang }: Props) {
     {
       label: t("Gevoel", "Feeling"),
       icon: Heart,
-      render: (c) => <ScaleCell value={c.feeling} max={10} />,
+      render: (c) => <ScaleCell value={c.feeling} max={5} />,
     },
-    { label: t("Energie", "Energy"), icon: Zap, render: (c) => <ScaleCell value={c.energy} max={10} /> },
-    { label: t("Spierpijn", "Soreness"), render: (c) => <ScaleCell value={c.soreness} max={10} /> },
+    { label: t("Energie", "Energy"), icon: Zap, render: (c) => <ScaleCell value={c.energy} max={5} /> },
+    { label: t("Spierpijn", "Soreness"), render: (c) => <ScaleCell value={c.soreness} max={5} /> },
     {
       label: t("Trainingen", "Workouts"),
       icon: Dumbbell,
       render: (c) => <span className="tabular-nums">{trainingCountValue(c)}</span>,
     },
-    { label: t("Intensiteit (RPE)", "Intensity (RPE)"), render: (c) => <ScaleCell value={c.intensity_rpe} max={10} /> },
-    { label: t("Progressie", "Progression"), render: (c) => <ScaleCell value={c.progression} max={10} /> },
+    { label: t("Intensiteit (RPE)", "Intensity (RPE)"), render: (c) => <ScaleCell value={c.intensity_rpe} max={5} /> },
+    { label: t("Progressie", "Progression"), render: (c) => <ScaleCell value={c.progression} max={5} /> },
     {
       label: t("Voeding", "Nutrition"),
       icon: Utensils,
@@ -351,7 +351,7 @@ export function WeeklyCheckinsTab({ clientId, lang }: Props) {
     {
       label: t("Hydratatie", "Hydration"),
       icon: Droplet,
-      render: (c) => <ScaleCell value={c.hydration} max={10} />,
+      render: (c) => <ScaleCell value={c.hydration} max={5} />,
     },
     {
       label: t("Supplementen", "Supplements"),
@@ -409,7 +409,7 @@ export function WeeklyCheckinsTab({ clientId, lang }: Props) {
           icon={Heart}
           label={t("Gevoel", "Feeling")}
           value={latest.feeling}
-          unit="/10"
+          unit="/5"
           delta={<Delta current={latest.feeling} previous={previous?.feeling ?? null} decimals={0} />}
           spark={<Sparkline values={sparkSeries.feeling} />}
         />
@@ -417,7 +417,7 @@ export function WeeklyCheckinsTab({ clientId, lang }: Props) {
           icon={Zap}
           label={t("Energie", "Energy")}
           value={latest.energy}
-          unit="/10"
+          unit="/5"
           delta={<Delta current={latest.energy} previous={previous?.energy ?? null} decimals={0} />}
           spark={<Sparkline values={sparkSeries.energy} />}
         />
@@ -441,7 +441,7 @@ export function WeeklyCheckinsTab({ clientId, lang }: Props) {
           icon={Zap}
           label={t("RPE", "RPE")}
           value={latest.intensity_rpe}
-          unit="/10"
+          unit="/5"
           delta={<Delta current={latest.intensity_rpe} previous={previous?.intensity_rpe ?? null} decimals={0} />}
           spark={<Sparkline values={sparkSeries.rpe} />}
         />
@@ -449,7 +449,7 @@ export function WeeklyCheckinsTab({ clientId, lang }: Props) {
           icon={Droplet}
           label={t("Hydratatie", "Hydration")}
           value={latest.hydration}
-          unit="/10"
+          unit="/5"
           delta={<Delta current={latest.hydration} previous={previous?.hydration ?? null} decimals={0} />}
           spark={<Sparkline values={sparkSeries.hydration} />}
         />
@@ -457,7 +457,7 @@ export function WeeklyCheckinsTab({ clientId, lang }: Props) {
           icon={Heart}
           label={t("Spierpijn", "Soreness")}
           value={latest.soreness}
-          unit="/10"
+          unit="/5"
           delta={<Delta current={latest.soreness} previous={previous?.soreness ?? null} decimals={0} positiveDown />}
           spark={<Sparkline values={sparkSeries.soreness} positiveDown />}
         />
