@@ -630,7 +630,7 @@ function ClientTaskCollapsible({
                   )}
                   {(s.key === "generate" || s.key === "publish") && !s.done && !s.blocked && (
                     <Button asChild size="sm" variant="secondary">
-                      <Link to={`/clients/${row.client.user_id}?tab=message`}>
+                      <Link to={`/clients/${row.client.user_id}?tab=${reviewTab}`}>
                         Doe nu
                       </Link>
                     </Button>
