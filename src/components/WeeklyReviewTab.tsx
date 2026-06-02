@@ -390,6 +390,12 @@ export function WeeklyReviewTab({ clientId, coachId, lang }: Props) {
                     {tx(lang, "Voeding aangepast", "Nutrition applied")}
                   </Badge>
                 )}
+                {selected.voice_memo_recorded_at && (
+                  <Badge variant="secondary" className="gap-1">
+                    <Mic className="h-3 w-3" />
+                    {tx(lang, "Spraakmemo opgenomen", "Voice memo recorded")}
+                  </Badge>
+                )}
               </div>
             )}
           </div>
