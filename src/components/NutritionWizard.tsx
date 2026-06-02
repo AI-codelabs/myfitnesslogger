@@ -328,9 +328,11 @@ const Field = ({
 const NumberInput = ({
   value,
   onChange,
+  disabled,
 }: {
   value: any;
   onChange: (v: string) => void;
+  disabled?: boolean;
 }) => (
   <Input
     type="number"
@@ -338,6 +340,7 @@ const NumberInput = ({
     value={value ?? ""}
     onChange={(e) => onChange(e.target.value)}
     onWheel={(e) => e.currentTarget.blur()}
+    disabled={disabled}
     className="h-11"
   />
 );
