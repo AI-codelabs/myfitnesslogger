@@ -129,7 +129,7 @@ export function ExerciseDialog({ exercise, open: controlledOpen, onOpenChange, t
   }
 
   const triggerNode = trigger ?? (
-    <Button variant="outline" className="gap-2">
+    <Button className="gap-2 bg-orange-500 text-white hover:bg-blue-500">
       <Plus className="h-4 w-4" /> New exercise
     </Button>
   );
