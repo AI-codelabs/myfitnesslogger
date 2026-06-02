@@ -232,6 +232,27 @@ const ClientProfile = () => {
         </div>
         <div className="flex items-center gap-2 flex-wrap justify-end">
           <Badge variant={statusVariant as any} className="capitalize h-8 px-3 rounded-md text-xs flex items-center">{invite?.status}</Badge>
+          {(() => {
+            const info = getExpiryInfo(invite?.coaching_end_date);
+            if (!info) return null;
+            if (info.kind === "expired") {
+              return (
+                <Badge variant="destructive" className="h-8 px-3 rounded-md text-xs flex items-center gap-1">
+                  <CalendarClock className="h-3.5 w-3.5" />
+                  {lang === "nl" ? `Verlopen (${info.days}d)` : `Expired (${info.days}d)`}
+                </Badge>
+              );
+            }
+            if (info.kind === "soon") {
+              return (
+                <Badge className="h-8 px-3 rounded-md text-xs flex items-center gap-1 bg-amber-500 hover:bg-amber-500 text-white">
+                  <CalendarClock className="h-3.5 w-3.5" />
+                  {lang === "nl" ? `Verloopt over ${info.days}d` : `Ends in ${info.days}d`}
+                </Badge>
+              );
+            }
+            return null;
+          })()}
           <div className="flex items-center gap-1 rounded-md border h-8 p-0.5">
             {(["nl", "en"] as Lang[]).map((l) => (
               <button
