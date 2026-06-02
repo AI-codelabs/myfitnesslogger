@@ -375,28 +375,42 @@ export default function WorkoutPlan() {
           const dayItems = items
             .filter((i) => i.day_id === d.id)
             .sort((a, b) => a.order_index - b.order_index);
+          const muscles = dayItems.map((i) => i.exercise?.muscle_group ?? "");
+          const type = detectDayType(d.name, muscles);
+          const theme = DAY_TYPE_THEME[type];
+          const uniqueMuscles = Array.from(
+            new Set(muscles.filter(Boolean).map((m) => m.toLowerCase())),
+          );
           return (
-            <Card key={d.id} className="overflow-hidden flex flex-col">
-              <CardHeader className="bg-muted/40 border-b py-3">
+            <Card
+              key={d.id}
+              className={`overflow-hidden flex flex-col shadow-sm hover:shadow-md transition-shadow ${theme.ring}`}
+            >
+              <CardHeader className={`py-3 ${theme.header}`}>
                 <div className="flex items-center justify-between gap-2">
-                  {canEdit ? (
-                    <Input
-                      value={d.name}
-                      onChange={(e) =>
-                        setDays((prev) =>
-                          prev.map((x) => (x.id === d.id ? { ...x, name: e.target.value } : x)),
-                        )
-                      }
-                      onBlur={(e) => renameDay(d.id, e.target.value.trim() || "Day")}
-                      className="h-8 font-semibold"
-                    />
-                  ) : (
-                    <CardTitle className="text-base">{d.name}</CardTitle>
-                  )}
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <span className={`h-2.5 w-2.5 rounded-full shrink-0 ${theme.dot}`} />
+                    {canEdit ? (
+                      <Input
+                        value={d.name}
+                        onChange={(e) =>
+                          setDays((prev) =>
+                            prev.map((x) => (x.id === d.id ? { ...x, name: e.target.value } : x)),
+                          )
+                        }
+                        onBlur={(e) => renameDay(d.id, e.target.value.trim() || "Day")}
+                        className="h-8 font-semibold bg-background/60"
+                      />
+                    ) : (
+                      <CardTitle className="text-base truncate">{d.name}</CardTitle>
+                    )}
+                  </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <Badge variant="outline" className="text-[10px] font-normal">
-                      {dayItems.length} {dayItems.length === 1 ? "exercise" : "exercises"}
-                    </Badge>
+                    <span
+                      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${theme.chip}`}
+                    >
+                      {theme.label}
+                    </span>
                     {canEdit && (
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
@@ -429,6 +443,20 @@ export default function WorkoutPlan() {
                       </AlertDialog>
                     )}
                   </div>
+                </div>
+                <div className="flex items-center gap-2 mt-1 pl-4 text-[11px] text-muted-foreground">
+                  <span>
+                    {dayItems.length} {dayItems.length === 1 ? "exercise" : "exercises"}
+                  </span>
+                  {uniqueMuscles.length > 0 && (
+                    <>
+                      <span>·</span>
+                      <span className="truncate capitalize">
+                        {uniqueMuscles.slice(0, 4).join(", ")}
+                        {uniqueMuscles.length > 4 ? "…" : ""}
+                      </span>
+                    </>
+                  )}
                 </div>
               </CardHeader>
               <CardContent className="p-0 flex-1 flex flex-col">
