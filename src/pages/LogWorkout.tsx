@@ -50,6 +50,16 @@ function extractRepRange(s: string): string | null {
   return null;
 }
 
+// Extract the target set count from "3x10", "4x 8-10", "3 sets", etc.
+function extractSetCount(s: string | null | undefined): number | null {
+  if (!s) return null;
+  const m = s.match(/(\d+)\s*x/i) || s.match(/(\d+)\s*sets?/i);
+  if (!m) return null;
+  const n = parseInt(m[1]);
+  if (isNaN(n) || n < 1 || n > 20) return null;
+  return n;
+}
+
 
 
 
@@ -213,7 +223,8 @@ const LogWorkout = () => {
             saved: true,
           }));
         } else {
-          grouped[e.id] = [emptyRow(1)];
+          const target = extractSetCount(e.sets_reps) ?? 1;
+          grouped[e.id] = Array.from({ length: target }, (_, i) => emptyRow(i + 1));
         }
       }
 
