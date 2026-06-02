@@ -397,6 +397,8 @@ export type Database = {
           accepted_at: string | null
           accepted_user_id: string | null
           coach_id: string
+          coaching_end_date: string | null
+          coaching_start_date: string | null
           created_at: string
           email: string
           id: string
@@ -407,6 +409,8 @@ export type Database = {
           accepted_at?: string | null
           accepted_user_id?: string | null
           coach_id: string
+          coaching_end_date?: string | null
+          coaching_start_date?: string | null
           created_at?: string
           email: string
           id?: string
@@ -417,6 +421,8 @@ export type Database = {
           accepted_at?: string | null
           accepted_user_id?: string | null
           coach_id?: string
+          coaching_end_date?: string | null
+          coaching_start_date?: string | null
           created_at?: string
           email?: string
           id?: string
