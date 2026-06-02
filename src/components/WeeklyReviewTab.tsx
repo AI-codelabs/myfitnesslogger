@@ -100,6 +100,7 @@ interface Draft {
   generated_at: string | null;
   published_at: string | null;
   applied_to_nutrition_at: string | null;
+  voice_memo_recorded_at: string | null;
 }
 
 const tx = (lang: Lang, nl: string, en: string) => (lang === "nl" ? nl : en);
