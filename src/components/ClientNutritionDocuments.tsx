@@ -17,15 +17,6 @@ interface Doc {
   download_url?: string;
 }
 
-interface Doc {
-  id: string;
-  file_path: string;
-  file_name: string;
-  mime_type: string | null;
-  size_bytes: number | null;
-  created_at: string;
-}
-
 interface Props {
   clientId: string;
   coachId?: string | null;
