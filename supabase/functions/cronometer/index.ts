@@ -793,7 +793,10 @@ async function authedClient(req: Request) {
 function isServiceRoleRequest(req: Request) {
   const authHeader = req.headers.get("Authorization");
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  return !!serviceRoleKey && authHeader === `Bearer ${serviceRoleKey}`;
+  if (serviceRoleKey && authHeader === `Bearer ${serviceRoleKey}`) return true;
+  const cronSecret = Deno.env.get("CRON_SECRET");
+  const cronHeader = req.headers.get("x-cron-secret");
+  return !!cronSecret && !!cronHeader && cronHeader === cronSecret;
 }
 
 async function reapplyTodayTargetsForClient(
