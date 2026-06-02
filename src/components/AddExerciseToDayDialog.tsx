@@ -13,8 +13,9 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Search } from "lucide-react";
+import { Loader2, Search, Plus } from "lucide-react";
 import { toast } from "sonner";
+import { ExerciseDialog } from "@/components/ExerciseDialog";
 
 interface Exercise {
   id: string;
