@@ -80,6 +80,8 @@ export default function CoachTasks() {
     const clientIds = (inv ?? []).map((i: any) => i.accepted_user_id).filter(Boolean);
     if (clientIds.length === 0) {
       setRows([]);
+      setReviewsState([]);
+      setCheckins([]);
       setLoading(false);
       return;
     }
