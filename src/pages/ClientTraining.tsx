@@ -391,20 +391,35 @@ const ClientTraining = () => {
                     .filter(Boolean) as string[]
                 )
               );
+              const isCompleted = isOccurrenceCompleted(occ.planId, dayForToday?.id, dateKey);
               return (
                 <div
                   key={occ.assignmentId}
-                  className="rounded-2xl border bg-card overflow-hidden shadow-sm"
+                  className={cn(
+                    "rounded-2xl border bg-card overflow-hidden shadow-sm",
+                    isCompleted && "border-l-success border-l-4"
+                  )}
                 >
                   <div className="p-5 space-y-4">
                     <div className="flex items-start gap-3">
-                      <div className="h-11 w-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                        <Dumbbell className="h-5 w-5 text-primary" />
+                      <div className={cn(
+                        "h-11 w-11 rounded-xl flex items-center justify-center shrink-0",
+                        isCompleted ? "bg-success/10" : "bg-primary/10"
+                      )}>
+                        <Dumbbell className={cn("h-5 w-5", isCompleted ? "text-success" : "text-primary")} />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <h4 className="font-semibold text-base leading-tight truncate">
-                          {dayForToday?.name || occ.planName || tx("Training", "Workout")}
-                        </h4>
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-semibold text-base leading-tight truncate">
+                            {dayForToday?.name || occ.planName || tx("Training", "Workout")}
+                          </h4>
+                          {isCompleted && (
+                            <Badge className="bg-success text-success-foreground gap-1 text-[10px]">
+                              <CheckCircle2 className="h-3 w-3" />
+                              {tx("Voltooid", "Completed")}
+                            </Badge>
+                          )}
+                        </div>
                         <p className="text-xs text-muted-foreground mt-0.5 truncate">
                           {occ.planName}
                         </p>
