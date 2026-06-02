@@ -997,9 +997,12 @@ serve(async (req) => {
       );
 
       try {
-        await updateDailyTargets(cookieJar, session.user_id_external, new Date(), {
-          calories: c, protein: p, carbs: cb, fat: f,
-        });
+        const targets = { calories: c, protein: p, carbs: cb, fat: f };
+        // 1. Update today's daily target so the change shows up immediately.
+        await updateDailyTargets(cookieJar, session.user_id_external, new Date(), targets);
+        // 2. Replace the recurring weekly macro schedule so every future day uses
+        //    these targets indefinitely (until the coach updates them again).
+        await applyRecurringCoachTargets(cookieJar, session.user_id_external, targets);
         // Persist any refreshed cookies/nonce
         await admin
           .from("cronometer_sessions")
