@@ -234,7 +234,9 @@ const LogWorkout = () => {
         (r.reps && r.reps !== "") ||
         (r.weight_kg && r.weight_kg !== "") ||
         (r.duration_seconds && r.duration_seconds !== "") ||
-        (r.distance_m && r.distance_m !== ""),
+        (r.distance_m && r.distance_m !== "") ||
+        (r.speed_kmh && r.speed_kmh !== "") ||
+        (r.incline_pct && r.incline_pct !== ""),
     );
   };
 
