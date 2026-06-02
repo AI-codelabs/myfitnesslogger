@@ -283,14 +283,27 @@ const LogWorkout = () => {
     });
   };
 
-  const saveActive = async () => {
-    if (!activeExercise || !sessionId) return;
-    setSaving(true);
-    const rows = setsByExercise[activeExercise.id] ?? [];
+  const persistRows = async (planExerciseId: string, rows: SetRow[]) => {
+    if (!sessionId) return rows;
+    const updated: SetRow[] = [];
     for (const row of rows) {
+      const hasContent =
+        (row.reps && row.reps !== "") ||
+        (row.weight_kg && row.weight_kg !== "") ||
+        (row.duration_seconds && row.duration_seconds !== "") ||
+        (row.distance_m && row.distance_m !== "") ||
+        (row.intensity && row.intensity !== "") ||
+        (row.notes && row.notes !== "");
+
+      // Skip empty, never-saved rows
+      if (!row.id && !hasContent) {
+        updated.push(row);
+        continue;
+      }
+
       const payload = {
         session_id: sessionId,
-        plan_exercise_id: activeExercise.id,
+        plan_exercise_id: planExerciseId,
         set_number: row.set_number,
         reps: row.reps ? parseInt(row.reps) : null,
         weight_kg: row.weight_kg ? parseFloat(row.weight_kg) : null,
@@ -302,31 +315,57 @@ const LogWorkout = () => {
 
       if (row.id) {
         await supabase.from("workout_set_logs").update(payload).eq("id", row.id);
+        updated.push({ ...row, saved: true });
       } else {
         const { data } = await supabase
           .from("workout_set_logs")
           .insert(payload)
           .select("id")
           .single();
-        if (data) row.id = data.id;
+        updated.push({ ...row, id: data?.id ?? row.id, saved: true });
       }
-      row.saved = true;
     }
-    setSetsByExercise((prev) => ({ ...prev, [activeExercise.id]: [...rows] }));
+    return updated;
+  };
+
+  const saveActive = async () => {
+    if (!activeExercise || !sessionId) return;
+    setSaving(true);
+    const rows = setsByExercise[activeExercise.id] ?? [];
+    const updated = await persistRows(activeExercise.id, rows);
+    setSetsByExercise((prev) => ({ ...prev, [activeExercise.id]: updated }));
     setSaving(false);
     toast({ title: tx("Opgeslagen", "Saved") });
   };
 
+  const saveAll = async () => {
+    if (!sessionId) return;
+    const next: Record<string, SetRow[]> = { ...setsByExercise };
+    for (const ex of exercises) {
+      const rows = setsByExercise[ex.id] ?? [];
+      next[ex.id] = await persistRows(ex.id, rows);
+    }
+    setSetsByExercise(next);
+  };
+
   const finishWorkout = async () => {
     if (!sessionId) return;
-    await saveActive();
+    setSaving(true);
+    await saveAll();
     const { error } = await supabase
       .from("workout_sessions")
       .update({ completed_at: new Date().toISOString() })
       .eq("id", sessionId);
+    setSaving(false);
     if (!error) {
       toast({ title: tx("Workout voltooid! 💪", "Workout completed! 💪") });
       navigate("/training");
+    } else {
+      toast({
+        title: tx("Kon workout niet voltooien", "Could not finish workout"),
+        description: error.message,
+        variant: "destructive",
+      });
     }
   };
 
