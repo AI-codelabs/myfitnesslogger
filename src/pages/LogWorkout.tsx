@@ -50,15 +50,40 @@ function extractRepRange(s: string): string | null {
   return null;
 }
 
-// Extract the target set count from "3x10", "4x 8-10", "3 sets", etc.
-function extractSetCount(s: string | null | undefined): number | null {
-  if (!s) return null;
-  const m = s.match(/(\d+)\s*x/i) || s.match(/(\d+)\s*sets?/i);
-  if (!m) return null;
-  const n = parseInt(m[1]);
-  if (isNaN(n) || n < 1 || n > 20) return null;
-  return n;
+// Parse a plan string like "8x 10x" or "12x 12x 12x" into per-set rep targets.
+// Each "Nx" token = one set with N reps. Falls back to "3x10" (3 sets of 10) style.
+function extractSetTargets(s: string | null | undefined): number[] {
+  if (!s) return [];
+  // Prefer token style: sequences of "Nx" separated by spaces/commas
+  const tokens = s.match(/\d+\s*x/gi);
+  if (tokens && tokens.length > 1) {
+    return tokens
+      .map((t) => parseInt(t))
+      .filter((n) => !isNaN(n) && n > 0 && n < 1000);
+  }
+  // Fallback: "3x10" or "4x 8-10" → N sets, reps from second number
+  const m = s.match(/(\d+)\s*x\s*(\d+)/i);
+  if (m) {
+    const sets = parseInt(m[1]);
+    const reps = parseInt(m[2]);
+    if (!isNaN(sets) && sets >= 1 && sets <= 20) {
+      return Array.from({ length: sets }, () => (isNaN(reps) ? 0 : reps));
+    }
+  }
+  // "3 sets"
+  const m2 = s.match(/(\d+)\s*sets?/i);
+  if (m2) {
+    const n = parseInt(m2[1]);
+    if (!isNaN(n) && n >= 1 && n <= 20) return Array.from({ length: n }, () => 0);
+  }
+  // Single "Nx" token
+  if (tokens && tokens.length === 1) {
+    const n = parseInt(tokens[0]);
+    if (!isNaN(n)) return [n];
+  }
+  return [];
 }
+
 
 
 
