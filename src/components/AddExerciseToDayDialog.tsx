@@ -13,8 +13,9 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Search } from "lucide-react";
+import { Loader2, Search, Plus } from "lucide-react";
 import { toast } from "sonner";
+import { ExerciseDialog } from "@/components/ExerciseDialog";
 
 interface Exercise {
   id: string;
@@ -47,21 +48,35 @@ export function AddExerciseToDayDialog({
   const [filter, setFilter] = useState("");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+
+  async function loadExercises(selectNewest = false) {
+    setLoading(true);
+    const { data } = await supabase
+      .from("exercises")
+      .select("id,name,muscle_group,equipment,created_at")
+      .order("muscle_group")
+      .order("name");
+    const list = (data ?? []) as (Exercise & { created_at: string })[];
+    setExercises(list);
+    setLoading(false);
+    if (selectNewest && list.length) {
+      const newest = [...list].sort((a, b) =>
+        (b.created_at ?? "").localeCompare(a.created_at ?? ""),
+      )[0];
+      if (newest && !existingExerciseIds.includes(newest.id)) {
+        setSelected((prev) => new Set(prev).add(newest.id));
+        setFilter(newest.name);
+      }
+    }
+  }
 
   useEffect(() => {
     if (!open) return;
     setSelected(new Set());
     setFilter("");
-    setLoading(true);
-    supabase
-      .from("exercises")
-      .select("id,name,muscle_group,equipment")
-      .order("muscle_group")
-      .order("name")
-      .then(({ data }) => {
-        setExercises(data ?? []);
-        setLoading(false);
-      });
+    loadExercises();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   const filtered = useMemo(() => {
@@ -109,14 +124,26 @@ export function AddExerciseToDayDialog({
           <DialogDescription>Pick one or more exercises from your library.</DialogDescription>
         </DialogHeader>
 
-        <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            placeholder="Search exercises…"
-            className="pl-8"
-          />
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              placeholder="Search exercises…"
+              className="pl-8"
+            />
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="gap-1 shrink-0"
+            onClick={() => setCreateOpen(true)}
+          >
+            <Plus className="h-4 w-4" />
+            New
+          </Button>
         </div>
 
         <ScrollArea className="flex-1 -mx-1 px-1">
@@ -172,6 +199,12 @@ export function AddExerciseToDayDialog({
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      <ExerciseDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        onSaved={() => loadExercises(true)}
+      />
     </Dialog>
   );
 }
