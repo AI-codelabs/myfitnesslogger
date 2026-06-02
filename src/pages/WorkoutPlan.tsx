@@ -464,7 +464,9 @@ export default function WorkoutPlan() {
                   {dayItems.map((it, idx) => (
                     <li key={it.id} className="px-4 py-3">
                       <div className="flex items-start gap-3">
-                        <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-medium text-muted-foreground">
+                        <span
+                          className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white ${theme.dot}`}
+                        >
                           {idx + 1}
                         </span>
                         <div className="min-w-0 flex-1 space-y-1.5">
