@@ -17,6 +17,9 @@ export async function pushTargetsToCronometer(args: PushTargetsArgs): Promise<{
   success: boolean;
   skipped?: "no_session" | "sync_disabled";
   error?: string;
+  recurringWarning?: string;
+  recurringCode?: string;
+  fallbackDays?: number;
 }> {
   if (!args.client_id) return { success: false, error: "missing client_id" };
   const macros = [args.calories, args.protein_g, args.carbs_g, args.fat_g];
@@ -44,5 +47,10 @@ export async function pushTargetsToCronometer(args: PushTargetsArgs): Promise<{
     if (e === "sync_disabled") return { success: false, skipped: "sync_disabled" };
     return { success: false, error: (data as any).message || e };
   }
-  return { success: true };
+  return {
+    success: true,
+    recurringWarning: (data as any)?.recurring_warning,
+    recurringCode: (data as any)?.recurring_code,
+    fallbackDays: (data as any)?.fallback_days,
+  };
 }

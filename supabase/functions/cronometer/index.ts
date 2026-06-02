@@ -362,6 +362,26 @@ function addDays(d: Date, n: number): Date {
   return copy;
 }
 
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function extractGwtResponseMessage(raw: string): string | null {
+  const matches = [...raw.matchAll(/"([^"]+)"/g)];
+  for (let i = matches.length - 1; i >= 0; i--) {
+    const value = matches[i][1];
+    if (
+      value &&
+      !value.startsWith("com.") &&
+      !value.startsWith("java.") &&
+      !/^[A-F0-9]{32}$/i.test(value)
+    ) {
+      return value;
+    }
+  }
+  return null;
+}
+
 // Most recent Monday on/before given date
 function mondayOf(d: Date): Date {
   const copy = new Date(d);
@@ -484,12 +504,11 @@ function tokenizeGwtData(raw: string): Array<number | string | null> {
       tokens.push(part.slice(1, -1));
       continue;
     }
-    if (part.includes(".") && !isNaN(parseFloat(part))) {
-      tokens.push(parseFloat(part));
-      continue;
+    try {
+      tokens.push(part.includes(".") ? parseFloat(part) : parseInt(part, 10));
+    } catch {
+      tokens.push(null);
     }
-    const n = parseInt(part, 10);
-    tokens.push(isNaN(n) ? null : n);
   }
   return tokens;
 }
@@ -498,7 +517,7 @@ function tokenizeGwtData(raw: string): Array<number | string | null> {
 async function getMacroTargetTemplates(
   cookieJar: Map<string, string>,
   userId: string,
-): Promise<Array<{ template_id: number; template_name: string }>> {
+): Promise<Array<{ template_id: number; template_name: string; protein_g: number; fat_g: number; calories: number; carbs_g: number }>> {
   const sesnonce = cookieJar.get("sesnonce") || "";
   const payload =
     `7|0|7|${GWT_MODULE_BASE}|${cachedGwtHeader}|` +
@@ -545,13 +564,16 @@ async function getMacroTargetTemplates(
     }
   }
 
-  const results: Array<{ template_id: number; template_name: string }> = [];
+  const results: Array<{ template_id: number; template_name: string; protein_g: number; fat_g: number; calories: number; carbs_g: number }> = [];
   let blockIdx = 0;
   while (true) {
     const start = blockIdx * blockSize;
     const end = start + blockSize;
     if (end > tokens.length) break;
     const block = tokens.slice(start, end);
+
+    const floats = block.filter((t): t is number => typeof t === "number" && !Number.isInteger(t));
+
     let name = "";
     for (const t of block) {
       if (typeof t === "number" && Number.isInteger(t) && nameMap.has(t)) {
@@ -565,7 +587,16 @@ async function getMacroTargetTemplates(
         break;
       }
     }
-    if (templateId > 0) results.push({ template_id: templateId, template_name: name });
+    if (templateId > 0 && floats.length >= 4) {
+      results.push({
+        template_id: templateId,
+        template_name: name,
+        protein_g: floats[0],
+        fat_g: floats[1],
+        calories: floats[2],
+        carbs_g: floats[3],
+      });
+    }
     blockIdx += 1;
   }
   return results;
@@ -578,6 +609,7 @@ async function saveMacroTargetTemplate(
   templateName: string,
   targets: { calories: number; protein: number; carbs: number; fat: number },
 ): Promise<number> {
+  const beforeTemplates = await getMacroTargetTemplates(cookieJar, userId);
   const sesnonce = cookieJar.get("sesnonce") || "";
   const fmt = (v: number) => (Number.isInteger(v) ? String(v) : String(v));
   const carbsStr = fmt(targets.carbs);
@@ -617,15 +649,33 @@ async function saveMacroTargetTemplate(
   if (!raw.includes("//OK")) {
     throw new Error(`saveMacroTargetTemplate failed: ${raw.substring(0, 250)}`);
   }
-  // Look up the new template id by name (most recent match).
-  const templates = await getMacroTargetTemplates(cookieJar, userId);
-  let newest = 0;
-  for (const t of templates) {
-    if (t.template_name === templateName && t.template_id > newest) {
-      newest = t.template_id;
+  const responseMessage = extractGwtResponseMessage(raw);
+  if (responseMessage?.toLowerCase().includes("you must be gold to create templates")) {
+    throw new Error("requires_gold_recurring_targets");
+  }
+  // Cronometer sometimes acknowledges the save before the new template is
+  // visible in getMacroTargetTemplates, so poll briefly before giving up.
+  const beforeIds = new Set(beforeTemplates.map((t) => t.template_id));
+  for (let attempt = 0; attempt < 6; attempt++) {
+    if (attempt > 0) await sleep(350 * attempt);
+    const templates = await getMacroTargetTemplates(cookieJar, userId);
+
+    let newest = 0;
+    for (const t of templates) {
+      if (t.template_name === templateName && t.template_id > newest) {
+        newest = t.template_id;
+      }
+    }
+    if (newest) return newest;
+
+    for (const t of templates) {
+      if (!beforeIds.has(t.template_id)) {
+        return t.template_id;
+      }
     }
   }
-  return newest;
+
+  throw new Error(`Could not resolve new template id for '${templateName}' after polling`);
 }
 
 // Assign a template to a day of the week. dayOfWeekIso: 0=Mon ... 6=Sun.
@@ -1006,23 +1056,31 @@ serve(async (req) => {
         //    next 90 daily targets one-by-one so the client still sees the new
         //    macros for the foreseeable future.
         let recurringWarning: string | null = null;
+        let recurringCode: string | null = null;
         let fallbackDays = 0;
         try {
           await applyRecurringCoachTargets(cookieJar, session.user_id_external, targets);
         } catch (re) {
-          recurringWarning = re instanceof Error ? re.message : String(re);
-          console.warn("applyRecurringCoachTargets failed, falling back to per-day writes:", recurringWarning);
-          const FALLBACK_DAYS = 90;
-          const base = new Date();
-          for (let i = 1; i <= FALLBACK_DAYS; i++) {
-            const d = new Date(base);
-            d.setUTCDate(base.getUTCDate() + i);
-            try {
-              await updateDailyTargets(cookieJar, session.user_id_external, d, targets);
-              fallbackDays++;
-            } catch (de) {
-              console.warn(`per-day fallback failed at +${i}d:`, de instanceof Error ? de.message : de);
-              break;
+          const rawMessage = re instanceof Error ? re.message : String(re);
+          if (rawMessage === "requires_gold_recurring_targets") {
+            recurringCode = "requires_gold";
+            recurringWarning = "Cronometer requires Gold on the client account to update recurring macro targets for future days. Today's targets were updated, but future days keep their existing schedule.";
+          } else {
+            recurringCode = "recurring_failed";
+            recurringWarning = rawMessage;
+            console.warn("applyRecurringCoachTargets failed, falling back to per-day writes:", recurringWarning);
+            const FALLBACK_DAYS = 90;
+            const base = new Date();
+            for (let i = 1; i <= FALLBACK_DAYS; i++) {
+              const d = new Date(base);
+              d.setUTCDate(base.getUTCDate() + i);
+              try {
+                await updateDailyTargets(cookieJar, session.user_id_external, d, targets);
+                fallbackDays++;
+              } catch (de) {
+                console.warn(`per-day fallback failed at +${i}d:`, de instanceof Error ? de.message : de);
+                break;
+              }
             }
           }
         }
@@ -1039,10 +1097,10 @@ serve(async (req) => {
 
         logRow.success = true;
         if (recurringWarning) {
-          logRow.error = `recurring_warning: ${recurringWarning}; fallback_days=${fallbackDays}`;
+          logRow.error = `recurring_warning(${recurringCode ?? "unknown"}): ${recurringWarning}; fallback_days=${fallbackDays}`;
         }
         await admin.from("cronometer_target_pushes").insert(logRow);
-        return json({ success: true, recurring_warning: recurringWarning, fallback_days: fallbackDays });
+        return json({ success: true, recurring_warning: recurringWarning, recurring_code: recurringCode, fallback_days: fallbackDays });
 
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
