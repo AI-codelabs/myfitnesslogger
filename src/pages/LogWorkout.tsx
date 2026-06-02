@@ -248,8 +248,12 @@ const LogWorkout = () => {
             saved: true,
           }));
         } else {
-          const target = extractSetCount(e.sets_reps) ?? 1;
-          grouped[e.id] = Array.from({ length: target }, (_, i) => emptyRow(i + 1));
+          const targets = extractSetTargets(e.sets_reps);
+          const rows = targets.length ? targets : [0];
+          grouped[e.id] = rows.map((reps, i) => ({
+            ...emptyRow(i + 1),
+            reps: reps > 0 ? String(reps) : "",
+          }));
         }
       }
 
