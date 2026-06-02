@@ -32,6 +32,8 @@ interface SetRow {
   weight_kg: string;
   duration_seconds: string;
   distance_m: string;
+  speed_kmh: string;
+  incline_pct: string;
   intensity: string;
   notes: string;
   saved?: boolean;
