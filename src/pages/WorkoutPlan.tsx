@@ -178,7 +178,9 @@ export default function WorkoutPlan() {
   const [loading, setLoading] = useState(true);
   const [addToDayId, setAddToDayId] = useState<string | null>(null);
 
-  const canEdit = !!plan && role === "coach" && plan.coach_id === user?.id && !plan.is_template;
+  const canEdit = !!plan && role === "coach" && (plan.coach_id === user?.id || plan.is_template);
+  const [extraCategories, setExtraCategories] = useState<string[]>([]);
+  const [newCategory, setNewCategory] = useState("");
 
   async function load() {
     if (!planId) return;
