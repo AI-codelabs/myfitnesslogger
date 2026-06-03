@@ -115,9 +115,9 @@ export function ClientNutritionDocuments({ clientId, coachId, canUpload, lang }:
   }
 
   return (
-    <Card className="p-5 space-y-3">
-      <div className="flex items-center justify-between gap-3">
-        <div>
+    <Card className="p-4 sm:p-5 space-y-3">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="min-w-0">
           <h3 className="font-semibold">{tx("Voedingsschema's (PDF)", "Nutrition documents (PDF)")}</h3>
           <p className="text-xs text-muted-foreground">
             {canUpload
@@ -126,7 +126,7 @@ export function ClientNutritionDocuments({ clientId, coachId, canUpload, lang }:
           </p>
         </div>
         {canUpload && (
-          <label>
+          <label className="sm:shrink-0">
             <input
               type="file"
               accept="application/pdf,image/*"
@@ -138,7 +138,7 @@ export function ClientNutritionDocuments({ clientId, coachId, canUpload, lang }:
                 if (f) handleUpload(f);
               }}
             />
-            <Button asChild size="sm" variant="outline" disabled={uploading}>
+            <Button asChild size="sm" variant="outline" disabled={uploading} className="w-full sm:w-auto">
               <span className="cursor-pointer gap-2">
                 {uploading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -165,49 +165,53 @@ export function ClientNutritionDocuments({ clientId, coachId, canUpload, lang }:
           {docs.map((d) => (
             <li
               key={d.id}
-              className="flex items-center gap-3 rounded-md border p-3 hover:bg-accent/40 transition-colors"
+              className="rounded-md border p-3 hover:bg-accent/40 transition-colors"
             >
-              <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{d.file_name}</p>
-                <p className="text-[11px] text-muted-foreground">
-                  {new Date(d.created_at).toLocaleDateString()}
-                  {d.size_bytes ? ` · ${Math.round(d.size_bytes / 1024)} KB` : ""}
-                </p>
+              <div className="flex items-start gap-3">
+                <FileText className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium break-words">{d.file_name}</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {new Date(d.created_at).toLocaleDateString()}
+                    {d.size_bytes ? ` · ${Math.round(d.size_bytes / 1024)} KB` : ""}
+                  </p>
+                </div>
+                {canUpload && (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => removeDoc(d)}
+                    disabled={busyId === d.id}
+                    className="text-muted-foreground hover:text-destructive shrink-0 -mr-1 -mt-1"
+                    aria-label={tx("Verwijder", "Delete")}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
-              <Button asChild size="sm" variant="ghost" className="gap-1" disabled={!d.view_url}>
-                <a
-                  href={d.view_url || "#"}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label={tx("Open in browser", "Open in browser")}
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  {tx("Open", "Open")}
-                </a>
-              </Button>
-              <Button asChild size="sm" variant="ghost" className="gap-1" disabled={!d.download_url}>
-                <a
-                  href={d.download_url || "#"}
-                  rel="noopener noreferrer"
-                  aria-label={tx("Download", "Download")}
-                >
-                  <Download className="h-4 w-4" />
-                  {tx("Download", "Download")}
-                </a>
-              </Button>
-              {canUpload && (
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  onClick={() => removeDoc(d)}
-                  disabled={busyId === d.id}
-                  className="text-muted-foreground hover:text-destructive"
-                  aria-label={tx("Verwijder", "Delete")}
-                >
-                  <Trash2 className="h-4 w-4" />
+              <div className="mt-3 grid grid-cols-2 gap-2 sm:flex sm:justify-end">
+                <Button asChild size="sm" variant="outline" className="gap-1 w-full sm:w-auto" disabled={!d.view_url}>
+                  <a
+                    href={d.view_url || "#"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={tx("Open in browser", "Open in browser")}
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    {tx("Open", "Open")}
+                  </a>
                 </Button>
-              )}
+                <Button asChild size="sm" variant="outline" className="gap-1 w-full sm:w-auto" disabled={!d.download_url}>
+                  <a
+                    href={d.download_url || "#"}
+                    rel="noopener noreferrer"
+                    aria-label={tx("Download", "Download")}
+                  >
+                    <Download className="h-4 w-4" />
+                    {tx("Download", "Download")}
+                  </a>
+                </Button>
+              </div>
             </li>
           ))}
         </ul>
