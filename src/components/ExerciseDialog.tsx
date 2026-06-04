@@ -46,9 +46,11 @@ interface Props {
   onOpenChange?: (o: boolean) => void;
   trigger?: React.ReactNode;
   onSaved?: () => void;
+  /** Pre-fill the name field when creating a new exercise. */
+  defaultName?: string;
 }
 
-export function ExerciseDialog({ exercise, open: controlledOpen, onOpenChange, trigger, onSaved }: Props) {
+export function ExerciseDialog({ exercise, open: controlledOpen, onOpenChange, trigger, onSaved, defaultName }: Props) {
   const isEdit = !!exercise;
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen ?? internalOpen;
@@ -68,7 +70,7 @@ export function ExerciseDialog({ exercise, open: controlledOpen, onOpenChange, t
 
   useEffect(() => {
     if (open) {
-      setName(exercise?.name ?? "");
+      setName(exercise?.name ?? defaultName ?? "");
       const mg = exercise?.muscle_group ?? "chest";
       const isKnown = MUSCLE_GROUPS.includes(mg);
       setMuscleGroup(isKnown ? mg : "__custom__");
@@ -79,7 +81,7 @@ export function ExerciseDialog({ exercise, open: controlledOpen, onOpenChange, t
       setVideoUrl(exercise?.video_url ?? "");
       setIsPro(exercise?.is_pro ?? false);
     }
-  }, [open, exercise]);
+  }, [open, exercise, defaultName]);
 
 
   async function handleSave() {
