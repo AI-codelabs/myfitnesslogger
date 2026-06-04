@@ -6,6 +6,7 @@ import { ActionRequiredBlock } from "@/components/coach-dashboard/ActionRequired
 import { RiskAttentionBlock } from "@/components/coach-dashboard/RiskAttentionBlock";
 import { RecentActivityBlock } from "@/components/coach-dashboard/RecentActivityBlock";
 import { OverviewStatsBlock } from "@/components/coach-dashboard/OverviewStatsBlock";
+import { EndingSoonBlock } from "@/components/coach-dashboard/EndingSoonBlock";
 import { DashboardNotifications } from "@/components/DashboardNotifications";
 import { useCoachDashboardData } from "@/lib/coachDashboard";
 import { ClientStartMessageCard } from "@/components/ClientStartMessageCard";
@@ -205,6 +206,7 @@ function CoachDashboard({
           <RiskAttentionBlock data={data} loading={loading} />
           <RecentActivityBlock data={data} loading={loading} />
           <OverviewStatsBlock data={data} loading={loading} />
+          <EndingSoonBlock data={data} loading={loading} />
         </div>
 
         <DashboardNotifications />

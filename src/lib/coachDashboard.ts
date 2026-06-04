@@ -27,6 +27,8 @@ export type DashClient = {
   accepted_at: string | null;
   primary_goal: string | null;
   onboarding_completed: boolean;
+  coaching_start_date: string | null;
+  coaching_end_date: string | null;
 };
 
 export type DashMessage = {
@@ -67,7 +69,9 @@ export function useCoachDashboardData(coachId: string | undefined) {
 
     const { data: invs } = await supabase
       .from("invitations")
-      .select("id, email, status, accepted_user_id, accepted_at, created_at")
+      .select(
+        "id, email, status, accepted_user_id, accepted_at, created_at, coaching_start_date, coaching_end_date",
+      )
       .eq("coach_id", coachId);
 
     const accepted = (invs ?? []).filter(
@@ -143,6 +147,8 @@ export function useCoachDashboardData(coachId: string | undefined) {
         accepted_at: inv.accepted_at,
         primary_goal: ob?.primary_goal ?? null,
         onboarding_completed: !!ob?.completed_at,
+        coaching_start_date: inv.coaching_start_date ?? null,
+        coaching_end_date: inv.coaching_end_date ?? null,
       };
     });
 
