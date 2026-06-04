@@ -147,6 +147,8 @@ export function useCoachDashboardData(coachId: string | undefined) {
         accepted_at: inv.accepted_at,
         primary_goal: ob?.primary_goal ?? null,
         onboarding_completed: !!ob?.completed_at,
+        coaching_start_date: inv.coaching_start_date ?? null,
+        coaching_end_date: inv.coaching_end_date ?? null,
       };
     });
 
