@@ -36,6 +36,7 @@ import {
   type PhotoRow,
 } from "@/components/ProgressPhotoTimeline";
 import { ProgressPhotoUploader } from "@/components/ProgressPhotoUploader";
+import { DailyWeightLogger, type WeightLog } from "@/components/DailyWeightLogger";
 
 type CheckinRow = {
   id: string;
