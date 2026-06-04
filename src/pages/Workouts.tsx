@@ -276,7 +276,13 @@ export default function Workouts() {
               onChange={(e) => setExFilter(e.target.value)}
               className="max-w-sm"
             />
-            <ExerciseDialog onSaved={reloadExercises} />
+            <Button
+              type="button"
+              className="gap-2 bg-orange-500 text-white hover:bg-blue-500"
+              onClick={() => setNewExOpen(true)}
+            >
+              <Plus className="h-4 w-4" /> New exercise
+            </Button>
           </div>
           <Card>
             <Table>
