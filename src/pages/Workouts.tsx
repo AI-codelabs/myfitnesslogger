@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dumbbell, Sparkles, User as UserIcon, Search, X, Pencil, Video, Copy } from "lucide-react";
+import { Dumbbell, Sparkles, User as UserIcon, Search, X, Pencil, Video, Copy, Plus } from "lucide-react";
 import { CreatePlanDialog } from "@/components/CreatePlanDialog";
 import { DuplicatePlanDialog } from "@/components/DuplicatePlanDialog";
 import { ExerciseDialog, type ExerciseRecord } from "@/components/ExerciseDialog";
@@ -44,6 +44,7 @@ export default function Workouts() {
   const [editing, setEditing] = useState<ExerciseRecord | null>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [dupPlan, setDupPlan] = useState<Plan | null>(null);
+  const [newExOpen, setNewExOpen] = useState(false);
 
   async function reloadExercises() {
     const { data } = await supabase
@@ -276,7 +277,13 @@ export default function Workouts() {
               onChange={(e) => setExFilter(e.target.value)}
               className="max-w-sm"
             />
-            <ExerciseDialog onSaved={reloadExercises} />
+            <Button
+              type="button"
+              className="gap-2 bg-orange-500 text-white hover:bg-blue-500"
+              onClick={() => setNewExOpen(true)}
+            >
+              <Plus className="h-4 w-4" /> New exercise
+            </Button>
           </div>
           <Card>
             <Table>
@@ -362,6 +369,13 @@ export default function Workouts() {
           setEditOpen(o);
           if (!o) setEditing(null);
         }}
+        onSaved={reloadExercises}
+      />
+
+      <ExerciseDialog
+        open={newExOpen}
+        onOpenChange={setNewExOpen}
+        defaultName={exFilter.trim()}
         onSaved={reloadExercises}
       />
 

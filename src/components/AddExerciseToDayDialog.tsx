@@ -203,6 +203,7 @@ export function AddExerciseToDayDialog({
       <ExerciseDialog
         open={createOpen}
         onOpenChange={setCreateOpen}
+        defaultName={filter.trim()}
         onSaved={() => loadExercises(true)}
       />
     </Dialog>
