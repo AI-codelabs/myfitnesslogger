@@ -23,6 +23,7 @@ import { ArrowLeft, ArrowDown, ArrowUp, Plus, Trash2, Video, Loader2, Pencil, Ch
 import { toast } from "sonner";
 import { AddExerciseToDayDialog } from "@/components/AddExerciseToDayDialog";
 import { DuplicatePlanDialog } from "@/components/DuplicatePlanDialog";
+import { SetsRepsEditor } from "@/components/SetsRepsEditor";
 
 interface Plan {
   id: string;
