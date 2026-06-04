@@ -198,7 +198,25 @@ export default function Progression() {
     [checkins],
   );
 
-  const weightSeries = data.filter((d) => d.weight_kg != null);
+  // Merge weekly check-in weights with daily weight logs (logs win on same date).
+  const weightSeries = useMemo(() => {
+    const byDate = new Map<string, number>();
+    for (const c of checkins) {
+      if (c.weight_kg != null) byDate.set(c.week_start, c.weight_kg as number);
+    }
+    for (const w of weightLogs) {
+      byDate.set(w.logged_on, Number(w.weight_kg));
+    }
+    return Array.from(byDate.entries())
+      .sort(([a], [b]) => (a < b ? -1 : 1))
+      .map(([date, weight_kg]) => ({
+        weight_kg,
+        label: new Date(date).toLocaleDateString("nl-NL", {
+          day: "2-digit",
+          month: "short",
+        }),
+      }));
+  }, [checkins, weightLogs]);
   const fatSeries = data.filter((d) => d.body_fat_pct != null);
 
   const firstWeight = weightSeries[0]?.weight_kg ?? null;
