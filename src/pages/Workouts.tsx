@@ -180,32 +180,47 @@ export default function Workouts() {
                 ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {templates.map((p) => (
-                    <Link key={p.id} to={`/workouts/${p.id}`} className="flex">
-                      <Card className="flex flex-col w-full hover:border-primary transition-colors">
-                        <CardHeader className="pb-3 space-y-3">
-                          <div className="flex items-center justify-between gap-2 min-h-6">
-                            {p.category ? (
-                              <Badge variant="outline" className="text-[10px] capitalize font-normal">
-                                {p.category.replace("_", " ")}
-                              </Badge>
-                            ) : <span />}
-                            {p.frequency_per_week && (
-                              <Badge variant="secondary" className="text-[10px]">
-                                {p.frequency_per_week}x / week
-                              </Badge>
-                            )}
-                          </div>
-                          <CardTitle className="text-base leading-snug line-clamp-2 min-h-[2.75rem]">
-                            {p.name}
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="pt-0 mt-auto">
-                          <CardDescription className="line-clamp-2 min-h-[2.5rem]">
-                            {p.description || "—"}
-                          </CardDescription>
-                        </CardContent>
-                      </Card>
-                    </Link>
+                    <div key={p.id} className="relative flex">
+                      <Link to={`/workouts/${p.id}`} className="flex w-full">
+                        <Card className="flex flex-col w-full hover:border-primary transition-colors">
+                          <CardHeader className="pb-3 space-y-3">
+                            <div className="flex items-center justify-between gap-2 min-h-6 pr-9">
+                              {p.category ? (
+                                <Badge variant="outline" className="text-[10px] capitalize font-normal">
+                                  {p.category.replace("_", " ")}
+                                </Badge>
+                              ) : <span />}
+                              {p.frequency_per_week && (
+                                <Badge variant="secondary" className="text-[10px]">
+                                  {p.frequency_per_week}x / week
+                                </Badge>
+                              )}
+                            </div>
+                            <CardTitle className="text-base leading-snug line-clamp-2 min-h-[2.75rem]">
+                              {p.name}
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="pt-0 mt-auto">
+                            <CardDescription className="line-clamp-2 min-h-[2.5rem]">
+                              {p.description || "—"}
+                            </CardDescription>
+                          </CardContent>
+                        </Card>
+                      </Link>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="absolute top-2 right-2 h-8 w-8 bg-background/80 hover:bg-background"
+                        title="Dupliceer dit schema"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setDupPlan(p);
+                        }}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </div>
                   ))}
                 </div>
                 )}
