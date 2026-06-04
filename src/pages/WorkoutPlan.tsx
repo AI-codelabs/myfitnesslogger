@@ -19,9 +19,10 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { ArrowLeft, ArrowDown, ArrowUp, Plus, Trash2, Video, Loader2, Pencil, Check } from "lucide-react";
+import { ArrowLeft, ArrowDown, ArrowUp, Plus, Trash2, Video, Loader2, Pencil, Check, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { AddExerciseToDayDialog } from "@/components/AddExerciseToDayDialog";
+import { DuplicatePlanDialog } from "@/components/DuplicatePlanDialog";
 
 interface Plan {
   id: string;
@@ -177,6 +178,7 @@ export default function WorkoutPlan() {
   const [items, setItems] = useState<PlanExercise[]>([]);
   const [loading, setLoading] = useState(true);
   const [addToDayId, setAddToDayId] = useState<string | null>(null);
+  const [dupOpen, setDupOpen] = useState(false);
 
   const canEditPlan = !!plan && role === "coach" && (plan.coach_id === user?.id || plan.is_template);
   const [editMode, setEditMode] = useState(false);
@@ -317,22 +319,32 @@ export default function WorkoutPlan() {
           </Button>
         </Link>
         {canEditPlan && (
-          <Button
-            variant={editMode ? "default" : "outline"}
-            size="sm"
-            className="gap-2"
-            onClick={() => setEditMode((v) => !v)}
-          >
-            {editMode ? (
-              <>
-                <Check className="h-4 w-4" /> Done
-              </>
-            ) : (
-              <>
-                <Pencil className="h-4 w-4" /> Edit
-              </>
-            )}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() => setDupOpen(true)}
+            >
+              <Copy className="h-4 w-4" /> Duplicate
+            </Button>
+            <Button
+              variant={editMode ? "default" : "outline"}
+              size="sm"
+              className="gap-2"
+              onClick={() => setEditMode((v) => !v)}
+            >
+              {editMode ? (
+                <>
+                  <Check className="h-4 w-4" /> Done
+                </>
+              ) : (
+                <>
+                  <Pencil className="h-4 w-4" /> Edit
+                </>
+              )}
+            </Button>
+          </div>
         )}
       </div>
 
@@ -699,6 +711,13 @@ export default function WorkoutPlan() {
           }}
         />
       )}
+
+      <DuplicatePlanDialog
+        open={dupOpen}
+        onOpenChange={setDupOpen}
+        sourcePlanId={plan?.id ?? null}
+        sourcePlanName={plan?.name ?? ""}
+      />
     </div>
   );
 }
