@@ -372,6 +372,13 @@ export default function Workouts() {
         onSaved={reloadExercises}
       />
 
+      <ExerciseDialog
+        open={newExOpen}
+        onOpenChange={setNewExOpen}
+        defaultName={exFilter.trim()}
+        onSaved={reloadExercises}
+      />
+
       <DuplicatePlanDialog
         open={!!dupPlan}
         onOpenChange={(o) => !o && setDupPlan(null)}
