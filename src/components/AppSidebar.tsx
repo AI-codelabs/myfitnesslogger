@@ -53,10 +53,10 @@ export function AppSidebar() {
               </SidebarMenuItem>
               {role === "coach" && (
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={isActive("/clients")}>
+                  <SidebarMenuButton asChild isActive={isActive("/clients")} size="lg">
                     <NavLink to="/clients" className={linkCls(isActive("/clients"))}>
-                      <Users className="h-4 w-4 shrink-0" />
-                      {!collapsed && <span>Clients</span>}
+                      <Users className="h-5 w-5 shrink-0" />
+                      {!collapsed && <span className="text-base">Clients</span>}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
