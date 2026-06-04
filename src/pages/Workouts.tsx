@@ -42,7 +42,6 @@ export default function Workouts() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<ExerciseRecord | null>(null);
   const [editOpen, setEditOpen] = useState(false);
-  const [dupPlan, setDupPlan] = useState<Plan | null>(null);
   const [newExOpen, setNewExOpen] = useState(false);
 
   async function reloadExercises() {
@@ -207,19 +206,6 @@ export default function Workouts() {
                           </CardContent>
                         </Card>
                       </Link>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="absolute top-2 right-2 h-8 w-8 bg-background/80 hover:bg-background"
-                        title="Dupliceer dit schema"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setDupPlan(p);
-                        }}
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
                     </div>
                   ))}
                 </div>
@@ -237,29 +223,14 @@ export default function Workouts() {
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {myPlans.map((p) => (
-                      <div key={p.id} className="relative">
-                        <Link to={`/workouts/${p.id}`}>
-                          <Card className="h-full hover:border-primary transition-colors">
-                            <CardHeader className="pr-12">
-                              <CardTitle className="text-base">{p.name}</CardTitle>
-                              {p.description && <CardDescription>{p.description}</CardDescription>}
-                            </CardHeader>
-                          </Card>
-                        </Link>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="absolute top-2 right-2 h-8 w-8 bg-background/80 hover:bg-background"
-                          title="Dupliceer dit schema"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setDupPlan(p);
-                          }}
-                        >
-                          <Copy className="h-4 w-4" />
-                        </Button>
-                      </div>
+                      <Link key={p.id} to={`/workouts/${p.id}`}>
+                        <Card className="h-full hover:border-primary transition-colors">
+                          <CardHeader>
+                            <CardTitle className="text-base">{p.name}</CardTitle>
+                            {p.description && <CardDescription>{p.description}</CardDescription>}
+                          </CardHeader>
+                        </Card>
+                      </Link>
                     ))}
                   </div>
                 )}
@@ -376,14 +347,6 @@ export default function Workouts() {
         onOpenChange={setNewExOpen}
         defaultName={exFilter.trim()}
         onSaved={reloadExercises}
-      />
-
-      <DuplicatePlanDialog
-        open={!!dupPlan}
-        onOpenChange={(o) => !o && setDupPlan(null)}
-        sourcePlanId={dupPlan?.id ?? null}
-        sourcePlanName={dupPlan?.name ?? ""}
-        onDuplicated={loadPlans}
       />
     </div>
   );
