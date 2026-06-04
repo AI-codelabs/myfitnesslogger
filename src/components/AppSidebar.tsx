@@ -44,10 +44,10 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={isActive("/")}>
+                <SidebarMenuButton asChild isActive={isActive("/")} size="lg">
                   <NavLink to="/" className={linkCls(isActive("/"))}>
-                    <LayoutDashboard className="h-4 w-4 shrink-0" />
-                    {!collapsed && <span>Dashboard</span>}
+                    <LayoutDashboard className="h-5 w-5 shrink-0" />
+                    {!collapsed && <span className="text-base">Dashboard</span>}
                   </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
