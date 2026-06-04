@@ -27,6 +27,8 @@ export type DashClient = {
   accepted_at: string | null;
   primary_goal: string | null;
   onboarding_completed: boolean;
+  coaching_start_date: string | null;
+  coaching_end_date: string | null;
 };
 
 export type DashMessage = {
