@@ -364,6 +364,14 @@ export default function Workouts() {
         }}
         onSaved={reloadExercises}
       />
+
+      <DuplicatePlanDialog
+        open={!!dupPlan}
+        onOpenChange={(o) => !o && setDupPlan(null)}
+        sourcePlanId={dupPlan?.id ?? null}
+        sourcePlanName={dupPlan?.name ?? ""}
+        onDuplicated={loadPlans}
+      />
     </div>
   );
 }
