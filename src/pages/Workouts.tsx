@@ -8,9 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dumbbell, Sparkles, User as UserIcon, Search, X, Pencil, Video, Copy, Plus } from "lucide-react";
+import { Dumbbell, Sparkles, User as UserIcon, Search, X, Pencil, Video, Plus } from "lucide-react";
 import { CreatePlanDialog } from "@/components/CreatePlanDialog";
-import { DuplicatePlanDialog } from "@/components/DuplicatePlanDialog";
 import { ExerciseDialog, type ExerciseRecord } from "@/components/ExerciseDialog";
 
 interface Plan {
