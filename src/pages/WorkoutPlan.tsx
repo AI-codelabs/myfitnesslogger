@@ -178,6 +178,7 @@ export default function WorkoutPlan() {
   const [items, setItems] = useState<PlanExercise[]>([]);
   const [loading, setLoading] = useState(true);
   const [addToDayId, setAddToDayId] = useState<string | null>(null);
+  const [dupOpen, setDupOpen] = useState(false);
 
   const canEditPlan = !!plan && role === "coach" && (plan.coach_id === user?.id || plan.is_template);
   const [editMode, setEditMode] = useState(false);
