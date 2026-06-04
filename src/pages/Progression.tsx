@@ -317,9 +317,16 @@ export default function Progression() {
 
         {/* Body metrics */}
         <TabsContent value="body" className="mt-4 space-y-4">
+          {user && (
+            <DailyWeightLogger
+              clientId={user.id}
+              lang="nl"
+              onChange={load}
+            />
+          )}
           <ChartCard
             title="Gewicht over tijd"
-            subtitle="Wekelijks gewicht in kg"
+            subtitle="Wekelijkse check-ins + dagelijkse metingen"
             empty={weightSeries.length < 2}
           >
             <ResponsiveContainer width="100%" height="100%">
