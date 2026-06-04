@@ -616,20 +616,18 @@ export default function WorkoutPlan() {
                           </div>
                           {canEdit ? (
                             <div className="space-y-1.5">
-                              <Input
-                                value={it.sets_reps ?? ""}
-                                onChange={(e) =>
+                              <SetsRepsEditor
+                                value={it.sets_reps}
+                                onChange={(next) =>
                                   setItems((prev) =>
                                     prev.map((x) =>
-                                      x.id === it.id ? { ...x, sets_reps: e.target.value } : x,
+                                      x.id === it.id ? { ...x, sets_reps: next } : x,
                                     ),
                                   )
                                 }
-                                onBlur={(e) =>
-                                  updateExercise(it.id, { sets_reps: e.target.value || null })
+                                onCommit={(next) =>
+                                  updateExercise(it.id, { sets_reps: next })
                                 }
-                                placeholder="Sets/reps (e.g. 4x 8-10)"
-                                className="h-7 text-xs"
                               />
                               <Input
                                 value={it.notes ?? ""}
