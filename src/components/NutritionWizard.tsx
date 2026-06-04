@@ -97,6 +97,11 @@ export const NutritionWizard = ({
     setStep((s) => Math.min(s + 1, labels.length - 1));
   };
   const prev = () => setStep((s) => Math.max(s - 1, 0));
+  const jumpTo = async (i: number) => {
+    if (i === step) return;
+    if (!(await persist(false))) return;
+    setStep(i);
+  };
 
   const finish = async () => {
     if (!(await persist(true))) return;
