@@ -25,8 +25,8 @@ export function AppSidebar() {
 
   const isActive = (path: string) => location.pathname === path;
   const linkCls = (active: boolean) =>
-    `flex items-center gap-2 w-full ${
-      active ? "bg-muted text-primary font-medium" : "hover:bg-muted/50"
+    `flex items-center gap-3 w-full h-full ${
+      active ? "text-primary font-medium" : ""
     }`;
 
   return (
