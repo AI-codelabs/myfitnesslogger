@@ -8,8 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dumbbell, Sparkles, User as UserIcon, Search, X, Pencil, Video } from "lucide-react";
+import { Dumbbell, Sparkles, User as UserIcon, Search, X, Pencil, Video, Copy } from "lucide-react";
 import { CreatePlanDialog } from "@/components/CreatePlanDialog";
+import { DuplicatePlanDialog } from "@/components/DuplicatePlanDialog";
 import { ExerciseDialog, type ExerciseRecord } from "@/components/ExerciseDialog";
 
 interface Plan {
@@ -42,6 +43,7 @@ export default function Workouts() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<ExerciseRecord | null>(null);
   const [editOpen, setEditOpen] = useState(false);
+  const [dupPlan, setDupPlan] = useState<Plan | null>(null);
 
   async function reloadExercises() {
     const { data } = await supabase
@@ -178,32 +180,47 @@ export default function Workouts() {
                 ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {templates.map((p) => (
-                    <Link key={p.id} to={`/workouts/${p.id}`} className="flex">
-                      <Card className="flex flex-col w-full hover:border-primary transition-colors">
-                        <CardHeader className="pb-3 space-y-3">
-                          <div className="flex items-center justify-between gap-2 min-h-6">
-                            {p.category ? (
-                              <Badge variant="outline" className="text-[10px] capitalize font-normal">
-                                {p.category.replace("_", " ")}
-                              </Badge>
-                            ) : <span />}
-                            {p.frequency_per_week && (
-                              <Badge variant="secondary" className="text-[10px]">
-                                {p.frequency_per_week}x / week
-                              </Badge>
-                            )}
-                          </div>
-                          <CardTitle className="text-base leading-snug line-clamp-2 min-h-[2.75rem]">
-                            {p.name}
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="pt-0 mt-auto">
-                          <CardDescription className="line-clamp-2 min-h-[2.5rem]">
-                            {p.description || "—"}
-                          </CardDescription>
-                        </CardContent>
-                      </Card>
-                    </Link>
+                    <div key={p.id} className="relative flex">
+                      <Link to={`/workouts/${p.id}`} className="flex w-full">
+                        <Card className="flex flex-col w-full hover:border-primary transition-colors">
+                          <CardHeader className="pb-3 space-y-3">
+                            <div className="flex items-center justify-between gap-2 min-h-6 pr-9">
+                              {p.category ? (
+                                <Badge variant="outline" className="text-[10px] capitalize font-normal">
+                                  {p.category.replace("_", " ")}
+                                </Badge>
+                              ) : <span />}
+                              {p.frequency_per_week && (
+                                <Badge variant="secondary" className="text-[10px]">
+                                  {p.frequency_per_week}x / week
+                                </Badge>
+                              )}
+                            </div>
+                            <CardTitle className="text-base leading-snug line-clamp-2 min-h-[2.75rem]">
+                              {p.name}
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="pt-0 mt-auto">
+                            <CardDescription className="line-clamp-2 min-h-[2.5rem]">
+                              {p.description || "—"}
+                            </CardDescription>
+                          </CardContent>
+                        </Card>
+                      </Link>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="absolute top-2 right-2 h-8 w-8 bg-background/80 hover:bg-background"
+                        title="Dupliceer dit schema"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setDupPlan(p);
+                        }}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </div>
                   ))}
                 </div>
                 )}
@@ -220,14 +237,29 @@ export default function Workouts() {
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {myPlans.map((p) => (
-                      <Link key={p.id} to={`/workouts/${p.id}`}>
-                        <Card className="h-full hover:border-primary transition-colors">
-                          <CardHeader>
-                            <CardTitle className="text-base">{p.name}</CardTitle>
-                            {p.description && <CardDescription>{p.description}</CardDescription>}
-                          </CardHeader>
-                        </Card>
-                      </Link>
+                      <div key={p.id} className="relative">
+                        <Link to={`/workouts/${p.id}`}>
+                          <Card className="h-full hover:border-primary transition-colors">
+                            <CardHeader className="pr-12">
+                              <CardTitle className="text-base">{p.name}</CardTitle>
+                              {p.description && <CardDescription>{p.description}</CardDescription>}
+                            </CardHeader>
+                          </Card>
+                        </Link>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="absolute top-2 right-2 h-8 w-8 bg-background/80 hover:bg-background"
+                          title="Dupliceer dit schema"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setDupPlan(p);
+                          }}
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      </div>
                     ))}
                   </div>
                 )}
@@ -331,6 +363,14 @@ export default function Workouts() {
           if (!o) setEditing(null);
         }}
         onSaved={reloadExercises}
+      />
+
+      <DuplicatePlanDialog
+        open={!!dupPlan}
+        onOpenChange={(o) => !o && setDupPlan(null)}
+        sourcePlanId={dupPlan?.id ?? null}
+        sourcePlanName={dupPlan?.name ?? ""}
+        onDuplicated={loadPlans}
       />
     </div>
   );
