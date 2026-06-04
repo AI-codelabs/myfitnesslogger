@@ -44,9 +44,9 @@ export function DashboardBlock({
           )}
         </div>
       </div>
-      <div className="flex-1 min-h-[120px]">
+      <div className="flex-1">
         {loading ? (
-          <div className="h-full flex items-center justify-center py-10">
+          <div className="h-full flex items-center justify-center py-8">
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           </div>
         ) : (
@@ -59,7 +59,7 @@ export function DashboardBlock({
 
 export function DashboardEmpty({ text }: { text: string }) {
   return (
-    <div className="px-5 py-8 text-center text-sm text-muted-foreground">
+    <div className="px-5 py-5 text-center text-sm text-muted-foreground">
       {text}
     </div>
   );

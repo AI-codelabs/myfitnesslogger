@@ -201,17 +201,18 @@ function CoachDashboard({
           <LangToggle lang={lang} setLang={setLang} />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <ActionRequiredBlock data={data} loading={loading} />
-          <RiskAttentionBlock data={data} loading={loading} />
-          <RecentActivityBlock data={data} loading={loading} />
-          <OverviewStatsBlock data={data} loading={loading} />
-          <div className="lg:col-span-2">
-            <EndingSoonBlock data={data} loading={loading} />
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <ActionRequiredBlock data={data} loading={loading} />
+            <RiskAttentionBlock data={data} loading={loading} />
+            <RecentActivityBlock data={data} loading={loading} />
+            <OverviewStatsBlock data={data} loading={loading} />
           </div>
-        </div>
 
-        <DashboardNotifications />
+          <EndingSoonBlock data={data} loading={loading} />
+
+          <DashboardNotifications />
+        </div>
       </div>
     </AppLayout>
   );
