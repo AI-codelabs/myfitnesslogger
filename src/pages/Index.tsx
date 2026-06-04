@@ -206,6 +206,7 @@ function CoachDashboard({
           <RiskAttentionBlock data={data} loading={loading} />
           <RecentActivityBlock data={data} loading={loading} />
           <OverviewStatsBlock data={data} loading={loading} />
+          <EndingSoonBlock data={data} loading={loading} />
         </div>
 
         <DashboardNotifications />
