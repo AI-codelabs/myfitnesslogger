@@ -130,7 +130,14 @@ export const NutritionWizard = ({
         const active = i === step;
         const done = i < step;
         return (
-          <div key={l} className="flex items-center gap-2 shrink-0">
+          <button
+            key={l}
+            type="button"
+            onClick={() => jumpTo(i)}
+            disabled={saving}
+            className="flex items-center gap-2 shrink-0 rounded-md px-1 py-0.5 hover:bg-muted/60 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            title={t("Spring naar deze stap", "Jump to this step", lang)}
+          >
             <div
               className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-semibold border ${
                 active
@@ -147,7 +154,7 @@ export const NutritionWizard = ({
             >
               {l}
             </span>
-          </div>
+          </button>
         );
       })}
     </div>
