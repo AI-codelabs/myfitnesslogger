@@ -44,6 +44,7 @@ export default function Workouts() {
   const [editing, setEditing] = useState<ExerciseRecord | null>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [dupPlan, setDupPlan] = useState<Plan | null>(null);
+  const [newExOpen, setNewExOpen] = useState(false);
 
   async function reloadExercises() {
     const { data } = await supabase
