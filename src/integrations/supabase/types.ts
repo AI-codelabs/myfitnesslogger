@@ -947,6 +947,36 @@ export type Database = {
         }
         Relationships: []
       }
+      weight_logs: {
+        Row: {
+          client_id: string
+          created_at: string
+          id: string
+          logged_on: string
+          note: string | null
+          updated_at: string
+          weight_kg: number
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          id?: string
+          logged_on?: string
+          note?: string | null
+          updated_at?: string
+          weight_kg: number
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          id?: string
+          logged_on?: string
+          note?: string | null
+          updated_at?: string
+          weight_kg?: number
+        }
+        Relationships: []
+      }
       workout_plan_days: {
         Row: {
           created_at: string
