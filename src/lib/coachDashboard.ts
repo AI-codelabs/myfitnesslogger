@@ -69,7 +69,9 @@ export function useCoachDashboardData(coachId: string | undefined) {
 
     const { data: invs } = await supabase
       .from("invitations")
-      .select("id, email, status, accepted_user_id, accepted_at, created_at")
+      .select(
+        "id, email, status, accepted_user_id, accepted_at, created_at, coaching_start_date, coaching_end_date",
+      )
       .eq("coach_id", coachId);
 
     const accepted = (invs ?? []).filter(
