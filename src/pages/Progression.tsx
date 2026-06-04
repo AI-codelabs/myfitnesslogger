@@ -152,10 +152,11 @@ export default function Progression() {
   const [loading, setLoading] = useState(true);
   const [checkins, setCheckins] = useState<CheckinRow[]>([]);
   const [photos, setPhotos] = useState<PhotoRow[]>([]);
+  const [weightLogs, setWeightLogs] = useState<WeightLog[]>([]);
 
   const load = async () => {
     if (!user) return;
-    const [c, p] = await Promise.all([
+    const [c, p, w] = await Promise.all([
       supabase
         .from("weekly_checkins")
         .select(
@@ -168,9 +169,15 @@ export default function Progression() {
         .select("id,taken_on,front_path,side_path,back_path,weight_kg")
         .eq("client_id", user.id)
         .order("taken_on", { ascending: false }),
+      supabase
+        .from("weight_logs")
+        .select("id,logged_on,weight_kg,note")
+        .eq("client_id", user.id)
+        .order("logged_on", { ascending: true }),
     ]);
     setCheckins((c.data as CheckinRow[]) ?? []);
     setPhotos((p.data as PhotoRow[]) ?? []);
+    setWeightLogs((w.data as WeightLog[]) ?? []);
     setLoading(false);
   };
 
