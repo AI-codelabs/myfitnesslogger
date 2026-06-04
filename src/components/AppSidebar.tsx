@@ -63,30 +63,30 @@ export function AppSidebar() {
               )}
               {role === "coach" && (
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={isActive("/workouts") || location.pathname.startsWith("/workouts/")}>
+                  <SidebarMenuButton asChild isActive={isActive("/workouts") || location.pathname.startsWith("/workouts/")} size="lg">
                     <NavLink to="/workouts" className={linkCls(isActive("/workouts") || location.pathname.startsWith("/workouts/"))}>
-                      <Dumbbell className="h-4 w-4 shrink-0" />
-                      {!collapsed && <span>Workouts</span>}
+                      <Dumbbell className="h-5 w-5 shrink-0" />
+                      {!collapsed && <span className="text-base">Workouts</span>}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}
               {role === "coach" && (
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={isActive("/tasks")}>
+                  <SidebarMenuButton asChild isActive={isActive("/tasks")} size="lg">
                     <NavLink to="/tasks" className={linkCls(isActive("/tasks"))}>
-                      <ListTodo className="h-4 w-4 shrink-0" />
-                      {!collapsed && <span>Tasks</span>}
+                      <ListTodo className="h-5 w-5 shrink-0" />
+                      {!collapsed && <span className="text-base">Tasks</span>}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}
               {role === "coach" && (
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={isActive("/settings")}>
+                  <SidebarMenuButton asChild isActive={isActive("/settings")} size="lg">
                     <NavLink to="/settings" className={linkCls(isActive("/settings"))}>
-                      <SettingsIcon className="h-4 w-4 shrink-0" />
-                      {!collapsed && <span>Configuration</span>}
+                      <SettingsIcon className="h-5 w-5 shrink-0" />
+                      {!collapsed && <span className="text-base">Configuration</span>}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -94,26 +94,26 @@ export function AppSidebar() {
               {role === "user" && (
                 <>
                   <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={isActive("/training")}>
+                    <SidebarMenuButton asChild isActive={isActive("/training")} size="lg">
                       <NavLink to="/training" className={linkCls(isActive("/training"))}>
-                        <Dumbbell className="h-4 w-4 shrink-0" />
-                        {!collapsed && <span>Training</span>}
+                        <Dumbbell className="h-5 w-5 shrink-0" />
+                        {!collapsed && <span className="text-base">Training</span>}
                       </NavLink>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                   <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={isActive("/nutrition")}>
+                    <SidebarMenuButton asChild isActive={isActive("/nutrition")} size="lg">
                       <NavLink to="/nutrition" className={linkCls(isActive("/nutrition"))}>
-                        <Apple className="h-4 w-4 shrink-0" />
-                        {!collapsed && <span>Nutrition</span>}
+                        <Apple className="h-5 w-5 shrink-0" />
+                        {!collapsed && <span className="text-base">Nutrition</span>}
                       </NavLink>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                   <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={isActive("/progression")}>
+                    <SidebarMenuButton asChild isActive={isActive("/progression")} size="lg">
                       <NavLink to="/progression" className={linkCls(isActive("/progression"))}>
-                        <TrendingUp className="h-4 w-4 shrink-0" />
-                        {!collapsed && <span>Progression</span>}
+                        <TrendingUp className="h-5 w-5 shrink-0" />
+                        {!collapsed && <span className="text-base">Progression</span>}
                       </NavLink>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -138,10 +138,10 @@ export function AppSidebar() {
             )}
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild>
+                <SidebarMenuButton asChild size="lg">
                   <NavLink to="/account" className={linkCls(isActive("/account"))}>
-                    <UserIcon className="h-4 w-4 shrink-0" />
-                    {!collapsed && <span>Profile</span>}
+                    <UserIcon className="h-5 w-5 shrink-0" />
+                    {!collapsed && <span className="text-base">Profile</span>}
                   </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
