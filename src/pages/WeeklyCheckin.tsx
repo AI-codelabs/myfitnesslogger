@@ -10,7 +10,11 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Loader2, ArrowLeft, Star, Check, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
-import { formatWeekStart, isCheckinWindowOpen } from "@/lib/weeklyCheckin";
+import {
+  getExpectedCheckinWeekStart,
+  getWeekEnd,
+  isCheckinWindowOpen,
+} from "@/lib/weeklyCheckin";
 import { CronometerConnectDialog } from "@/components/CronometerConnectDialog";
 import { syncCronometer } from "@/lib/cronometer";
 
@@ -181,7 +185,7 @@ export default function WeeklyCheckin() {
   const [cronoSyncing, setCronoSyncing] = useState(false);
   const [cronoSynced, setCronoSynced] = useState(false);
   const [hasExisting, setHasExisting] = useState(false);
-
+  
   const handleCronoSync = async () => {
     if (!cronoConnected) {
       setCronoDialogOpen(true);
@@ -221,7 +225,8 @@ export default function WeeklyCheckin() {
     if (user) checkCrono(user.id);
   }, [user]);
 
-  const weekStart = formatWeekStart();
+  const weekStart = getExpectedCheckinWeekStart();
+  const weekEnd = getWeekEnd(weekStart);
 
   useEffect(() => {
     if (!user) return;
@@ -262,6 +267,9 @@ export default function WeeklyCheckin() {
           hydration: data.hydration ?? null,
           other_notes: data.other_notes ?? "",
         });
+      } else {
+        setHasExisting(false);
+        setForm(empty);
       }
       setLoading(false);
     })();
@@ -348,8 +356,8 @@ export default function WeeklyCheckin() {
             Check-in nog niet open
           </h1>
           <p className="text-sm text-muted-foreground">
-            Je wekelijkse check-in gaat elke zondag om 00:00 (NL-tijd) open.
-            Kom dan terug om je week af te ronden 💪
+            Je wekelijkse check-in opent elke zondag om 00:00 (NL-tijd).
+            Daarna blijft hij gekoppeld aan dezelfde week totdat je hem invult.
           </p>
         </div>
       </div>
@@ -369,7 +377,7 @@ export default function WeeklyCheckin() {
       <div className="mb-5">
         <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Wekelijkse check-in</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Vul in hoe je week is verlopen. Alle vragen zijn optioneel.
+          Vul in hoe week {weekStart} t/m {weekEnd} is verlopen. Alle vragen zijn optioneel.
         </p>
       </div>
 
