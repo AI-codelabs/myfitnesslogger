@@ -5,7 +5,11 @@ import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ClipboardCheck, CheckCircle2, ArrowRight } from "lucide-react";
-import { formatWeekStart, isCheckinWindowOpen } from "@/lib/weeklyCheckin";
+import {
+  getExpectedCheckinWeekStart,
+  getWeekEnd,
+  isCheckinWindowOpen,
+} from "@/lib/weeklyCheckin";
 
 const ONE_HOUR = 60 * 60 * 1000;
 
@@ -13,7 +17,8 @@ export function WeeklyCheckinCard({ lang }: { lang: "nl" | "en" }) {
   const { user } = useAuth();
   const [submittedAt, setSubmittedAt] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
-  const weekStart = formatWeekStart();
+  const weekStart = getExpectedCheckinWeekStart();
+  const weekEnd = getWeekEnd(weekStart);
 
   const tx = (nl: string, en: string) => (lang === "nl" ? nl : en);
 
@@ -75,8 +80,8 @@ export function WeeklyCheckinCard({ lang }: { lang: "nl" | "en" }) {
             </p>
             <p className="text-sm text-muted-foreground">
               {tx(
-                "Nog iets aan te vullen? Je kunt je antwoorden bijwerken.",
-                "Need to add something? You can still update your answers.",
+                `Week ${weekStart} t/m ${weekEnd}. Nog iets aan te vullen? Je kunt je antwoorden bijwerken.`,
+                `Week ${weekStart} through ${weekEnd}. Need to add something? You can still update your answers.`,
               )}
             </p>
           </div>
@@ -104,8 +109,8 @@ export function WeeklyCheckinCard({ lang }: { lang: "nl" | "en" }) {
           </p>
           <p className="text-sm text-muted-foreground">
             {tx(
-              "Vul kort in hoe je week is verlopen.",
-              "Quickly tell us how your week went.",
+              `Rond week ${weekStart} t/m ${weekEnd} af.`,
+              `Complete the check-in for ${weekStart} through ${weekEnd}.`,
             )}
           </p>
         </div>
