@@ -246,6 +246,7 @@ export type Database = {
           last_error: string | null
           last_synced_at: string | null
           target_sync_enabled: boolean
+          tz: string
           updated_at: string
           user_id_external: string
         }
@@ -261,6 +262,7 @@ export type Database = {
           last_error?: string | null
           last_synced_at?: string | null
           target_sync_enabled?: boolean
+          tz?: string
           updated_at?: string
           user_id_external: string
         }
@@ -276,6 +278,7 @@ export type Database = {
           last_error?: string | null
           last_synced_at?: string | null
           target_sync_enabled?: boolean
+          tz?: string
           updated_at?: string
           user_id_external?: string
         }
