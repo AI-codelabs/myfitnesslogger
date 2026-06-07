@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { formatWeekStart, getWeekStart } from "./weeklyCheckin";
+import { getExpectedCheckinWeekStart, getWeekStart } from "./weeklyCheckin";
 
 export type DashCheckin = {
   id: string;
@@ -65,7 +65,7 @@ export function useCoachDashboardData(coachId: string | undefined) {
   const load = useCallback(async () => {
     if (!coachId) return;
     setLoading(true);
-    const weekStart = formatWeekStart();
+    const weekStart = getExpectedCheckinWeekStart();
 
     const { data: invs } = await supabase
       .from("invitations")
