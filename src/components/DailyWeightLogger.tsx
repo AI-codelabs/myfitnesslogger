@@ -119,7 +119,7 @@ export function DailyWeightLogger({ clientId, lang = "nl", onChange }: Props) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="space-y-1.5">
           <Label htmlFor="wl-date" className="text-xs">{L.date}</Label>
           <Input
@@ -128,7 +128,7 @@ export function DailyWeightLogger({ clientId, lang = "nl", onChange }: Props) {
             max={today}
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="h-11"
+            className="h-12 text-base appearance-none [&::-webkit-date-and-time-value]:text-left [&::-webkit-date-and-time-value]:min-h-[1.5rem]"
           />
         </div>
         <div className="space-y-1.5">
@@ -141,7 +141,7 @@ export function DailyWeightLogger({ clientId, lang = "nl", onChange }: Props) {
             placeholder="78.4"
             value={weight}
             onChange={(e) => setWeight(e.target.value)}
-            className="h-11"
+            className="h-12 text-base"
           />
         </div>
       </div>
@@ -152,10 +152,10 @@ export function DailyWeightLogger({ clientId, lang = "nl", onChange }: Props) {
           value={note}
           onChange={(e) => setNote(e.target.value)}
           placeholder={lang === "nl" ? "bv. na training" : "e.g. after workout"}
-          className="h-11"
+          className="h-12 text-base"
         />
       </div>
-      <Button onClick={save} disabled={saving} className="w-full h-11">
+      <Button onClick={save} disabled={saving} className="w-full h-12 text-base">
         {saving ? (
           <Loader2 className="h-4 w-4 animate-spin mr-2" />
         ) : (
