@@ -1117,7 +1117,7 @@ serve(async (req) => {
       return json({ success: true });
     }
 
-    // ==== sync: fetch missing days from last log -> today ====
+    // ==== sync: fetch missing days from last log -> today (user-initiated) ====
     if (action === "sync") {
       const auth = await authedClient(req);
       if ("error" in auth) return json({ error: auth.error }, auth.status);
@@ -1131,96 +1131,60 @@ serve(async (req) => {
       if (sessErr) return json({ error: sessErr.message }, 500);
       if (!session) return json({ error: "no_session", message: "Connect Cronometer first" }, 400);
 
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      const { data: latest } = await auth.supabase
-        .from("cronometer_nutrition_logs")
-        .select("log_date")
-        .eq("client_id", auth.userId)
-        .order("log_date", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      // Always re-sync a rolling window so retroactive Cronometer entries
-      // (data added for a past day after it was first synced as empty) get
-      // picked up. Upsert on (client_id, log_date) handles dedup.
-      const LOOKBACK_DAYS = 7;
-      let startDate = addDays(today, -LOOKBACK_DAYS);
-      if (!latest?.log_date) {
-        // First sync ever: start from the Monday of the lookback window
-        // so the user sees a full week even on a fresh connection.
-        startDate = mondayOf(addDays(today, -LOOKBACK_DAYS));
-      }
-
-      const cookieJar = new Map<string, string>(
-        Object.entries(session.cookies as Record<string, string>),
-      );
-      cachedGwtPermutation = session.gwt_permutation;
-      cachedGwtHeader = session.gwt_header;
-
-      let csv: string;
-      try {
-        csv = await exportServings(
-          cookieJar,
-          session.user_id_external,
-          isoDate(startDate),
-          isoDate(today),
+      // User-initiated: force a sync regardless of the throttle window.
+      const forced = { ...session, last_synced_at: null };
+      const result = await runSyncForSession(auth.supabase, forced);
+      if (!result.ok) {
+        return json(
+          { error: result.expired ? "session_expired" : "sync_failed", message: result.message },
+          result.expired ? 401 : 502,
         );
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : String(e);
-        await auth.supabase
-          .from("cronometer_sessions")
-          .update({ last_error: msg })
-          .eq("client_id", auth.userId);
-        return json({ error: "session_expired", message: msg }, 401);
       }
-
-      const parsed = parseServingsCSV(csv);
-
-      const rows: any[] = [];
-      const dayMap = new Map(parsed.days.map((d: any) => [d.date, d]));
-      for (let cur = new Date(startDate); cur <= today; cur = addDays(cur, 1)) {
-        const dateStr = isoDate(cur);
-        const day: any = dayMap.get(dateStr);
-        rows.push({
-          client_id: auth.userId,
-          log_date: dateStr,
-          calories: day?.totals.calories ?? 0,
-          protein_g: day?.totals.protein ?? 0,
-          carbs_g: day?.totals.carbohydrates ?? 0,
-          fat_g: day?.totals.fat ?? 0,
-          fiber_g: day?.totals.fiber ?? 0,
-          sugar_g: day?.totals.sugar ?? 0,
-          sodium_mg: day?.totals.sodium ?? 0,
-          entries: day?.entries ?? [],
-          source: "cronometer",
-          synced_at: new Date().toISOString(),
-        });
-      }
-
-      if (rows.length > 0) {
-        const { error: insErr } = await auth.supabase
-          .from("cronometer_nutrition_logs")
-          .upsert(rows, { onConflict: "client_id,log_date" });
-        if (insErr) return json({ error: insErr.message }, 500);
-      }
-
-      await auth.supabase
-        .from("cronometer_sessions")
-        .update({ last_synced_at: new Date().toISOString(), last_error: null })
-        .eq("client_id", auth.userId);
-
-      const daysWithData = rows.filter((r) => Number(r.calories) > 0).length;
       return json({
         success: true,
-        days_synced: daysWithData,
-        days_scanned: rows.length,
-        up_to_date: daysWithData === 0,
-        from: isoDate(startDate),
-        to: isoDate(today),
+        days_synced: result.days_synced,
+        days_scanned: result.days_scanned,
+        up_to_date: result.up_to_date,
+        from: result.from,
+        to: result.to,
       });
     }
+
+    // ==== admin_sync_all: cron-driven, service-role-only background sync ====
+    if (action === "admin_sync_all") {
+      if (!isServiceRoleRequest(req)) {
+        return json({ error: "Unauthorized" }, 401);
+      }
+      const admin = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      );
+      const { data: sessions, error: sErr } = await admin
+        .from("cronometer_sessions")
+        .select("*");
+      if (sErr) return json({ error: sErr.message }, 500);
+
+      const results: Array<Record<string, unknown>> = [];
+      let synced = 0, skipped = 0, expired = 0, failed = 0;
+      for (const sess of sessions ?? []) {
+        const r = await runSyncForSession(admin, sess);
+        if (r.ok) {
+          if (r.skipped) skipped++;
+          else synced++;
+          results.push({ client_id: sess.client_id, ok: true, skipped: !!r.skipped, days_synced: r.days_synced });
+        } else {
+          if (r.expired) expired++; else failed++;
+          results.push({ client_id: sess.client_id, ok: false, expired: r.expired, message: r.message });
+        }
+      }
+      return json({
+        success: true,
+        total: (sessions ?? []).length,
+        synced, skipped, expired, failed,
+        results,
+      });
+    }
+
 
     if (action === "reapply_today_targets") {
       if (!isServiceRoleRequest(req)) {
