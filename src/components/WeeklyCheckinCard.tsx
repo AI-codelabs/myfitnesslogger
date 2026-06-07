@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ClipboardCheck, CheckCircle2, ArrowRight } from "lucide-react";
-import { formatWeekStart } from "@/lib/weeklyCheckin";
+import { formatWeekStart, isCheckinWindowOpen } from "@/lib/weeklyCheckin";
 
 const ONE_HOUR = 60 * 60 * 1000;
 
