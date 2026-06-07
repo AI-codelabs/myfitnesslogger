@@ -948,7 +948,7 @@ function classifyExportError(err: unknown): { expired: boolean; message: string 
 // `admin_sync_all` action. Uses a per-isolate GWT mutex to avoid races on the
 // global cachedGwt* values when multiple sessions sync concurrently.
 async function runSyncForSession(
-  db: ReturnType<typeof createClient>,
+  db: any,
   session: any,
 ): Promise<
   | { ok: true; days_synced: number; days_scanned: number; up_to_date: boolean; from: string; to: string; skipped?: boolean }
