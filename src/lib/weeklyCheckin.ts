@@ -31,6 +31,20 @@ export function formatWeekStart(d: Date = new Date()): string {
   return weekStart.toISOString().slice(0, 10);
 }
 
+export function addDaysToWeekStart(weekStart: string, days: number): string {
+  const date = new Date(`${weekStart}T00:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+export function getPreviousWeekStart(d: Date = new Date()): string {
+  return addDaysToWeekStart(formatWeekStart(d), -7);
+}
+
+export function getWeekEnd(weekStart: string): string {
+  return addDaysToWeekStart(weekStart, 6);
+}
+
 export function getNlWeekday(d: Date = new Date()): number {
   // 0 = Sunday ... 6 = Saturday, computed in Europe/Amsterdam time
   const s = getAmsterdamDateParts(d).weekday;
@@ -45,6 +59,10 @@ export function isCheckinWindowOpen(d: Date = new Date()): boolean {
   // (so late submitters can still fill it in on Monday).
   const wd = getNlWeekday(d);
   return wd === 0 || wd === 1;
+}
+
+export function getExpectedCheckinWeekStart(d: Date = new Date()): string {
+  return isCheckinWindowOpen(d) ? getPreviousWeekStart(d) : formatWeekStart(d);
 }
 
 export function formatHumanDate(iso: string, lang: "nl" | "en"): string {
