@@ -100,8 +100,12 @@ export const NutritionWeeklyOverview = ({ lang, logs, targets }: Props) => {
     for (let i = 0; i < 7; i++) {
       const d = new Date(weekStart);
       d.setDate(weekStart.getDate() + i);
-      const key = d.toISOString().slice(0, 10);
-      arr.push({ date: d, key });
+      // Build key from LOCAL date components — using toISOString here would
+      // shift the date by one day in any TZ east of UTC (e.g. NL summer time).
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      arr.push({ date: d, key: `${y}-${m}-${day}` });
     }
     return arr;
   }, [weekStart]);
