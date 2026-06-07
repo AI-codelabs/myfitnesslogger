@@ -264,7 +264,8 @@ async function exportServings(
 
 // Parse CSV into structured data
 function parseServingsCSV(csv: string) {
-  const lines = csv.trim().split("\n");
+  // Cronometer exports may use CRLF; split on either and strip stray \r.
+  const lines = csv.replace(/\uFEFF/g, "").trim().split(/\r?\n/);
   if (lines.length < 2) return { days: [], raw: csv };
 
   const headers = lines[0].split(",").map((h) => h.trim().replace(/"/g, ""));
@@ -328,14 +329,16 @@ function parseServingsCSV(csv: string) {
 }
 
 function parseCSVRow(line: string): string[] {
+  // Drop any trailing \r before parsing (defense-in-depth against CRLF).
+  const clean = line.replace(/\r$/, "");
   const result: string[] = [];
   let current = "";
   let inQuotes = false;
 
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i];
+  for (let i = 0; i < clean.length; i++) {
+    const ch = clean[i];
     if (ch === '"') {
-      if (inQuotes && line[i + 1] === '"') {
+      if (inQuotes && clean[i + 1] === '"') {
         current += '"';
         i++;
       } else {
@@ -350,6 +353,56 @@ function parseCSVRow(line: string): string[] {
   }
   result.push(current.trim());
   return result;
+}
+
+// Return YYYY-MM-DD for "now" in a given IANA timezone.
+function todayInTz(tz: string): string {
+  try {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: tz,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(new Date());
+    const y = parts.find((p) => p.type === "year")?.value;
+    const m = parts.find((p) => p.type === "month")?.value;
+    const d = parts.find((p) => p.type === "day")?.value;
+    if (y && m && d) return `${y}-${m}-${d}`;
+  } catch (_) { /* fall through */ }
+  return new Date().toISOString().slice(0, 10);
+}
+
+// Add `n` days to a YYYY-MM-DD date string (no TZ math involved).
+function addDaysIso(iso: string, n: number): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() + n);
+  return dt.toISOString().slice(0, 10);
+}
+
+// Async mutex to serialize global cachedGwt* mutations within an isolate.
+let gwtChain: Promise<unknown> = Promise.resolve();
+function withGwtLock<T>(fn: () => Promise<T>): Promise<T> {
+  const run = gwtChain.then(fn, fn);
+  gwtChain = run.catch(() => {});
+  return run;
+}
+
+// Retry a transient-failing async op with exponential backoff.
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  attempts = 3,
+  baseMs = 400,
+): Promise<T> {
+  let lastErr: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try { return await fn(); } catch (e) {
+      lastErr = e;
+      if (i === attempts - 1) break;
+      await sleep(baseMs * Math.pow(2, i));
+    }
+  }
+  throw lastErr;
 }
 
 function isoDate(d: Date): string {
@@ -790,17 +843,30 @@ async function authedClient(req: Request) {
   }
 }
 
-function isServiceRoleRequest(req: Request) {
+async function isServiceRoleRequest(req: Request) {
   const authHeader = req.headers.get("Authorization");
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if (serviceRoleKey && authHeader === `Bearer ${serviceRoleKey}`) return true;
   const cronSecret = Deno.env.get("CRON_SECRET");
   const cronHeader = req.headers.get("x-cron-secret");
-  return !!cronSecret && !!cronHeader && cronHeader === cronSecret;
+  if (cronSecret && cronHeader && cronHeader === cronSecret) return true;
+  // Also accept the DB-managed internal cron token (used by pg_cron jobs).
+  if (cronHeader && serviceRoleKey) {
+    try {
+      const admin = createClient(Deno.env.get("SUPABASE_URL")!, serviceRoleKey);
+      const { data } = await admin
+        .from("internal_secrets")
+        .select("value")
+        .eq("name", "cron_token")
+        .maybeSingle();
+      if (data?.value && data.value === cronHeader) return true;
+    } catch (_) { /* fall through */ }
+  }
+  return false;
 }
 
 async function reapplyTodayTargetsForClient(
-  admin: ReturnType<typeof createClient>,
+  admin: any,
   clientId: string,
 ) {
   const { data: session, error: sessionError } = await admin
@@ -878,7 +944,148 @@ async function reapplyTodayTargetsForClient(
   }
 }
 
+// Decide whether an export error indicates a truly expired session vs. a
+
+// transient network/upstream error we should not log the user out for.
+function classifyExportError(err: unknown): { expired: boolean; message: string } {
+  const msg = err instanceof Error ? err.message : String(err);
+  // Explicit signals from Cronometer that the session is no longer valid.
+  if (/\b(401|403)\b/.test(msg)) return { expired: true, message: msg };
+  if (/login|signin|sign\s*in|anti-?csrf|not authenticated|unauthor/i.test(msg)) {
+    return { expired: true, message: msg };
+  }
+  return { expired: false, message: msg };
+}
+
+// Core sync routine, reusable by the authed `sync` action and the cron-driven
+// `admin_sync_all` action. Uses a per-isolate GWT mutex to avoid races on the
+// global cachedGwt* values when multiple sessions sync concurrently.
+async function runSyncForSession(
+  db: any,
+  session: any,
+): Promise<
+  | { ok: true; days_synced: number; days_scanned: number; up_to_date: boolean; from: string; to: string; skipped?: boolean }
+  | { ok: false; expired: boolean; message: string }
+> {
+  const clientId = session.client_id as string;
+
+  // Per-client throttle: skip if we synced within the last 45s (debounce + race guard).
+  if (session.last_synced_at) {
+    const ageMs = Date.now() - new Date(session.last_synced_at).getTime();
+    if (ageMs >= 0 && ageMs < 45_000) {
+      return {
+        ok: true,
+        days_synced: 0,
+        days_scanned: 0,
+        up_to_date: true,
+        from: "",
+        to: "",
+        skipped: true,
+      };
+    }
+  }
+
+  const tz: string = session.tz || "Europe/Amsterdam";
+  const todayIso = todayInTz(tz);
+
+  const { data: latest } = await db
+    .from("cronometer_nutrition_logs")
+    .select("log_date")
+    .eq("client_id", clientId)
+    .order("log_date", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const LOOKBACK_DAYS = 7;
+  let startIso = addDaysIso(todayIso, -LOOKBACK_DAYS);
+  if (!latest?.log_date) {
+    // First sync: extend back to the Monday before the lookback window.
+    const back = addDaysIso(todayIso, -LOOKBACK_DAYS);
+    const [yy, mm, dd] = back.split("-").map(Number);
+    const dt = new Date(Date.UTC(yy, mm - 1, dd));
+    const dow = dt.getUTCDay(); // 0=Sun..6=Sat
+    const diff = dow === 0 ? -6 : 1 - dow;
+    startIso = addDaysIso(back, diff);
+  }
+
+  const cookieJar = new Map<string, string>(
+    Object.entries(session.cookies as Record<string, string>),
+  );
+
+  let csv: string;
+  try {
+    csv = await withGwtLock(async () => {
+      cachedGwtPermutation = session.gwt_permutation || cachedGwtPermutation;
+      cachedGwtHeader = session.gwt_header || cachedGwtHeader;
+      return await withRetry(
+        () => exportServings(cookieJar, session.user_id_external, startIso, todayIso),
+        2,
+        500,
+      );
+    });
+  } catch (e) {
+    const { expired, message } = classifyExportError(e);
+    await db
+      .from("cronometer_sessions")
+      .update({ last_error: message })
+      .eq("client_id", clientId);
+    return { ok: false, expired, message };
+  }
+
+  const parsed = parseServingsCSV(csv);
+  const dayMap = new Map(parsed.days.map((d: any) => [d.date, d]));
+
+  const rows: any[] = [];
+  let cur = startIso;
+  while (cur <= todayIso) {
+    const day: any = dayMap.get(cur);
+    rows.push({
+      client_id: clientId,
+      log_date: cur,
+      calories: day?.totals.calories ?? 0,
+      protein_g: day?.totals.protein ?? 0,
+      carbs_g: day?.totals.carbohydrates ?? 0,
+      fat_g: day?.totals.fat ?? 0,
+      fiber_g: day?.totals.fiber ?? 0,
+      sugar_g: day?.totals.sugar ?? 0,
+      sodium_mg: day?.totals.sodium ?? 0,
+      entries: day?.entries ?? [],
+      source: "cronometer",
+      synced_at: new Date().toISOString(),
+    });
+    cur = addDaysIso(cur, 1);
+  }
+
+  if (rows.length > 0) {
+    const { error: insErr } = await db
+      .from("cronometer_nutrition_logs")
+      .upsert(rows, { onConflict: "client_id,log_date" });
+    if (insErr) return { ok: false, expired: false, message: insErr.message };
+  }
+
+  // Persist any refreshed cookies along with the sync timestamp.
+  await db
+    .from("cronometer_sessions")
+    .update({
+      last_synced_at: new Date().toISOString(),
+      last_error: null,
+      cookies: Object.fromEntries(cookieJar),
+    })
+    .eq("client_id", clientId);
+
+  const daysWithData = rows.filter((r) => Number(r.calories) > 0).length;
+  return {
+    ok: true,
+    days_synced: daysWithData,
+    days_scanned: rows.length,
+    up_to_date: daysWithData === 0,
+    from: startIso,
+    to: todayIso,
+  };
+}
+
 serve(async (req) => {
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -923,7 +1130,7 @@ serve(async (req) => {
       return json({ success: true });
     }
 
-    // ==== sync: fetch missing days from last log -> today ====
+    // ==== sync: fetch missing days from last log -> today (user-initiated) ====
     if (action === "sync") {
       const auth = await authedClient(req);
       if ("error" in auth) return json({ error: auth.error }, auth.status);
@@ -937,99 +1144,63 @@ serve(async (req) => {
       if (sessErr) return json({ error: sessErr.message }, 500);
       if (!session) return json({ error: "no_session", message: "Connect Cronometer first" }, 400);
 
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      const { data: latest } = await auth.supabase
-        .from("cronometer_nutrition_logs")
-        .select("log_date")
-        .eq("client_id", auth.userId)
-        .order("log_date", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      // Always re-sync a rolling window so retroactive Cronometer entries
-      // (data added for a past day after it was first synced as empty) get
-      // picked up. Upsert on (client_id, log_date) handles dedup.
-      const LOOKBACK_DAYS = 7;
-      let startDate = addDays(today, -LOOKBACK_DAYS);
-      if (!latest?.log_date) {
-        // First sync ever: start from the Monday of the lookback window
-        // so the user sees a full week even on a fresh connection.
-        startDate = mondayOf(addDays(today, -LOOKBACK_DAYS));
-      }
-
-      const cookieJar = new Map<string, string>(
-        Object.entries(session.cookies as Record<string, string>),
-      );
-      cachedGwtPermutation = session.gwt_permutation;
-      cachedGwtHeader = session.gwt_header;
-
-      let csv: string;
-      try {
-        csv = await exportServings(
-          cookieJar,
-          session.user_id_external,
-          isoDate(startDate),
-          isoDate(today),
+      // User-initiated: force a sync regardless of the throttle window.
+      const forced = { ...session, last_synced_at: null };
+      const result = await runSyncForSession(auth.supabase, forced);
+      if (!result.ok) {
+        return json(
+          { error: result.expired ? "session_expired" : "sync_failed", message: result.message },
+          result.expired ? 401 : 502,
         );
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : String(e);
-        await auth.supabase
-          .from("cronometer_sessions")
-          .update({ last_error: msg })
-          .eq("client_id", auth.userId);
-        return json({ error: "session_expired", message: msg }, 401);
       }
-
-      const parsed = parseServingsCSV(csv);
-
-      const rows: any[] = [];
-      const dayMap = new Map(parsed.days.map((d: any) => [d.date, d]));
-      for (let cur = new Date(startDate); cur <= today; cur = addDays(cur, 1)) {
-        const dateStr = isoDate(cur);
-        const day: any = dayMap.get(dateStr);
-        rows.push({
-          client_id: auth.userId,
-          log_date: dateStr,
-          calories: day?.totals.calories ?? 0,
-          protein_g: day?.totals.protein ?? 0,
-          carbs_g: day?.totals.carbohydrates ?? 0,
-          fat_g: day?.totals.fat ?? 0,
-          fiber_g: day?.totals.fiber ?? 0,
-          sugar_g: day?.totals.sugar ?? 0,
-          sodium_mg: day?.totals.sodium ?? 0,
-          entries: day?.entries ?? [],
-          source: "cronometer",
-          synced_at: new Date().toISOString(),
-        });
-      }
-
-      if (rows.length > 0) {
-        const { error: insErr } = await auth.supabase
-          .from("cronometer_nutrition_logs")
-          .upsert(rows, { onConflict: "client_id,log_date" });
-        if (insErr) return json({ error: insErr.message }, 500);
-      }
-
-      await auth.supabase
-        .from("cronometer_sessions")
-        .update({ last_synced_at: new Date().toISOString(), last_error: null })
-        .eq("client_id", auth.userId);
-
-      const daysWithData = rows.filter((r) => Number(r.calories) > 0).length;
       return json({
         success: true,
-        days_synced: daysWithData,
-        days_scanned: rows.length,
-        up_to_date: daysWithData === 0,
-        from: isoDate(startDate),
-        to: isoDate(today),
+        days_synced: result.days_synced,
+        days_scanned: result.days_scanned,
+        up_to_date: result.up_to_date,
+        from: result.from,
+        to: result.to,
       });
     }
 
+    // ==== admin_sync_all: cron-driven, service-role-only background sync ====
+    if (action === "admin_sync_all") {
+      if (!(await isServiceRoleRequest(req))) {
+        return json({ error: "Unauthorized" }, 401);
+      }
+      const admin = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      );
+      const { data: sessions, error: sErr } = await admin
+        .from("cronometer_sessions")
+        .select("*");
+      if (sErr) return json({ error: sErr.message }, 500);
+
+      const results: Array<Record<string, unknown>> = [];
+      let synced = 0, skipped = 0, expired = 0, failed = 0;
+      for (const sess of sessions ?? []) {
+        const r = await runSyncForSession(admin, sess);
+        if (r.ok) {
+          if (r.skipped) skipped++;
+          else synced++;
+          results.push({ client_id: sess.client_id, ok: true, skipped: !!r.skipped, days_synced: r.days_synced });
+        } else {
+          if (r.expired) expired++; else failed++;
+          results.push({ client_id: sess.client_id, ok: false, expired: r.expired, message: r.message });
+        }
+      }
+      return json({
+        success: true,
+        total: (sessions ?? []).length,
+        synced, skipped, expired, failed,
+        results,
+      });
+    }
+
+
     if (action === "reapply_today_targets") {
-      if (!isServiceRoleRequest(req)) {
+      if (!(await isServiceRoleRequest(req))) {
         return json({ error: "Unauthorized" }, 401);
       }
 

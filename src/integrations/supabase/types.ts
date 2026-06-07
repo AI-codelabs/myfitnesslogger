@@ -246,6 +246,7 @@ export type Database = {
           last_error: string | null
           last_synced_at: string | null
           target_sync_enabled: boolean
+          tz: string
           updated_at: string
           user_id_external: string
         }
@@ -261,6 +262,7 @@ export type Database = {
           last_error?: string | null
           last_synced_at?: string | null
           target_sync_enabled?: boolean
+          tz?: string
           updated_at?: string
           user_id_external: string
         }
@@ -276,6 +278,7 @@ export type Database = {
           last_error?: string | null
           last_synced_at?: string | null
           target_sync_enabled?: boolean
+          tz?: string
           updated_at?: string
           user_id_external?: string
         }
@@ -389,6 +392,24 @@ export type Database = {
           notes?: string | null
           updated_at?: string
           video_url?: string | null
+        }
+        Relationships: []
+      }
+      internal_secrets: {
+        Row: {
+          created_at: string
+          name: string
+          value: string
+        }
+        Insert: {
+          created_at?: string
+          name: string
+          value: string
+        }
+        Update: {
+          created_at?: string
+          name?: string
+          value?: string
         }
         Relationships: []
       }
@@ -1200,6 +1221,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_internal_secret: { Args: { _name: string }; Returns: string }
       get_invitation_by_token: {
         Args: { _token: string }
         Returns: {
