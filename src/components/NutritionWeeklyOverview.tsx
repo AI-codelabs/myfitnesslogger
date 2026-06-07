@@ -213,7 +213,9 @@ export const NutritionWeeklyOverview = ({ lang, logs, targets }: Props) => {
           {/* Day labels row */}
           <div className="grid grid-cols-7 gap-1 sm:gap-3 mt-2">
             {days.map(({ date, key }) => {
-              const isToday = key === new Date().toISOString().slice(0, 10);
+              const now = new Date();
+              const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+              const isToday = key === todayKey;
               return (
                 <div key={key} className="flex flex-col items-center min-w-0">
                   <p
