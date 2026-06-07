@@ -1,28 +1,39 @@
-// Helpers for ISO week start (Monday) in client local time.
+const AMSTERDAM_TZ = "Europe/Amsterdam";
+
+function getAmsterdamDateParts(d: Date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: AMSTERDAM_TZ,
+    weekday: "short",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(d);
+
+  const map = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+
+  return {
+    weekday: map.weekday,
+    year: Number(map.year),
+    month: Number(map.month),
+    day: Number(map.day),
+  };
+}
+
+// Business week start for check-ins: Sunday 00:00 in NL time.
 export function getWeekStart(d: Date = new Date()): Date {
-  const date = new Date(d);
-  date.setHours(0, 0, 0, 0);
-  const day = date.getDay(); // 0=Sun, 1=Mon...
-  const diff = (day === 0 ? -6 : 1 - day); // back to Monday
-  date.setDate(date.getDate() + diff);
-  return date;
+  return new Date(`${formatWeekStart(d)}T00:00:00.000Z`);
 }
 
 export function formatWeekStart(d: Date = new Date()): string {
-  // YYYY-MM-DD
-  const w = getWeekStart(d);
-  const y = w.getFullYear();
-  const m = String(w.getMonth() + 1).padStart(2, "0");
-  const day = String(w.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+  const { year, month, day } = getAmsterdamDateParts(d);
+  const weekStart = new Date(Date.UTC(year, month - 1, day));
+  weekStart.setUTCDate(weekStart.getUTCDate() - getNlWeekday(d));
+  return weekStart.toISOString().slice(0, 10);
 }
 
 export function getNlWeekday(d: Date = new Date()): number {
   // 0 = Sunday ... 6 = Saturday, computed in Europe/Amsterdam time
-  const s = d.toLocaleString("en-US", {
-    timeZone: "Europe/Amsterdam",
-    weekday: "short",
-  });
+  const s = getAmsterdamDateParts(d).weekday;
   const map: Record<string, number> = {
     Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6,
   };
