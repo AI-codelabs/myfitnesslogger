@@ -55,14 +55,12 @@ export function getNlWeekday(d: Date = new Date()): number {
 }
 
 export function isCheckinWindowOpen(d: Date = new Date()): boolean {
-  // Window opens Sunday 00:00 Europe/Amsterdam and stays open through Monday
-  // (so late submitters can still fill it in on Monday).
-  const wd = getNlWeekday(d);
-  return wd === 0 || wd === 1;
+  // A check-in opens once its Monday-Sunday week has fully ended.
+  return true;
 }
 
 export function getExpectedCheckinWeekStart(d: Date = new Date()): string {
-  return isCheckinWindowOpen(d) ? getPreviousWeekStart(d) : formatWeekStart(d);
+  return getPreviousWeekStart(d);
 }
 
 export function formatHumanDate(iso: string, lang: "nl" | "en"): string {
