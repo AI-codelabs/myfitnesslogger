@@ -1017,9 +1017,12 @@ serve(async (req) => {
         .update({ last_synced_at: new Date().toISOString(), last_error: null })
         .eq("client_id", auth.userId);
 
+      const daysWithData = rows.filter((r) => Number(r.calories) > 0).length;
       return json({
         success: true,
-        days_synced: rows.length,
+        days_synced: daysWithData,
+        days_scanned: rows.length,
+        up_to_date: daysWithData === 0,
         from: isoDate(startDate),
         to: isoDate(today),
       });
