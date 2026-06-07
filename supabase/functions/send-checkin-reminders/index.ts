@@ -232,9 +232,13 @@ function isoWeekStart(d: Date): string {
 
 function expectedCheckinWeekStart(d: Date): string {
   const isoWeekStartValue = isoWeekStart(d);
-  const isoDay = new Date(d.toLocaleString("en-US", { timeZone: "Europe/Amsterdam" })).getDay();
+  const weekday = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Europe/Amsterdam",
+    weekday: "short",
+  }).format(d);
+  const nlDay = weekday === "Sun" ? 0 : 1;
 
-  if (isoDay === 0) return isoWeekStartValue;
+  if (nlDay === 0) return isoWeekStartValue;
 
   const date = new Date(`${isoWeekStartValue}T00:00:00.000Z`);
   date.setUTCDate(date.getUTCDate() - 7);
