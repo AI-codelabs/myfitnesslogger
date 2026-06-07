@@ -264,7 +264,8 @@ async function exportServings(
 
 // Parse CSV into structured data
 function parseServingsCSV(csv: string) {
-  const lines = csv.trim().split("\n");
+  // Cronometer exports may use CRLF; split on either and strip stray \r.
+  const lines = csv.replace(/\uFEFF/g, "").trim().split(/\r?\n/);
   if (lines.length < 2) return { days: [], raw: csv };
 
   const headers = lines[0].split(",").map((h) => h.trim().replace(/"/g, ""));
@@ -328,14 +329,16 @@ function parseServingsCSV(csv: string) {
 }
 
 function parseCSVRow(line: string): string[] {
+  // Drop any trailing \r before parsing (defense-in-depth against CRLF).
+  const clean = line.replace(/\r$/, "");
   const result: string[] = [];
   let current = "";
   let inQuotes = false;
 
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i];
+  for (let i = 0; i < clean.length; i++) {
+    const ch = clean[i];
     if (ch === '"') {
-      if (inQuotes && line[i + 1] === '"') {
+      if (inQuotes && clean[i + 1] === '"') {
         current += '"';
         i++;
       } else {
@@ -350,6 +353,56 @@ function parseCSVRow(line: string): string[] {
   }
   result.push(current.trim());
   return result;
+}
+
+// Return YYYY-MM-DD for "now" in a given IANA timezone.
+function todayInTz(tz: string): string {
+  try {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: tz,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(new Date());
+    const y = parts.find((p) => p.type === "year")?.value;
+    const m = parts.find((p) => p.type === "month")?.value;
+    const d = parts.find((p) => p.type === "day")?.value;
+    if (y && m && d) return `${y}-${m}-${d}`;
+  } catch (_) { /* fall through */ }
+  return new Date().toISOString().slice(0, 10);
+}
+
+// Add `n` days to a YYYY-MM-DD date string (no TZ math involved).
+function addDaysIso(iso: string, n: number): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() + n);
+  return dt.toISOString().slice(0, 10);
+}
+
+// Async mutex to serialize global cachedGwt* mutations within an isolate.
+let gwtChain: Promise<unknown> = Promise.resolve();
+function withGwtLock<T>(fn: () => Promise<T>): Promise<T> {
+  const run = gwtChain.then(fn, fn);
+  gwtChain = run.catch(() => {});
+  return run;
+}
+
+// Retry a transient-failing async op with exponential backoff.
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  attempts = 3,
+  baseMs = 400,
+): Promise<T> {
+  let lastErr: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try { return await fn(); } catch (e) {
+      lastErr = e;
+      if (i === attempts - 1) break;
+      await sleep(baseMs * Math.pow(2, i));
+    }
+  }
+  throw lastErr;
 }
 
 function isoDate(d: Date): string {
