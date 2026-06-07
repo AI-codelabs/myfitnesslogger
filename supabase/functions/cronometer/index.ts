@@ -1165,7 +1165,7 @@ serve(async (req) => {
 
     // ==== admin_sync_all: cron-driven, service-role-only background sync ====
     if (action === "admin_sync_all") {
-      if (!isServiceRoleRequest(req)) {
+      if (!(await isServiceRoleRequest(req))) {
         return json({ error: "Unauthorized" }, 401);
       }
       const admin = createClient(
@@ -1200,7 +1200,7 @@ serve(async (req) => {
 
 
     if (action === "reapply_today_targets") {
-      if (!isServiceRoleRequest(req)) {
+      if (!(await isServiceRoleRequest(req))) {
         return json({ error: "Unauthorized" }, 401);
       }
 
