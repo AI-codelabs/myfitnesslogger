@@ -33,6 +33,9 @@ export function WeeklyCheckinCard({ lang }: { lang: "nl" | "en" }) {
 
   if (!loaded) return null;
 
+  const windowOpen = isCheckinWindowOpen();
+  if (!submittedAt && !windowOpen) return null;
+
   // If submitted, show "thanks" for 1 hour, then hide
   if (submittedAt) {
     const since = Date.now() - new Date(submittedAt).getTime();
