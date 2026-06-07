@@ -948,14 +948,15 @@ serve(async (req) => {
         .limit(1)
         .maybeSingle();
 
-      let startDate: Date;
-      if (latest?.log_date) {
-        startDate = addDays(new Date(latest.log_date + "T00:00:00Z"), 1);
-        if (startDate > today) {
-          return json({ success: true, days_synced: 0, up_to_date: true });
-        }
-      } else {
-        startDate = mondayOf(today);
+      // Always re-sync a rolling window so retroactive Cronometer entries
+      // (data added for a past day after it was first synced as empty) get
+      // picked up. Upsert on (client_id, log_date) handles dedup.
+      const LOOKBACK_DAYS = 7;
+      let startDate = addDays(today, -LOOKBACK_DAYS);
+      if (!latest?.log_date) {
+        // First sync ever: start from the Monday of the lookback window
+        // so the user sees a full week even on a fresh connection.
+        startDate = mondayOf(addDays(today, -LOOKBACK_DAYS));
       }
 
       const cookieJar = new Map<string, string>(
@@ -1016,9 +1017,12 @@ serve(async (req) => {
         .update({ last_synced_at: new Date().toISOString(), last_error: null })
         .eq("client_id", auth.userId);
 
+      const daysWithData = rows.filter((r) => Number(r.calories) > 0).length;
       return json({
         success: true,
-        days_synced: rows.length,
+        days_synced: daysWithData,
+        days_scanned: rows.length,
+        up_to_date: daysWithData === 0,
         from: isoDate(startDate),
         to: isoDate(today),
       });
