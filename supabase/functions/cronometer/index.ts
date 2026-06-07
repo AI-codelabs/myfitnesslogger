@@ -929,9 +929,147 @@ async function reapplyTodayTargetsForClient(
 
     return { ok: false as const, error: msg };
   }
+// Decide whether an export error indicates a truly expired session vs. a
+// transient network/upstream error we should not log the user out for.
+function classifyExportError(err: unknown): { expired: boolean; message: string } {
+  const msg = err instanceof Error ? err.message : String(err);
+  // Explicit signals from Cronometer that the session is no longer valid.
+  if (/\b(401|403)\b/.test(msg)) return { expired: true, message: msg };
+  if (/login|signin|sign\s*in|anti-?csrf|not authenticated|unauthor/i.test(msg)) {
+    return { expired: true, message: msg };
+  }
+  return { expired: false, message: msg };
+}
+
+// Core sync routine, reusable by the authed `sync` action and the cron-driven
+// `admin_sync_all` action. Uses a per-isolate GWT mutex to avoid races on the
+// global cachedGwt* values when multiple sessions sync concurrently.
+async function runSyncForSession(
+  db: ReturnType<typeof createClient>,
+  session: any,
+): Promise<
+  | { ok: true; days_synced: number; days_scanned: number; up_to_date: boolean; from: string; to: string; skipped?: boolean }
+  | { ok: false; expired: boolean; message: string }
+> {
+  const clientId = session.client_id as string;
+
+  // Per-client throttle: skip if we synced within the last 45s (debounce + race guard).
+  if (session.last_synced_at) {
+    const ageMs = Date.now() - new Date(session.last_synced_at).getTime();
+    if (ageMs >= 0 && ageMs < 45_000) {
+      return {
+        ok: true,
+        days_synced: 0,
+        days_scanned: 0,
+        up_to_date: true,
+        from: "",
+        to: "",
+        skipped: true,
+      };
+    }
+  }
+
+  const tz: string = session.tz || "Europe/Amsterdam";
+  const todayIso = todayInTz(tz);
+
+  const { data: latest } = await db
+    .from("cronometer_nutrition_logs")
+    .select("log_date")
+    .eq("client_id", clientId)
+    .order("log_date", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const LOOKBACK_DAYS = 7;
+  let startIso = addDaysIso(todayIso, -LOOKBACK_DAYS);
+  if (!latest?.log_date) {
+    // First sync: extend back to the Monday before the lookback window.
+    const back = addDaysIso(todayIso, -LOOKBACK_DAYS);
+    const [yy, mm, dd] = back.split("-").map(Number);
+    const dt = new Date(Date.UTC(yy, mm - 1, dd));
+    const dow = dt.getUTCDay(); // 0=Sun..6=Sat
+    const diff = dow === 0 ? -6 : 1 - dow;
+    startIso = addDaysIso(back, diff);
+  }
+
+  const cookieJar = new Map<string, string>(
+    Object.entries(session.cookies as Record<string, string>),
+  );
+
+  let csv: string;
+  try {
+    csv = await withGwtLock(async () => {
+      cachedGwtPermutation = session.gwt_permutation || cachedGwtPermutation;
+      cachedGwtHeader = session.gwt_header || cachedGwtHeader;
+      return await withRetry(
+        () => exportServings(cookieJar, session.user_id_external, startIso, todayIso),
+        2,
+        500,
+      );
+    });
+  } catch (e) {
+    const { expired, message } = classifyExportError(e);
+    await db
+      .from("cronometer_sessions")
+      .update({ last_error: message })
+      .eq("client_id", clientId);
+    return { ok: false, expired, message };
+  }
+
+  const parsed = parseServingsCSV(csv);
+  const dayMap = new Map(parsed.days.map((d: any) => [d.date, d]));
+
+  const rows: any[] = [];
+  let cur = startIso;
+  while (cur <= todayIso) {
+    const day: any = dayMap.get(cur);
+    rows.push({
+      client_id: clientId,
+      log_date: cur,
+      calories: day?.totals.calories ?? 0,
+      protein_g: day?.totals.protein ?? 0,
+      carbs_g: day?.totals.carbohydrates ?? 0,
+      fat_g: day?.totals.fat ?? 0,
+      fiber_g: day?.totals.fiber ?? 0,
+      sugar_g: day?.totals.sugar ?? 0,
+      sodium_mg: day?.totals.sodium ?? 0,
+      entries: day?.entries ?? [],
+      source: "cronometer",
+      synced_at: new Date().toISOString(),
+    });
+    cur = addDaysIso(cur, 1);
+  }
+
+  if (rows.length > 0) {
+    const { error: insErr } = await db
+      .from("cronometer_nutrition_logs")
+      .upsert(rows, { onConflict: "client_id,log_date" });
+    if (insErr) return { ok: false, expired: false, message: insErr.message };
+  }
+
+  // Persist any refreshed cookies along with the sync timestamp.
+  await db
+    .from("cronometer_sessions")
+    .update({
+      last_synced_at: new Date().toISOString(),
+      last_error: null,
+      cookies: Object.fromEntries(cookieJar),
+    })
+    .eq("client_id", clientId);
+
+  const daysWithData = rows.filter((r) => Number(r.calories) > 0).length;
+  return {
+    ok: true,
+    days_synced: daysWithData,
+    days_scanned: rows.length,
+    up_to_date: daysWithData === 0,
+    from: startIso,
+    to: todayIso,
+  };
 }
 
 serve(async (req) => {
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
