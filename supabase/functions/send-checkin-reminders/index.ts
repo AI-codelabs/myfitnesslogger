@@ -1,8 +1,8 @@
 // Sends weekly check-in reminder emails via each coach's connected Gmail.
 //
 // Modes:
-//   ?mode=sunday  → emails ALL active clients ("your check-in is ready")
-//   ?mode=monday  → emails only clients who have NOT submitted yet for this week
+//   ?mode=sunday  → emails ALL active clients for the just-finished week
+//   ?mode=monday  → emails only clients who have NOT submitted yet for that same week
 //
 // Triggered by pg_cron. Deployed with verify_jwt = false so cron can hit it
 // without a user session — protected by a shared CRON_SECRET.
@@ -52,7 +52,7 @@ Deno.serve(async (req) => {
       return json({ ok: true, sent: 0, note: "No coach Gmail connections" });
     }
 
-    const weekStart = isoWeekStart(new Date()); // Monday of current ISO week
+    const weekStart = expectedCheckinWeekStart(new Date());
 
     let totalSent = 0;
     const errors: Array<{ coach_id: string; client_id?: string; error: string }> = [];
@@ -227,6 +227,17 @@ function isoWeekStart(d: Date): string {
   const date = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
   const day = date.getUTCDay() || 7; // Sun=0 → 7
   date.setUTCDate(date.getUTCDate() - (day - 1));
+  return date.toISOString().slice(0, 10);
+}
+
+function expectedCheckinWeekStart(d: Date): string {
+  const isoWeekStartValue = isoWeekStart(d);
+  const isoDay = new Date(d.toLocaleString("en-US", { timeZone: "Europe/Amsterdam" })).getDay();
+
+  if (isoDay === 0) return isoWeekStartValue;
+
+  const date = new Date(`${isoWeekStartValue}T00:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() - 7);
   return date.toISOString().slice(0, 10);
 }
 
