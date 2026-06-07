@@ -180,6 +180,7 @@ export default function WeeklyCheckin() {
   const [cronoDialogOpen, setCronoDialogOpen] = useState(false);
   const [cronoSyncing, setCronoSyncing] = useState(false);
   const [cronoSynced, setCronoSynced] = useState(false);
+  const [hasExisting, setHasExisting] = useState(false);
 
   const handleCronoSync = async () => {
     if (!cronoConnected) {
