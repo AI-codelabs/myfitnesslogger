@@ -356,8 +356,8 @@ export default function WeeklyCheckin() {
             Check-in nog niet open
           </h1>
           <p className="text-sm text-muted-foreground">
-            Je wekelijkse check-in opent elke zondag om 00:00 (NL-tijd).
-            Daarna blijft hij gekoppeld aan dezelfde week totdat je hem invult.
+            De wekelijkse check-in blijft gekoppeld aan één vaste kalenderweek
+            totdat je hem hebt ingevuld.
           </p>
         </div>
       </div>
