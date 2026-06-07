@@ -233,6 +233,7 @@ export default function WeeklyCheckin() {
         .eq("week_start", weekStart)
         .maybeSingle();
       if (data) {
+        setHasExisting(true);
         setForm({
           training_count: data.training_count ?? "",
           training_count_other: data.training_count_other ?? "",
