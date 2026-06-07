@@ -929,7 +929,10 @@ async function reapplyTodayTargetsForClient(
 
     return { ok: false as const, error: msg };
   }
+}
+
 // Decide whether an export error indicates a truly expired session vs. a
+
 // transient network/upstream error we should not log the user out for.
 function classifyExportError(err: unknown): { expired: boolean; message: string } {
   const msg = err instanceof Error ? err.message : String(err);
