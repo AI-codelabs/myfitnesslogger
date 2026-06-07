@@ -572,10 +572,11 @@ export default function WorkoutPlan() {
                                     href={it.exercise.video_url}
                                     target="_blank"
                                     rel="noreferrer"
-                                    className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="inline-flex items-center gap-1.5 rounded-full bg-secondary px-2.5 py-1 text-[11px] font-semibold text-secondary-foreground shadow-sm transition-colors hover:bg-secondary/90"
                                   >
-                                    <Video className="h-3 w-3" />
-                                    Video
+                                    <Video className="h-3 w-3" fill="currentColor" />
+                                    Watch video
                                   </a>
                                 )}
                               </div>
