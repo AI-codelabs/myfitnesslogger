@@ -177,23 +177,29 @@ export function DailyWeightLogger({ clientId, lang = "nl", onChange }: Props) {
         ) : (
           <ul className="divide-y divide-border rounded-lg border border-border">
             {logs.map((l) => (
-              <li key={l.id} className="flex items-center gap-3 px-3 py-2">
+              <li key={l.id} className="flex items-start gap-2 px-3 py-2.5">
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium tabular-nums">
-                    {Number(l.weight_kg).toFixed(1)} kg
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {new Date(l.logged_on).toLocaleDateString(
-                      lang === "nl" ? "nl-NL" : "en-US",
-                      { day: "2-digit", month: "short", year: "numeric" },
-                    )}
-                    {l.note ? ` · ${l.note}` : ""}
-                  </p>
+                  <div className="flex items-baseline gap-2 flex-wrap">
+                    <p className="text-sm font-semibold tabular-nums">
+                      {Number(l.weight_kg).toFixed(1)} kg
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(l.logged_on).toLocaleDateString(
+                        lang === "nl" ? "nl-NL" : "en-US",
+                        { day: "2-digit", month: "short", year: "numeric" },
+                      )}
+                    </p>
+                  </div>
+                  {l.note && (
+                    <p className="text-xs text-muted-foreground mt-0.5 break-words">
+                      {l.note}
+                    </p>
+                  )}
                 </div>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                  className="h-9 w-9 -mr-1 text-muted-foreground hover:text-destructive shrink-0"
                   onClick={() => remove(l.id)}
                   aria-label={L.delete}
                 >

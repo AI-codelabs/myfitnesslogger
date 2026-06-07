@@ -75,24 +75,24 @@ function StatCard({
     success: "from-emerald-500/15 to-emerald-500/5 text-emerald-600",
   };
   return (
-    <Card className="p-4 relative overflow-hidden">
+    <Card className="p-3 sm:p-4 relative overflow-hidden">
       <div
         className={`absolute -top-6 -right-6 w-20 h-20 rounded-full bg-gradient-to-br ${colorMap[color]} blur-xl opacity-60`}
       />
-      <div className="relative space-y-2">
-        <div className="flex items-center justify-between">
-          <p className="text-xs uppercase tracking-wide text-muted-foreground font-medium">
+      <div className="relative space-y-1.5">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-[10px] sm:text-xs uppercase tracking-wide text-muted-foreground font-medium truncate">
             {label}
           </p>
-          <Icon className={`h-4 w-4 ${colorMap[color].split(" ").pop()}`} />
+          <Icon className={`h-4 w-4 shrink-0 ${colorMap[color].split(" ").pop()}`} />
         </div>
         <div className="flex items-baseline gap-1.5">
-          <span className="text-2xl font-bold tabular-nums">{value}</span>
+          <span className="text-xl sm:text-2xl font-bold tabular-nums">{value}</span>
           {unit && <span className="text-xs text-muted-foreground">{unit}</span>}
         </div>
         {delta != null && (
           <div
-            className={`flex items-center gap-1 text-xs font-medium ${
+            className={`flex items-center gap-1 text-[11px] sm:text-xs font-medium ${
               delta < 0
                 ? "text-emerald-600"
                 : delta > 0
@@ -101,14 +101,17 @@ function StatCard({
             }`}
           >
             {delta < 0 ? (
-              <TrendingDown className="h-3 w-3" />
+              <TrendingDown className="h-3 w-3 shrink-0" />
             ) : delta > 0 ? (
-              <TrendingUp className="h-3 w-3" />
+              <TrendingUp className="h-3 w-3 shrink-0" />
             ) : (
-              <Minus className="h-3 w-3" />
+              <Minus className="h-3 w-3 shrink-0" />
             )}
-            {delta > 0 ? "+" : ""}
-            {delta.toFixed(1)} {unit ?? ""} sinds start
+            <span className="truncate">
+              {delta > 0 ? "+" : ""}
+              {delta.toFixed(1)} {unit ?? ""}
+              <span className="hidden sm:inline"> sinds start</span>
+            </span>
           </div>
         )}
       </div>
