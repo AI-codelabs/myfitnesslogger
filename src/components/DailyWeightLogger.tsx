@@ -152,10 +152,10 @@ export function DailyWeightLogger({ clientId, lang = "nl", onChange }: Props) {
           value={note}
           onChange={(e) => setNote(e.target.value)}
           placeholder={lang === "nl" ? "bv. na training" : "e.g. after workout"}
-          className="h-11"
+          className="h-12 text-base"
         />
       </div>
-      <Button onClick={save} disabled={saving} className="w-full h-11">
+      <Button onClick={save} disabled={saving} className="w-full h-12 text-base">
         {saving ? (
           <Loader2 className="h-4 w-4 animate-spin mr-2" />
         ) : (
