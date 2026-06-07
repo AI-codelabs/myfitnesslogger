@@ -532,10 +532,12 @@ const LogWorkout = () => {
                   href={activeExercise.exercise.video_url}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center gap-1.5 mt-2 text-xs font-medium text-primary hover:underline"
+                  className="group mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-secondary px-4 py-3 text-sm font-semibold text-secondary-foreground shadow-md shadow-secondary/30 transition-all hover:bg-secondary/90 hover:shadow-lg hover:shadow-secondary/40 active:scale-[0.98] sm:w-auto sm:py-2.5"
                 >
-                  <Video className="h-3.5 w-3.5" />
-                  {tx("Bekijk video", "Watch video")}
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/20 transition-transform group-hover:scale-110">
+                    <Video className="h-4 w-4" fill="currentColor" />
+                  </span>
+                  <span>{tx("Bekijk demonstratie video", "Watch demo video")}</span>
                 </a>
               )}
             </div>
