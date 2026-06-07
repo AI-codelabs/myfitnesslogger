@@ -100,8 +100,12 @@ export const NutritionWeeklyOverview = ({ lang, logs, targets }: Props) => {
     for (let i = 0; i < 7; i++) {
       const d = new Date(weekStart);
       d.setDate(weekStart.getDate() + i);
-      const key = d.toISOString().slice(0, 10);
-      arr.push({ date: d, key });
+      // Build key from LOCAL date components — using toISOString here would
+      // shift the date by one day in any TZ east of UTC (e.g. NL summer time).
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      arr.push({ date: d, key: `${y}-${m}-${day}` });
     }
     return arr;
   }, [weekStart]);
@@ -209,7 +213,9 @@ export const NutritionWeeklyOverview = ({ lang, logs, targets }: Props) => {
           {/* Day labels row */}
           <div className="grid grid-cols-7 gap-1 sm:gap-3 mt-2">
             {days.map(({ date, key }) => {
-              const isToday = key === new Date().toISOString().slice(0, 10);
+              const now = new Date();
+              const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+              const isToday = key === todayKey;
               return (
                 <div key={key} className="flex flex-col items-center min-w-0">
                   <p
