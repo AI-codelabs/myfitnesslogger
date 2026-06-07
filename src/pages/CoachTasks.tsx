@@ -18,7 +18,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
-import { formatWeekStart, formatHumanDate } from "@/lib/weeklyCheckin";
+import { formatHumanDate, getExpectedCheckinWeekStart } from "@/lib/weeklyCheckin";
 
 type Client = {
   user_id: string;
@@ -62,7 +62,7 @@ export default function CoachTasks() {
     voice_memo_recorded_at: string | null;
   }>>([]);
   const [loading, setLoading] = useState(true);
-  const weekStart = formatWeekStart();
+  const weekStart = getExpectedCheckinWeekStart();
 
   const load = async () => {
     if (!user) return;

@@ -69,13 +69,12 @@ export function getNlWeekday(d: Date = new Date()): number {
 }
 
 export function isCheckinWindowOpen(d: Date = new Date()): boolean {
-  // The latest fully completed Monday-Sunday week should always stay available
-  // until the client submits it.
+  // The active weekly check-in stays available once opened.
   return true;
 }
 
 export function getExpectedCheckinWeekStart(d: Date = new Date()): string {
-  return getPreviousWeekStart(d);
+  return getNlWeekday(d) === 0 ? formatWeekStart(d) : getPreviousWeekStart(d);
 }
 
 export function formatHumanDate(iso: string, lang: "nl" | "en"): string {
