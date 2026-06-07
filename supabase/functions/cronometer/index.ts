@@ -843,13 +843,26 @@ async function authedClient(req: Request) {
   }
 }
 
-function isServiceRoleRequest(req: Request) {
+async function isServiceRoleRequest(req: Request) {
   const authHeader = req.headers.get("Authorization");
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if (serviceRoleKey && authHeader === `Bearer ${serviceRoleKey}`) return true;
   const cronSecret = Deno.env.get("CRON_SECRET");
   const cronHeader = req.headers.get("x-cron-secret");
-  return !!cronSecret && !!cronHeader && cronHeader === cronSecret;
+  if (cronSecret && cronHeader && cronHeader === cronSecret) return true;
+  // Also accept the DB-managed internal cron token (used by pg_cron jobs).
+  if (cronHeader && serviceRoleKey) {
+    try {
+      const admin = createClient(Deno.env.get("SUPABASE_URL")!, serviceRoleKey);
+      const { data } = await admin
+        .from("internal_secrets")
+        .select("value")
+        .eq("name", "cron_token")
+        .maybeSingle();
+      if (data?.value && data.value === cronHeader) return true;
+    } catch (_) { /* fall through */ }
+  }
+  return false;
 }
 
 async function reapplyTodayTargetsForClient(
