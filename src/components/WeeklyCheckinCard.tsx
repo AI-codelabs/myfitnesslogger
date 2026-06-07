@@ -34,12 +34,13 @@ export function WeeklyCheckinCard({ lang }: { lang: "nl" | "en" }) {
   if (!loaded) return null;
 
   const windowOpen = isCheckinWindowOpen();
-  if (!submittedAt && !windowOpen) return null;
+  const submittedDuringWindow =
+    !!submittedAt && Date.now() - new Date(submittedAt).getTime() <= ONE_HOUR;
 
-  // If submitted, show "thanks" for 1 hour, then hide
-  if (submittedAt) {
-    const since = Date.now() - new Date(submittedAt).getTime();
-    if (since > ONE_HOUR) return null;
+  // Outside the Sun/Mon NL window: only show the brief "thanks" confirmation
+  // for an hour after submitting; otherwise hide.
+  if (!windowOpen) {
+    if (!submittedDuringWindow) return null;
     return (
       <Card className="p-4 sm:p-5 mb-4 border-emerald-500/20 bg-emerald-500/5 flex items-center gap-3">
         <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
@@ -59,6 +60,37 @@ export function WeeklyCheckinCard({ lang }: { lang: "nl" | "en" }) {
       </Card>
     );
   }
+
+  // Window is open. If they already submitted this week, offer an update path.
+  if (submittedAt) {
+    return (
+      <Card className="p-4 sm:p-5 mb-4 border-emerald-500/20 bg-emerald-500/5">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
+            <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold leading-tight">
+              {tx("Check-in van deze week ingevuld", "This week's check-in is in")}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {tx(
+                "Nog iets aan te vullen? Je kunt je antwoorden bijwerken.",
+                "Need to add something? You can still update your answers.",
+              )}
+            </p>
+          </div>
+          <Button asChild size="sm" variant="outline" className="shrink-0">
+            <Link to="/check-in">
+              {tx("Bijwerken", "Update")}
+              <ArrowRight className="h-4 w-4 ml-1.5" />
+            </Link>
+          </Button>
+        </div>
+      </Card>
+    );
+  }
+
 
   return (
     <Card className="p-4 sm:p-5 mb-4 border-primary/20 bg-gradient-to-br from-primary/10 via-primary/5 to-background">
