@@ -853,7 +853,7 @@ function isServiceRoleRequest(req: Request) {
 }
 
 async function reapplyTodayTargetsForClient(
-  admin: ReturnType<typeof createClient>,
+  admin: any,
   clientId: string,
 ) {
   const { data: session, error: sessionError } = await admin
