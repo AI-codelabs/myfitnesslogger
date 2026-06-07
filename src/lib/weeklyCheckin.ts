@@ -17,12 +17,23 @@ export function formatWeekStart(d: Date = new Date()): string {
   return `${y}-${m}-${day}`;
 }
 
+export function getNlWeekday(d: Date = new Date()): number {
+  // 0 = Sunday ... 6 = Saturday, computed in Europe/Amsterdam time
+  const s = d.toLocaleString("en-US", {
+    timeZone: "Europe/Amsterdam",
+    weekday: "short",
+  });
+  const map: Record<string, number> = {
+    Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6,
+  };
+  return map[s.slice(0, 3)] ?? d.getDay();
+}
+
 export function isCheckinWindowOpen(d: Date = new Date()): boolean {
-  // "From Sunday until done" — show prompt from Sunday 00:00 onwards of the current week.
-  // We treat the week as starting Monday; the "Sunday until done" applies to the week
-  // that just ended. So show the prompt if today is Sunday or later (i.e. always once the
-  // week's Sunday has arrived) until they submit a check-in for that week.
-  return d.getDay() === 0 || d.getDay() === 1; // Sun or Mon — keep visible into Monday for late submitters
+  // Window opens Sunday 00:00 Europe/Amsterdam and stays open through Monday
+  // (so late submitters can still fill it in on Monday).
+  const wd = getNlWeekday(d);
+  return wd === 0 || wd === 1;
 }
 
 export function formatHumanDate(iso: string, lang: "nl" | "en"): string {

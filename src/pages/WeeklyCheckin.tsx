@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Loader2, ArrowLeft, Star, Check, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
-import { formatWeekStart } from "@/lib/weeklyCheckin";
+import { formatWeekStart, isCheckinWindowOpen } from "@/lib/weeklyCheckin";
 import { CronometerConnectDialog } from "@/components/CronometerConnectDialog";
 import { syncCronometer } from "@/lib/cronometer";
 
@@ -180,6 +180,7 @@ export default function WeeklyCheckin() {
   const [cronoDialogOpen, setCronoDialogOpen] = useState(false);
   const [cronoSyncing, setCronoSyncing] = useState(false);
   const [cronoSynced, setCronoSynced] = useState(false);
+  const [hasExisting, setHasExisting] = useState(false);
 
   const handleCronoSync = async () => {
     if (!cronoConnected) {
@@ -232,6 +233,7 @@ export default function WeeklyCheckin() {
         .eq("week_start", weekStart)
         .maybeSingle();
       if (data) {
+        setHasExisting(true);
         setForm({
           training_count: data.training_count ?? "",
           training_count_other: data.training_count_other ?? "",
@@ -331,6 +333,29 @@ export default function WeeklyCheckin() {
       </div>
     );
   }
+
+  if (!isCheckinWindowOpen() && !hasExisting) {
+    return (
+      <div className="container mx-auto px-3 py-6 sm:p-6 max-w-2xl">
+        <button
+          onClick={() => navigate("/")}
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-4"
+        >
+          <ArrowLeft className="h-4 w-4" /> Terug
+        </button>
+        <div className="rounded-xl border bg-card p-6 sm:p-8 text-center">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight mb-2">
+            Check-in nog niet open
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Je wekelijkse check-in gaat elke zondag om 00:00 (NL-tijd) open.
+            Kom dan terug om je week af te ronden 💪
+          </p>
+        </div>
+      </div>
+    );
+  }
+
 
   return (
     <div className="container mx-auto px-3 py-4 sm:p-6 max-w-2xl">
