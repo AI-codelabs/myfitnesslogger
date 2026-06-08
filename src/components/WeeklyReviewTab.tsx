@@ -193,11 +193,10 @@ export function WeeklyReviewTab({ clientId, coachId, lang }: Props) {
       });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
-      setVoice(data.voice_memo ?? "");
-      setPositive(data.client_positive ?? []);
-      setAttention(data.client_attention ?? []);
-      setActions(data.client_actions ?? []);
-      setAdjustments({
+      const nextPositive = data.client_positive ?? [];
+      const nextAttention = data.client_attention ?? [];
+      const nextActions = data.client_actions ?? [];
+      const nextAdjustments = {
         nutrition: {
           calories_delta: data.suggested_adjustments?.nutrition?.calories_delta ?? 0,
           protein_delta: data.suggested_adjustments?.nutrition?.protein_delta ?? 0,
@@ -206,11 +205,22 @@ export function WeeklyReviewTab({ clientId, coachId, lang }: Props) {
           rationale: data.suggested_adjustments?.nutrition?.rationale ?? "",
         },
         training: data.suggested_adjustments?.training ?? [],
-      });
-      // persist insights immediately so coach sees them even before saving
+      };
+      setVoice(data.voice_memo ?? "");
+      setPositive(nextPositive);
+      setAttention(nextAttention);
+      setActions(nextActions);
+      setAdjustments(nextAdjustments);
+      // Persist ALL generated content immediately so the coach never loses it
+      // when navigating away before manually saving.
       await supabase
         .from("weekly_review_drafts")
         .update({
+          voice_memo: data.voice_memo ?? "",
+          client_positive: nextPositive,
+          client_attention: nextAttention,
+          client_actions: nextActions,
+          suggested_adjustments: nextAdjustments,
           insights: data.insights ?? {},
           generated_at: new Date().toISOString(),
         })
