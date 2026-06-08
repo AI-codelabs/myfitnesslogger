@@ -340,11 +340,13 @@ Deno.serve(async (req) => {
     const insights: Insights = {
       week_start: weekStart || latestCheckin?.week_start || ymd(today),
       workouts: {
-        sessions_completed: recentSessions.length,
+        sessions_completed: sessionsCompleted,
+        sessions_partial: sessionsPartial,
+        sessions_not_completed: sessionsNot,
         sessions_planned: Number(planned) || 0,
         adherence_pct:
           planned > 0
-            ? Math.round((recentSessions.length / Number(planned)) * 100)
+            ? Math.round((sessionsCountedTowardAdherence / Number(planned)) * 100)
             : 0,
       },
       progression: {
