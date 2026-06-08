@@ -362,9 +362,9 @@ const ClientTraining = () => {
             {occurrences.map((occ) => {
               const days = planDays[occ.planId] ?? [];
               const dayForToday =
-                days.length > 0
+                days.length > 0 && occ.occurrenceIndex
                   ? days[(occ.occurrenceIndex - 1) % days.length]
-                  : null;
+                  : days[0] ?? null;
               const exCount = dayForToday?.exercises.length ?? 0;
               const muscleGroups = Array.from(
                 new Set(
@@ -376,7 +376,7 @@ const ClientTraining = () => {
               const isCompleted = isOccurrenceCompleted(occ.planId, dayForToday?.id, dateKey);
               return (
                 <div
-                  key={occ.assignmentId}
+                  key={occ.key}
                   className={cn(
                     "rounded-2xl border bg-card overflow-hidden shadow-sm",
                     isCompleted && "border-l-success border-l-4"
@@ -391,7 +391,7 @@ const ClientTraining = () => {
                         <Dumbbell className={cn("h-5 w-5", isCompleted ? "text-success" : "text-primary")} />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <h4 className="font-semibold text-base leading-tight truncate">
                             {dayForToday?.name || occ.planName || tx("Training", "Workout")}
                           </h4>
@@ -401,12 +401,33 @@ const ClientTraining = () => {
                               {tx("Voltooid", "Completed")}
                             </Badge>
                           )}
+                          {occ.origin === "moved" && (
+                            <Badge variant="outline" className="text-[10px] gap-1">
+                              <ArrowRightLeft className="h-3 w-3" />
+                              {tx("Verplaatst", "Moved")}
+                            </Badge>
+                          )}
+                          {occ.origin === "copied" && (
+                            <Badge variant="outline" className="text-[10px] gap-1">
+                              <CopyIcon className="h-3 w-3" />
+                              {tx("Kopie", "Copy")}
+                            </Badge>
+                          )}
                         </div>
                         <p className="text-xs text-muted-foreground mt-0.5 truncate">
                           {occ.planName}
                         </p>
                       </div>
+                      {user?.id && (
+                        <WorkoutInstanceActions
+                          occurrence={occ}
+                          clientId={user.id}
+                          lang={lang}
+                          onChanged={refresh}
+                        />
+                      )}
                     </div>
+
 
                     {dayForToday && exCount > 0 && (
                       <div className="flex items-center gap-4 text-xs">
