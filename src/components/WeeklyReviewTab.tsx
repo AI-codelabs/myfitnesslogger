@@ -199,7 +199,7 @@ export function WeeklyReviewTab({ clientId, coachId, lang }: Props) {
           client_positive: positive.filter((s) => s.trim()),
           client_attention: attention.filter((s) => s.trim()),
           client_actions: actions.filter((s) => s.trim()),
-          suggested_adjustments: adjustments,
+          suggested_adjustments: adjustments as unknown as Record<string, unknown>,
         })
         .eq("id", selected.id);
       if (!error) setAutoSavedAt(new Date().toISOString());
