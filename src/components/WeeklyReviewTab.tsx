@@ -412,6 +412,12 @@ export function WeeklyReviewTab({ clientId, coachId, lang }: Props) {
                     {new Date(selected.generated_at).toLocaleString()}
                   </span>
                 )}
+                {autoSavedAt && (
+                  <span className="text-emerald-600 dark:text-emerald-400">
+                    · {tx(lang, "automatisch opgeslagen", "auto-saved")}{" "}
+                    {new Date(autoSavedAt).toLocaleTimeString()}
+                  </span>
+                )}
                 {selected.published_at ? (
                   <Badge variant="secondary">{tx(lang, "Gepubliceerd", "Published")}</Badge>
                 ) : selected.generated_at ? (
