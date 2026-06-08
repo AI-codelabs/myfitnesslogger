@@ -192,15 +192,16 @@ export function WeeklyReviewTab({ clientId, coachId, lang }: Props) {
     if (!selected || !selected.generated_at) return;
     // Skip if nothing has been loaded into editor yet
     const handle = setTimeout(async () => {
+      const payload: any = {
+        voice_memo: voice,
+        client_positive: positive.filter((s) => s.trim()),
+        client_attention: attention.filter((s) => s.trim()),
+        client_actions: actions.filter((s) => s.trim()),
+        suggested_adjustments: adjustments,
+      };
       const { error } = await supabase
         .from("weekly_review_drafts")
-        .update({
-          voice_memo: voice,
-          client_positive: positive.filter((s) => s.trim()),
-          client_attention: attention.filter((s) => s.trim()),
-          client_actions: actions.filter((s) => s.trim()),
-          suggested_adjustments: adjustments as unknown as Record<string, unknown>,
-        })
+        .update(payload)
         .eq("id", selected.id);
       if (!error) setAutoSavedAt(new Date().toISOString());
     }, 1200);
