@@ -14,43 +14,52 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-const SYSTEM_PROMPT = `Je bent een high-level online fitness coach. Je schrijft een wekelijkse review voor een klant op basis van:
+const SYSTEM_PROMPT = `Je bent een ervaren, persoonlijke online fitness coach. Je schrijft een wekelijkse review voor een klant op basis van:
 1) hun zelf-ingevulde wekelijkse check-in
-2) objectieve trainingsdata (gedane vs geplande sessies, progressie in gewicht/reps)
-3) objectieve voedingsdata (kcal en macro's vs hun target)
+2) objectieve trainingsdata (volledig én gedeeltelijk afgemaakte sessies, progressie in gewicht/reps)
+3) objectieve voedingsdata — alleen de dagen die de klant écht gelogd heeft (NOOIT delen door 7 als er minder dagen gelogd zijn)
 4) het oorspronkelijke intakeformulier en huidige plan
 
-Je output bestaat uit DRIE delen:
+JOUW TOON:
+- Coachend en menselijk, niet robotachtig of veroordelend.
+- Ondersteunend maar eerlijk. Daag de klant uit waar nodig, zonder belerend te worden.
+- Benoem patronen helder en geef praktische volgende stappen.
+- Voorbeeld — NIET: "Je hebt je vet-target overschreden." WEL: "Je vetinname lag deze week structureel boven target. Dat hoeft niet meteen een probleem te zijn, maar het is goed om te kijken waar die extra vetten vandaan komen zodat we op koers blijven richting je doel."
 
-1. SPRAAKMEMO (coachend, direct, persoonlijk, voor de coach om voor te lezen via WhatsApp)
-- Lange lopende tekst, GEEN bulletpoints, GEEN kopjes, GEEN emoji.
-- Begin met een directe terugblik op de week.
-- Verwijs CONCREET naar cijfers: hoeveel sessies, gemiddelde kcal, eiwit %, gewichtsverandering, RPE.
-- Benoem wat opvalt (positief én negatief) en leg uit waarom je een aanpassing voorstelt.
-- Eindig met de concrete actie voor komende week.
+KWALITEIT VAN DATA (CRUCIAAL):
+- Gebruik ALLEEN de cijfers die in de input staan. Verzin nooit waardes.
+- Voor voedingsgemiddelden: gebruik exact de "avg_*" velden. Die zijn al berekend over alleen de gelogde dagen. Deel die NOOIT opnieuw door 7.
+- Voor workouts: er zijn drie statussen — volledig afgemaakt (alle oefeningen gelogd), gedeeltelijk afgemaakt (50%+ oefeningen gelogd) en niet afgemaakt (<50%). Behandel gedeeltelijk afgemaakte sessies als "grotendeels gedaan" — geen reden om de klant af te branden als 7/8 oefeningen zijn gelogd.
+- Als data ontbreekt (bv. weinig dagen gelogd), benoem dat eerlijk en pas je advies aan.
+
+JE OUTPUT BESTAAT UIT DRIE DELEN:
+
+1. SPRAAKMEMO (coachend, persoonlijk, voor de coach om voor te lezen via WhatsApp)
+- Lopende tekst, GEEN bulletpoints, GEEN kopjes, GEEN emoji.
+- Begin met een warme maar directe terugblik op de week.
+- Verwijs CONCREET naar cijfers: aantal volledige + gedeeltelijke sessies, gemiddelde kcal over X gelogde dagen, eiwit %, gewichtsverandering, RPE.
+- Eindig met de concrete actie voor komende week — en SOMS (niet altijd) met een coachende reflectievraag, bv. "Wat denk je dat de hogere kcal-inname dit weekend veroorzaakte?" of "Wat zou je komende week graag willen verbeteren?".
 
 2. KLANT BULLETPOINTS (zichtbaar op het dashboard)
-- positive: 2-4 punten over wat goed ging deze week (data-onderbouwd)
-- attention: 2-4 punten waar de klant op moet letten
-- actions: 3-5 concrete actiepunten voor de komende week
+- positive: 2-4 punten over wat goed ging (data-onderbouwd, supportive toon)
+- attention: 2-4 punten — formuleer als "iets om naar te kijken", niet als verwijt
+- actions: 3-5 concrete actiepunten. Bij ongeveer één op de drie reviews mag het laatste action-item een open coachende vraag zijn.
 
-3. SUGGESTED_ADJUSTMENTS (structureel, voor de coach om snel te kunnen toepassen)
-- nutrition: deltas t.o.v. huidig plan (calories_delta, protein_delta, carbs_delta, fat_delta) + rationale.
-  - Gebruik 0 als er geen aanpassing nodig is.
-  - Wees realistisch: meestal +/- 100-300 kcal of +/- 10-30g per macro, zelden meer.
-- training: array van concrete suggesties per dag of per oefening (beknopt, max 4 items).
+3. SUGGESTED_ADJUSTMENTS (voor de coach)
+- nutrition: deltas t.o.v. huidig plan + rationale. 0 = geen aanpassing. Realistisch: meestal +/- 100-300 kcal of +/- 10-30g.
+- training: max 4 concrete items per dag of oefening.
 
 REGELS:
 - Schrijf ALLES in het Nederlands.
 - Altijd data-gedreven: noem concrete waardes uit de input.
-- Wees scherp en eerlijk; geen wollig taalgebruik.
-- Geen herhaling tussen de drie outputs — bullets vatten samen, adjustments zijn de feitelijke aanpassingen.
-- Als data ontbreekt (bv. geen kcal logs), benoem dat en pas het advies aan.`;
+- Geen herhaling tussen de drie outputs.`;
 
 interface Insights {
   week_start: string;
   workouts: {
     sessions_completed: number;
+    sessions_partial: number;
+    sessions_not_completed: number;
     sessions_planned: number;
     adherence_pct: number;
   };
@@ -230,15 +239,47 @@ Deno.serve(async (req) => {
     // workouts in last 7 days vs planned per week (use first active assignment)
     const sevenDaysAgo = new Date(today);
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const recentSessions = (sessions as any[]).filter(
-      (s) => new Date(s.started_at) >= sevenDaysAgo && s.completed_at,
-    );
     const firstAssign = Array.isArray(assignments) ? assignments[0] : null;
     const planned =
       firstAssign?.days?.length ??
       firstAssign?.plan?.frequency_per_week ??
       intake?.train_freq_target ??
       0;
+
+    // Map plan day_id -> expected exercise count, for partial-completion logic
+    const expectedExByDay: Record<string, number> = {};
+    if (firstAssign?.plan?.workout_plan_days) {
+      for (const day of firstAssign.plan.workout_plan_days) {
+        expectedExByDay[day.id] = (day.workout_plan_exercises ?? []).length;
+      }
+    }
+
+    // Classify each recent session: complete (100%), partial (>=50%), not (<50%)
+    const recentSessionsAll = (sessions as any[]).filter(
+      (s) => new Date(s.started_at) >= sevenDaysAgo,
+    );
+    let sessionsCompleted = 0;
+    let sessionsPartial = 0;
+    let sessionsNot = 0;
+    for (const s of recentSessionsAll) {
+      const expected = expectedExByDay[s.day_id] ?? 0;
+      const logged = new Set(
+        (s.workout_set_logs ?? [])
+          .map((l: any) => l.plan_exercise_id)
+          .filter(Boolean),
+      ).size;
+      if (expected <= 0) {
+        // fall back: treat any session with completed_at as fully completed
+        if (s.completed_at) sessionsCompleted++;
+        else if (logged > 0) sessionsPartial++;
+        continue;
+      }
+      const ratio = logged / expected;
+      if (ratio >= 0.999) sessionsCompleted++;
+      else if (ratio >= 0.5) sessionsPartial++;
+      else if (logged > 0) sessionsNot++;
+    }
+    const sessionsCountedTowardAdherence = sessionsCompleted + sessionsPartial;
 
     // progression: per plan_exercise_id compare best set this week vs previous week
     const setsByEx: Record<string, Array<{ when: Date; weight: number; reps: number }>> = {};
@@ -299,11 +340,13 @@ Deno.serve(async (req) => {
     const insights: Insights = {
       week_start: weekStart || latestCheckin?.week_start || ymd(today),
       workouts: {
-        sessions_completed: recentSessions.length,
+        sessions_completed: sessionsCompleted,
+        sessions_partial: sessionsPartial,
+        sessions_not_completed: sessionsNot,
         sessions_planned: Number(planned) || 0,
         adherence_pct:
           planned > 0
-            ? Math.round((recentSessions.length / Number(planned)) * 100)
+            ? Math.round((sessionsCountedTowardAdherence / Number(planned)) * 100)
             : 0,
       },
       progression: {
@@ -434,23 +477,32 @@ Deno.serve(async (req) => {
 
     parts.push("\n=== OBJECTIEVE TRAININGSDATA (laatste 7 dagen) ===");
     parts.push(
-      `Voltooide sessies: ${insights.workouts.sessions_completed} / gepland ${insights.workouts.sessions_planned} (${insights.workouts.adherence_pct}%)`,
+      `Volledig afgemaakte sessies: ${insights.workouts.sessions_completed}`,
+    );
+    parts.push(
+      `Gedeeltelijk afgemaakte sessies (50%+ oefeningen gelogd, beschouw als grotendeels gedaan): ${insights.workouts.sessions_partial}`,
+    );
+    parts.push(
+      `Niet afgemaakte sessies (<50% gelogd): ${insights.workouts.sessions_not_completed}`,
+    );
+    parts.push(
+      `Geplande sessies per week: ${insights.workouts.sessions_planned}. Adherence (volledig + gedeeltelijk): ${insights.workouts.adherence_pct}%.`,
     );
     parts.push(
       `Progressie: ${improved} oefeningen verbeterd, ${regressed} achteruit. Top: ${notableTop.map((n) => `${n.name} (${n.change})`).join("; ") || "geen significant"}`,
     );
 
-    parts.push("\n=== OBJECTIEVE VOEDINGSDATA (gemiddelde laatste 7 logged dagen) ===");
+    parts.push("\n=== OBJECTIEVE VOEDINGSDATA ===");
     if (recentLogs.length === 0) {
-      parts.push("Geen voedingslogs (Cronometer niet gesynchroniseerd of klant logt niet).");
+      parts.push("Geen voedingslogs deze periode (Cronometer niet gesynchroniseerd of klant logt niet).");
     } else {
       parts.push(
         [
-          `Dagen gelogd: ${recentLogs.length}/7`,
-          `Calorieën: ${avgCals} kcal (target ${targetCals ?? "?"}, ${insights.nutrition.calorie_adherence_pct ?? "?"}%)`,
-          `Eiwit: ${avgProtein} g (target ${targetProtein ?? "?"}, ${insights.nutrition.protein_adherence_pct ?? "?"}%)`,
-          `Koolhydraten: ${avgCarbs} g (target ${targetCarbs ?? "?"})`,
-          `Vet: ${avgFat} g (target ${targetFat ?? "?"})`,
+          `Dagen daadwerkelijk gelogd: ${recentLogs.length} (gemiddelden hieronder zijn berekend over deze ${recentLogs.length} dag(en), NIET over 7).`,
+          `Gemiddelde calorieën: ${avgCals} kcal (target ${targetCals ?? "?"}, ${insights.nutrition.calorie_adherence_pct ?? "?"}%)`,
+          `Gemiddeld eiwit: ${avgProtein} g (target ${targetProtein ?? "?"}, ${insights.nutrition.protein_adherence_pct ?? "?"}%)`,
+          `Gemiddelde koolhydraten: ${avgCarbs} g (target ${targetCarbs ?? "?"})`,
+          `Gemiddeld vet: ${avgFat} g (target ${targetFat ?? "?"})`,
         ].join("\n"),
       );
     }

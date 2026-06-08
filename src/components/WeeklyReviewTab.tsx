@@ -62,7 +62,7 @@ interface SuggestedAdjustments {
 
 interface Insights {
   week_start?: string;
-  workouts?: { sessions_completed: number; sessions_planned: number; adherence_pct: number };
+  workouts?: { sessions_completed: number; sessions_partial?: number; sessions_not_completed?: number; sessions_planned: number; adherence_pct: number };
   progression?: {
     exercises_improved: number;
     exercises_regressed: number;
@@ -184,6 +184,32 @@ export function WeeklyReviewTab({ clientId, coachId, lang }: Props) {
     });
   }, [selected?.id]);
 
+  // Auto-save edits (debounced) so coach work survives navigation.
+  // Only saves drafts that have already been generated at least once,
+  // to avoid creating empty drafts.
+  const [autoSavedAt, setAutoSavedAt] = useState<string | null>(null);
+  useEffect(() => {
+    if (!selected || !selected.generated_at) return;
+    // Skip if nothing has been loaded into editor yet
+    const handle = setTimeout(async () => {
+      const payload: any = {
+        voice_memo: voice,
+        client_positive: positive.filter((s) => s.trim()),
+        client_attention: attention.filter((s) => s.trim()),
+        client_actions: actions.filter((s) => s.trim()),
+        suggested_adjustments: adjustments,
+      };
+      const { error } = await supabase
+        .from("weekly_review_drafts")
+        .update(payload)
+        .eq("id", selected.id);
+      if (!error) setAutoSavedAt(new Date().toISOString());
+    }, 1200);
+    return () => clearTimeout(handle);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [voice, positive, attention, actions, adjustments, selected?.id]);
+
+
   const generate = async () => {
     if (!selected) return;
     setGenerating(true);
@@ -193,11 +219,10 @@ export function WeeklyReviewTab({ clientId, coachId, lang }: Props) {
       });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
-      setVoice(data.voice_memo ?? "");
-      setPositive(data.client_positive ?? []);
-      setAttention(data.client_attention ?? []);
-      setActions(data.client_actions ?? []);
-      setAdjustments({
+      const nextPositive = data.client_positive ?? [];
+      const nextAttention = data.client_attention ?? [];
+      const nextActions = data.client_actions ?? [];
+      const nextAdjustments = {
         nutrition: {
           calories_delta: data.suggested_adjustments?.nutrition?.calories_delta ?? 0,
           protein_delta: data.suggested_adjustments?.nutrition?.protein_delta ?? 0,
@@ -206,14 +231,26 @@ export function WeeklyReviewTab({ clientId, coachId, lang }: Props) {
           rationale: data.suggested_adjustments?.nutrition?.rationale ?? "",
         },
         training: data.suggested_adjustments?.training ?? [],
-      });
-      // persist insights immediately so coach sees them even before saving
+      };
+      setVoice(data.voice_memo ?? "");
+      setPositive(nextPositive);
+      setAttention(nextAttention);
+      setActions(nextActions);
+      setAdjustments(nextAdjustments);
+      // Persist ALL generated content immediately so the coach never loses it
+      // when navigating away before manually saving.
+      const persistPayload: any = {
+        voice_memo: data.voice_memo ?? "",
+        client_positive: nextPositive,
+        client_attention: nextAttention,
+        client_actions: nextActions,
+        suggested_adjustments: nextAdjustments,
+        insights: data.insights ?? {},
+        generated_at: new Date().toISOString(),
+      };
       await supabase
         .from("weekly_review_drafts")
-        .update({
-          insights: data.insights ?? {},
-          generated_at: new Date().toISOString(),
-        })
+        .update(persistPayload)
         .eq("id", selected.id);
       toast.success(tx(lang, "Review gegenereerd", "Review generated"));
       loadDrafts();
@@ -373,6 +410,12 @@ export function WeeklyReviewTab({ clientId, coachId, lang }: Props) {
                   <span>
                     · {tx(lang, "gegenereerd", "generated")}{" "}
                     {new Date(selected.generated_at).toLocaleString()}
+                  </span>
+                )}
+                {autoSavedAt && (
+                  <span className="text-emerald-600 dark:text-emerald-400">
+                    · {tx(lang, "automatisch opgeslagen", "auto-saved")}{" "}
+                    {new Date(autoSavedAt).toLocaleTimeString()}
                   </span>
                 )}
                 {selected.published_at ? (
@@ -730,7 +773,11 @@ function InsightsPanel({ insights, lang }: { insights: Insights; lang: Lang }) {
             icon={Dumbbell}
             label={tx(lang, "Trainingen", "Workouts")}
             value={`${w.sessions_completed}/${w.sessions_planned}`}
-            sub={`${w.adherence_pct}% ${tx(lang, "adherence", "adherence")}`}
+            sub={`${w.adherence_pct}% ${tx(lang, "adherence", "adherence")}${
+              (w.sessions_partial ?? 0) > 0
+                ? ` · ${w.sessions_partial} ${tx(lang, "deels", "partial")}`
+                : ""
+            }`}
             tone={w.adherence_pct >= 80 ? "good" : w.adherence_pct >= 50 ? "warn" : "bad"}
           />
         )}
@@ -741,8 +788,8 @@ function InsightsPanel({ insights, lang }: { insights: Insights; lang: Lang }) {
             value={`${Math.round(n.avg_calories)} kcal`}
             sub={
               n.calorie_adherence_pct != null
-                ? `${n.calorie_adherence_pct}% ${tx(lang, "van target", "of target")} · ${n.days_logged}/7 ${tx(lang, "dagen", "days")}`
-                : `${n.days_logged}/7 ${tx(lang, "dagen gelogd", "days logged")}`
+                ? `${n.calorie_adherence_pct}% ${tx(lang, "van target", "of target")} · ${n.days_logged} ${tx(lang, "dag(en) gelogd", "day(s) logged")}`
+                : `${n.days_logged} ${tx(lang, "dag(en) gelogd", "day(s) logged")}`
             }
             tone={
               n.calorie_adherence_pct == null
