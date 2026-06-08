@@ -745,8 +745,8 @@ function InsightsPanel({ insights, lang }: { insights: Insights; lang: Lang }) {
             value={`${Math.round(n.avg_calories)} kcal`}
             sub={
               n.calorie_adherence_pct != null
-                ? `${n.calorie_adherence_pct}% ${tx(lang, "van target", "of target")} · ${n.days_logged}/7 ${tx(lang, "dagen", "days")}`
-                : `${n.days_logged}/7 ${tx(lang, "dagen gelogd", "days logged")}`
+                ? `${n.calorie_adherence_pct}% ${tx(lang, "van target", "of target")} · ${n.days_logged} ${tx(lang, "dag(en) gelogd", "day(s) logged")}`
+                : `${n.days_logged} ${tx(lang, "dag(en) gelogd", "day(s) logged")}`
             }
             tone={
               n.calorie_adherence_pct == null
