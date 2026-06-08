@@ -184,6 +184,31 @@ export function WeeklyReviewTab({ clientId, coachId, lang }: Props) {
     });
   }, [selected?.id]);
 
+  // Auto-save edits (debounced) so coach work survives navigation.
+  // Only saves drafts that have already been generated at least once,
+  // to avoid creating empty drafts.
+  const [autoSavedAt, setAutoSavedAt] = useState<string | null>(null);
+  useEffect(() => {
+    if (!selected || !selected.generated_at) return;
+    // Skip if nothing has been loaded into editor yet
+    const handle = setTimeout(async () => {
+      const { error } = await supabase
+        .from("weekly_review_drafts")
+        .update({
+          voice_memo: voice,
+          client_positive: positive.filter((s) => s.trim()),
+          client_attention: attention.filter((s) => s.trim()),
+          client_actions: actions.filter((s) => s.trim()),
+          suggested_adjustments: adjustments,
+        })
+        .eq("id", selected.id);
+      if (!error) setAutoSavedAt(new Date().toISOString());
+    }, 1200);
+    return () => clearTimeout(handle);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [voice, positive, attention, actions, adjustments, selected?.id]);
+
+
   const generate = async () => {
     if (!selected) return;
     setGenerating(true);
