@@ -239,15 +239,47 @@ Deno.serve(async (req) => {
     // workouts in last 7 days vs planned per week (use first active assignment)
     const sevenDaysAgo = new Date(today);
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const recentSessions = (sessions as any[]).filter(
-      (s) => new Date(s.started_at) >= sevenDaysAgo && s.completed_at,
-    );
     const firstAssign = Array.isArray(assignments) ? assignments[0] : null;
     const planned =
       firstAssign?.days?.length ??
       firstAssign?.plan?.frequency_per_week ??
       intake?.train_freq_target ??
       0;
+
+    // Map plan day_id -> expected exercise count, for partial-completion logic
+    const expectedExByDay: Record<string, number> = {};
+    if (firstAssign?.plan?.workout_plan_days) {
+      for (const day of firstAssign.plan.workout_plan_days) {
+        expectedExByDay[day.id] = (day.workout_plan_exercises ?? []).length;
+      }
+    }
+
+    // Classify each recent session: complete (100%), partial (>=50%), not (<50%)
+    const recentSessionsAll = (sessions as any[]).filter(
+      (s) => new Date(s.started_at) >= sevenDaysAgo,
+    );
+    let sessionsCompleted = 0;
+    let sessionsPartial = 0;
+    let sessionsNot = 0;
+    for (const s of recentSessionsAll) {
+      const expected = expectedExByDay[s.day_id] ?? 0;
+      const logged = new Set(
+        (s.workout_set_logs ?? [])
+          .map((l: any) => l.plan_exercise_id)
+          .filter(Boolean),
+      ).size;
+      if (expected <= 0) {
+        // fall back: treat any session with completed_at as fully completed
+        if (s.completed_at) sessionsCompleted++;
+        else if (logged > 0) sessionsPartial++;
+        continue;
+      }
+      const ratio = logged / expected;
+      if (ratio >= 0.999) sessionsCompleted++;
+      else if (ratio >= 0.5) sessionsPartial++;
+      else if (logged > 0) sessionsNot++;
+    }
+    const sessionsCountedTowardAdherence = sessionsCompleted + sessionsPartial;
 
     // progression: per plan_exercise_id compare best set this week vs previous week
     const setsByEx: Record<string, Array<{ when: Date; weight: number; reps: number }>> = {};
