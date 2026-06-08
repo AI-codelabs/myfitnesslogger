@@ -62,7 +62,7 @@ interface SuggestedAdjustments {
 
 interface Insights {
   week_start?: string;
-  workouts?: { sessions_completed: number; sessions_planned: number; adherence_pct: number };
+  workouts?: { sessions_completed: number; sessions_partial?: number; sessions_not_completed?: number; sessions_planned: number; adherence_pct: number };
   progression?: {
     exercises_improved: number;
     exercises_regressed: number;
