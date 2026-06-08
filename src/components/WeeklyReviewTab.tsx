@@ -239,17 +239,18 @@ export function WeeklyReviewTab({ clientId, coachId, lang }: Props) {
       setAdjustments(nextAdjustments);
       // Persist ALL generated content immediately so the coach never loses it
       // when navigating away before manually saving.
+      const persistPayload: any = {
+        voice_memo: data.voice_memo ?? "",
+        client_positive: nextPositive,
+        client_attention: nextAttention,
+        client_actions: nextActions,
+        suggested_adjustments: nextAdjustments,
+        insights: data.insights ?? {},
+        generated_at: new Date().toISOString(),
+      };
       await supabase
         .from("weekly_review_drafts")
-        .update({
-          voice_memo: data.voice_memo ?? "",
-          client_positive: nextPositive,
-          client_attention: nextAttention,
-          client_actions: nextActions,
-          suggested_adjustments: nextAdjustments,
-          insights: data.insights ?? {},
-          generated_at: new Date().toISOString(),
-        })
+        .update(persistPayload)
         .eq("id", selected.id);
       toast.success(tx(lang, "Review gegenereerd", "Review generated"));
       loadDrafts();
