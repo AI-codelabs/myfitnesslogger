@@ -84,20 +84,37 @@ const ClientTraining = () => {
   const [planDays, setPlanDays] = useState<Record<string, DayWithExercises[]>>({});
   const [currentDate, setCurrentDate] = useState<Date>(startOfDay(new Date()));
   const [completedSessions, setCompletedSessions] = useState<Set<string>>(new Set());
+  const [overrides, setOverrides] = useState<OverrideLike[]>([]);
+  const [refreshTick, setRefreshTick] = useState(0);
+  const refresh = useCallback(() => setRefreshTick((n) => n + 1), []);
 
   useEffect(() => {
     if (!user?.id) return;
     (async () => {
       setLoading(true);
-      const { data: a } = await supabase
-        .from("client_workout_assignments")
-        .select("id, plan_id, is_active, start_date, weeks, days")
-        .eq("client_id", user.id);
+      const [{ data: a }, { data: ovs }] = await Promise.all([
+        supabase
+          .from("client_workout_assignments")
+          .select("id, plan_id, is_active, start_date, weeks, days")
+          .eq("client_id", user.id),
+        supabase
+          .from("workout_schedule_overrides")
+          .select(
+            "id, client_id, assignment_id, plan_id, action, original_date, scheduled_date, occurrence_index, source_override_id",
+          )
+          .eq("client_id", user.id),
+      ]);
 
       const assigns = (a ?? []) as Assignment[];
       setAssignments(assigns);
+      setOverrides((ovs as OverrideLike[]) ?? []);
 
-      const planIds = Array.from(new Set(assigns.map((x) => x.plan_id)));
+      const planIds = Array.from(
+        new Set([
+          ...assigns.map((x) => x.plan_id),
+          ...((ovs ?? []).map((o: any) => o.plan_id) as string[]),
+        ]),
+      );
       if (planIds.length === 0) {
         setPlans([]);
         setPlanDays({});
@@ -156,47 +173,18 @@ const ClientTraining = () => {
 
       setLoading(false);
     })();
-  }, [user?.id]);
+  }, [user?.id, refreshTick]);
 
-  // Build map: dateKey -> ScheduledOccurrence[]
+  // Build map: dateKey -> ComputedOccurrence[] (planned + overrides)
   const planned = useMemo(() => {
-    const map = new Map<string, ScheduledOccurrence[]>();
     const planName = (id: string) => plans.find((p) => p.id === id)?.name ?? "";
-    for (const a of assignments) {
-      if (
-        !a.is_active ||
-        !a.start_date ||
-        !a.weeks ||
-        !a.days ||
-        a.days.length === 0
-      )
-        continue;
-      const start = startOfDay(new Date(a.start_date));
-      const totalDays = a.weeks * 7;
-      let occurrence = 0;
-      for (let i = 0; i < totalDays; i++) {
-        const d = addDays(start, i);
-        const key = DAY_KEYS[d.getDay()];
-        if (a.days.includes(key)) {
-          occurrence++;
-          const k = d.toISOString().slice(0, 10);
-          const arr = map.get(k) ?? [];
-          arr.push({
-            assignmentId: a.id,
-            planId: a.plan_id,
-            planName: planName(a.plan_id),
-            occurrenceIndex: occurrence,
-          });
-          map.set(k, arr);
-        }
-      }
-    }
-    return map;
-  }, [assignments, plans]);
+    return computeScheduledOccurrences(assignments, overrides, planName);
+  }, [assignments, overrides, plans]);
 
   const today = startOfDay(new Date());
-  const dateKey = currentDate.toISOString().slice(0, 10);
+  const dateKey = formatDateKey(currentDate);
   const occurrences = planned.get(dateKey) ?? [];
+
 
   const dateLabel = currentDate.toLocaleDateString(
     lang === "nl" ? "nl-NL" : "en-US",
