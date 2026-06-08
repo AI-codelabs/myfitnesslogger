@@ -730,7 +730,11 @@ function InsightsPanel({ insights, lang }: { insights: Insights; lang: Lang }) {
             icon={Dumbbell}
             label={tx(lang, "Trainingen", "Workouts")}
             value={`${w.sessions_completed}/${w.sessions_planned}`}
-            sub={`${w.adherence_pct}% ${tx(lang, "adherence", "adherence")}`}
+            sub={`${w.adherence_pct}% ${tx(lang, "adherence", "adherence")}${
+              (w.sessions_partial ?? 0) > 0
+                ? ` · ${w.sessions_partial} ${tx(lang, "deels", "partial")}`
+                : ""
+            }`}
             tone={w.adherence_pct >= 80 ? "good" : w.adherence_pct >= 50 ? "warn" : "bad"}
           />
         )}
