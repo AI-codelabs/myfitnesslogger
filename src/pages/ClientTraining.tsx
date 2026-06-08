@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -11,23 +11,23 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Dumbbell,
-  ExternalLink,
   Loader2,
   CheckCircle2,
+  ArrowRightLeft,
+  Copy as CopyIcon,
 } from "lucide-react";
 import { Lang } from "@/lib/onboardingSchema";
 import { cn } from "@/lib/utils";
+import {
+  AssignmentLike,
+  ComputedOccurrence,
+  OverrideLike,
+  computeScheduledOccurrences,
+  formatDateKey,
+} from "@/lib/workoutSchedule";
+import { WorkoutInstanceActions } from "@/components/WorkoutInstanceActions";
 
-const DAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
-
-interface Assignment {
-  id: string;
-  plan_id: string;
-  is_active: boolean;
-  start_date: string | null;
-  weeks: number | null;
-  days: string[] | null;
-}
+type Assignment = AssignmentLike;
 
 interface Plan {
   id: string;
@@ -47,13 +47,6 @@ interface DayWithExercises {
   }[];
 }
 
-interface ScheduledOccurrence {
-  assignmentId: string;
-  planId: string;
-  planName: string;
-  occurrenceIndex: number;
-}
-
 function startOfDay(d: Date) {
   const x = new Date(d);
   x.setHours(0, 0, 0, 0);
@@ -71,6 +64,7 @@ function sameDay(a: Date, b: Date) {
     a.getDate() === b.getDate()
   );
 }
+
 
 const ClientTraining = () => {
   const { user } = useAuth();
