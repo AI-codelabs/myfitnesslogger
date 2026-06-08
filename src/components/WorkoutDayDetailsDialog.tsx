@@ -53,6 +53,7 @@ export function WorkoutDayDetailsDialog({
   loggedSessions = [],
   clientId,
   lang,
+  onChanged,
 }: Props) {
   const tx = (nl: string, en: string) => (lang === "nl" ? nl : en);
   const [loading, setLoading] = useState(false);
@@ -217,11 +218,13 @@ export function WorkoutDayDetailsDialog({
             {occurrences.map((occ) => {
               const days = planDays[occ.planId] ?? [];
               const dayForToday =
-                days.length > 0 ? days[(occ.occurrenceIndex - 1) % days.length] : null;
+                days.length > 0 && occ.occurrenceIndex
+                  ? days[(occ.occurrenceIndex - 1) % days.length]
+                  : days[0] ?? null;
               return (
-                <div key={occ.assignmentId} className="rounded-md border p-4 space-y-3">
+                <div key={occ.key} className="rounded-md border p-4 space-y-3">
                   <div className="flex items-start justify-between gap-3 flex-wrap">
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <Dumbbell className="h-4 w-4 text-primary" />
                         <h4 className="font-semibold">{occ.planName}</h4>
@@ -230,18 +233,46 @@ export function WorkoutDayDetailsDialog({
                             {dayForToday.name}
                           </Badge>
                         )}
+                        {occ.origin === "moved" && (
+                          <Badge variant="outline" className="text-[10px] gap-1">
+                            <ArrowRightLeft className="h-3 w-3" />
+                            {tx("Verplaatst", "Moved")}
+                          </Badge>
+                        )}
+                        {occ.origin === "copied" && (
+                          <Badge variant="outline" className="text-[10px] gap-1">
+                            <CopyIcon className="h-3 w-3" />
+                            {tx("Kopie", "Copy")}
+                          </Badge>
+                        )}
                       </div>
                       <p className="text-xs text-muted-foreground mt-1">
-                        {tx("Training", "Workout")} #{occ.occurrenceIndex}
+                        {occ.occurrenceIndex
+                          ? `${tx("Training", "Workout")} #${occ.occurrenceIndex}`
+                          : tx("Losse training", "One-off workout")}
                       </p>
                     </div>
-                    <Button variant="ghost" size="sm" asChild>
-                      <Link to={`/workouts/${occ.planId}`} className="gap-1">
-                        {tx("Bekijk schema", "View plan")}
-                        <ExternalLink className="h-3.5 w-3.5" />
-                      </Link>
-                    </Button>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button variant="ghost" size="sm" asChild>
+                        <Link to={`/workouts/${occ.planId}`} className="gap-1">
+                          {tx("Bekijk schema", "View plan")}
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </Link>
+                      </Button>
+                      {clientId && (
+                        <WorkoutInstanceActions
+                          occurrence={occ}
+                          clientId={clientId}
+                          lang={lang}
+                          onChanged={() => {
+                            onChanged?.();
+                            onOpenChange(false);
+                          }}
+                        />
+                      )}
+                    </div>
                   </div>
+
 
                   {!dayForToday ? (
                     <p className="text-sm text-muted-foreground">
