@@ -4,17 +4,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, ExternalLink, Dumbbell, CheckCircle2, Eye } from "lucide-react";
+import { Loader2, ExternalLink, Dumbbell, CheckCircle2, Eye, ArrowRightLeft, Copy as CopyIcon } from "lucide-react";
 import { Lang } from "@/lib/onboardingSchema";
 import { cn } from "@/lib/utils";
+import { ComputedOccurrence } from "@/lib/workoutSchedule";
+import { WorkoutInstanceActions } from "@/components/WorkoutInstanceActions";
 
-export interface ScheduledOccurrence {
-  assignmentId: string;
-  planId: string;
-  planName: string;
-  /** 1-based: the Nth scheduled training day within this assignment */
-  occurrenceIndex: number;
-}
+export type ScheduledOccurrence = ComputedOccurrence;
 
 export interface LoggedSession {
   sessionId: string;
@@ -34,6 +30,7 @@ interface Props {
   loggedSessions?: LoggedSession[];
   clientId?: string;
   lang: Lang;
+  onChanged?: () => void;
 }
 
 interface DayWithExercises {
