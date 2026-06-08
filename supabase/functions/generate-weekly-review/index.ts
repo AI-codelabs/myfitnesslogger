@@ -477,23 +477,32 @@ Deno.serve(async (req) => {
 
     parts.push("\n=== OBJECTIEVE TRAININGSDATA (laatste 7 dagen) ===");
     parts.push(
-      `Voltooide sessies: ${insights.workouts.sessions_completed} / gepland ${insights.workouts.sessions_planned} (${insights.workouts.adherence_pct}%)`,
+      `Volledig afgemaakte sessies: ${insights.workouts.sessions_completed}`,
+    );
+    parts.push(
+      `Gedeeltelijk afgemaakte sessies (50%+ oefeningen gelogd, beschouw als grotendeels gedaan): ${insights.workouts.sessions_partial}`,
+    );
+    parts.push(
+      `Niet afgemaakte sessies (<50% gelogd): ${insights.workouts.sessions_not_completed}`,
+    );
+    parts.push(
+      `Geplande sessies per week: ${insights.workouts.sessions_planned}. Adherence (volledig + gedeeltelijk): ${insights.workouts.adherence_pct}%.`,
     );
     parts.push(
       `Progressie: ${improved} oefeningen verbeterd, ${regressed} achteruit. Top: ${notableTop.map((n) => `${n.name} (${n.change})`).join("; ") || "geen significant"}`,
     );
 
-    parts.push("\n=== OBJECTIEVE VOEDINGSDATA (gemiddelde laatste 7 logged dagen) ===");
+    parts.push("\n=== OBJECTIEVE VOEDINGSDATA ===");
     if (recentLogs.length === 0) {
-      parts.push("Geen voedingslogs (Cronometer niet gesynchroniseerd of klant logt niet).");
+      parts.push("Geen voedingslogs deze periode (Cronometer niet gesynchroniseerd of klant logt niet).");
     } else {
       parts.push(
         [
-          `Dagen gelogd: ${recentLogs.length}/7`,
-          `Calorieën: ${avgCals} kcal (target ${targetCals ?? "?"}, ${insights.nutrition.calorie_adherence_pct ?? "?"}%)`,
-          `Eiwit: ${avgProtein} g (target ${targetProtein ?? "?"}, ${insights.nutrition.protein_adherence_pct ?? "?"}%)`,
-          `Koolhydraten: ${avgCarbs} g (target ${targetCarbs ?? "?"})`,
-          `Vet: ${avgFat} g (target ${targetFat ?? "?"})`,
+          `Dagen daadwerkelijk gelogd: ${recentLogs.length} (gemiddelden hieronder zijn berekend over deze ${recentLogs.length} dag(en), NIET over 7).`,
+          `Gemiddelde calorieën: ${avgCals} kcal (target ${targetCals ?? "?"}, ${insights.nutrition.calorie_adherence_pct ?? "?"}%)`,
+          `Gemiddeld eiwit: ${avgProtein} g (target ${targetProtein ?? "?"}, ${insights.nutrition.protein_adherence_pct ?? "?"}%)`,
+          `Gemiddelde koolhydraten: ${avgCarbs} g (target ${targetCarbs ?? "?"})`,
+          `Gemiddeld vet: ${avgFat} g (target ${targetFat ?? "?"})`,
         ].join("\n"),
       );
     }
