@@ -24,6 +24,7 @@ interface NutritionLog {
   fat_g: number;
   fiber_g: number;
   synced_at: string;
+  entries: any[] | null;
 }
 
 const ClientNutrition = () => {
@@ -51,7 +52,7 @@ const ClientNutrition = () => {
         .maybeSingle(),
       supabase
         .from("cronometer_nutrition_logs")
-        .select("id, log_date, calories, protein_g, carbs_g, fat_g, fiber_g, synced_at")
+        .select("id, log_date, calories, protein_g, carbs_g, fat_g, fiber_g, synced_at, entries")
         .eq("client_id", user.id)
         .order("log_date", { ascending: false })
         .limit(14),
