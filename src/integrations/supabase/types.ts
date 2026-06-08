@@ -1111,6 +1111,76 @@ export type Database = {
         }
         Relationships: []
       }
+      workout_schedule_overrides: {
+        Row: {
+          action: string
+          assignment_id: string | null
+          client_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          occurrence_index: number | null
+          original_date: string | null
+          plan_id: string
+          scheduled_date: string | null
+          source_override_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          action: string
+          assignment_id?: string | null
+          client_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          occurrence_index?: number | null
+          original_date?: string | null
+          plan_id: string
+          scheduled_date?: string | null
+          source_override_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          action?: string
+          assignment_id?: string | null
+          client_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          occurrence_index?: number | null
+          original_date?: string | null
+          plan_id?: string
+          scheduled_date?: string | null
+          source_override_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workout_schedule_overrides_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "client_workout_assignments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workout_schedule_overrides_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "workout_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workout_schedule_overrides_source_override_id_fkey"
+            columns: ["source_override_id"]
+            isOneToOne: false
+            referencedRelation: "workout_schedule_overrides"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workout_sessions: {
         Row: {
           client_id: string

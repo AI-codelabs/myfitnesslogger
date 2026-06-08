@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -11,23 +11,23 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Dumbbell,
-  ExternalLink,
   Loader2,
   CheckCircle2,
+  ArrowRightLeft,
+  Copy as CopyIcon,
 } from "lucide-react";
 import { Lang } from "@/lib/onboardingSchema";
 import { cn } from "@/lib/utils";
+import {
+  AssignmentLike,
+  ComputedOccurrence,
+  OverrideLike,
+  computeScheduledOccurrences,
+  formatDateKey,
+} from "@/lib/workoutSchedule";
+import { WorkoutInstanceActions } from "@/components/WorkoutInstanceActions";
 
-const DAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
-
-interface Assignment {
-  id: string;
-  plan_id: string;
-  is_active: boolean;
-  start_date: string | null;
-  weeks: number | null;
-  days: string[] | null;
-}
+type Assignment = AssignmentLike;
 
 interface Plan {
   id: string;
@@ -45,13 +45,6 @@ interface DayWithExercises {
     notes: string | null;
     exercise: { name: string; muscle_group: string | null } | null;
   }[];
-}
-
-interface ScheduledOccurrence {
-  assignmentId: string;
-  planId: string;
-  planName: string;
-  occurrenceIndex: number;
 }
 
 function startOfDay(d: Date) {
@@ -72,6 +65,7 @@ function sameDay(a: Date, b: Date) {
   );
 }
 
+
 const ClientTraining = () => {
   const { user } = useAuth();
   const [lang] = useState<Lang>(
@@ -90,20 +84,37 @@ const ClientTraining = () => {
   const [planDays, setPlanDays] = useState<Record<string, DayWithExercises[]>>({});
   const [currentDate, setCurrentDate] = useState<Date>(startOfDay(new Date()));
   const [completedSessions, setCompletedSessions] = useState<Set<string>>(new Set());
+  const [overrides, setOverrides] = useState<OverrideLike[]>([]);
+  const [refreshTick, setRefreshTick] = useState(0);
+  const refresh = useCallback(() => setRefreshTick((n) => n + 1), []);
 
   useEffect(() => {
     if (!user?.id) return;
     (async () => {
       setLoading(true);
-      const { data: a } = await supabase
-        .from("client_workout_assignments")
-        .select("id, plan_id, is_active, start_date, weeks, days")
-        .eq("client_id", user.id);
+      const [{ data: a }, { data: ovs }] = await Promise.all([
+        supabase
+          .from("client_workout_assignments")
+          .select("id, plan_id, is_active, start_date, weeks, days")
+          .eq("client_id", user.id),
+        supabase
+          .from("workout_schedule_overrides")
+          .select(
+            "id, client_id, assignment_id, plan_id, action, original_date, scheduled_date, occurrence_index, source_override_id",
+          )
+          .eq("client_id", user.id),
+      ]);
 
       const assigns = (a ?? []) as Assignment[];
       setAssignments(assigns);
+      setOverrides((ovs as OverrideLike[]) ?? []);
 
-      const planIds = Array.from(new Set(assigns.map((x) => x.plan_id)));
+      const planIds = Array.from(
+        new Set([
+          ...assigns.map((x) => x.plan_id),
+          ...((ovs ?? []).map((o: any) => o.plan_id) as string[]),
+        ]),
+      );
       if (planIds.length === 0) {
         setPlans([]);
         setPlanDays({});
@@ -162,47 +173,18 @@ const ClientTraining = () => {
 
       setLoading(false);
     })();
-  }, [user?.id]);
+  }, [user?.id, refreshTick]);
 
-  // Build map: dateKey -> ScheduledOccurrence[]
+  // Build map: dateKey -> ComputedOccurrence[] (planned + overrides)
   const planned = useMemo(() => {
-    const map = new Map<string, ScheduledOccurrence[]>();
     const planName = (id: string) => plans.find((p) => p.id === id)?.name ?? "";
-    for (const a of assignments) {
-      if (
-        !a.is_active ||
-        !a.start_date ||
-        !a.weeks ||
-        !a.days ||
-        a.days.length === 0
-      )
-        continue;
-      const start = startOfDay(new Date(a.start_date));
-      const totalDays = a.weeks * 7;
-      let occurrence = 0;
-      for (let i = 0; i < totalDays; i++) {
-        const d = addDays(start, i);
-        const key = DAY_KEYS[d.getDay()];
-        if (a.days.includes(key)) {
-          occurrence++;
-          const k = d.toISOString().slice(0, 10);
-          const arr = map.get(k) ?? [];
-          arr.push({
-            assignmentId: a.id,
-            planId: a.plan_id,
-            planName: planName(a.plan_id),
-            occurrenceIndex: occurrence,
-          });
-          map.set(k, arr);
-        }
-      }
-    }
-    return map;
-  }, [assignments, plans]);
+    return computeScheduledOccurrences(assignments, overrides, planName);
+  }, [assignments, overrides, plans]);
 
   const today = startOfDay(new Date());
-  const dateKey = currentDate.toISOString().slice(0, 10);
+  const dateKey = formatDateKey(currentDate);
   const occurrences = planned.get(dateKey) ?? [];
+
 
   const dateLabel = currentDate.toLocaleDateString(
     lang === "nl" ? "nl-NL" : "en-US",
@@ -380,9 +362,9 @@ const ClientTraining = () => {
             {occurrences.map((occ) => {
               const days = planDays[occ.planId] ?? [];
               const dayForToday =
-                days.length > 0
+                days.length > 0 && occ.occurrenceIndex
                   ? days[(occ.occurrenceIndex - 1) % days.length]
-                  : null;
+                  : days[0] ?? null;
               const exCount = dayForToday?.exercises.length ?? 0;
               const muscleGroups = Array.from(
                 new Set(
@@ -394,7 +376,7 @@ const ClientTraining = () => {
               const isCompleted = isOccurrenceCompleted(occ.planId, dayForToday?.id, dateKey);
               return (
                 <div
-                  key={occ.assignmentId}
+                  key={occ.key}
                   className={cn(
                     "rounded-2xl border bg-card overflow-hidden shadow-sm",
                     isCompleted && "border-l-success border-l-4"
@@ -409,7 +391,7 @@ const ClientTraining = () => {
                         <Dumbbell className={cn("h-5 w-5", isCompleted ? "text-success" : "text-primary")} />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <h4 className="font-semibold text-base leading-tight truncate">
                             {dayForToday?.name || occ.planName || tx("Training", "Workout")}
                           </h4>
@@ -419,12 +401,33 @@ const ClientTraining = () => {
                               {tx("Voltooid", "Completed")}
                             </Badge>
                           )}
+                          {occ.origin === "moved" && (
+                            <Badge variant="outline" className="text-[10px] gap-1">
+                              <ArrowRightLeft className="h-3 w-3" />
+                              {tx("Verplaatst", "Moved")}
+                            </Badge>
+                          )}
+                          {occ.origin === "copied" && (
+                            <Badge variant="outline" className="text-[10px] gap-1">
+                              <CopyIcon className="h-3 w-3" />
+                              {tx("Kopie", "Copy")}
+                            </Badge>
+                          )}
                         </div>
                         <p className="text-xs text-muted-foreground mt-0.5 truncate">
                           {occ.planName}
                         </p>
                       </div>
+                      {user?.id && (
+                        <WorkoutInstanceActions
+                          occurrence={occ}
+                          clientId={user.id}
+                          lang={lang}
+                          onChanged={refresh}
+                        />
+                      )}
                     </div>
+
 
                     {dayForToday && exCount > 0 && (
                       <div className="flex items-center gap-4 text-xs">

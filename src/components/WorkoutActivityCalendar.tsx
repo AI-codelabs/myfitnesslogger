@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Dumbbell, CheckCircle2 } from "lucide-react";
@@ -7,17 +7,18 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import {
   WorkoutDayDetailsDialog,
-  ScheduledOccurrence,
   LoggedSession,
 } from "@/components/WorkoutDayDetailsDialog";
+import {
+  AssignmentLike,
+  ComputedOccurrence,
+  OverrideLike,
+  computeScheduledOccurrences,
+  formatDateKey,
+} from "@/lib/workoutSchedule";
 
-interface PlannedAssignment {
-  id: string;
-  plan_id: string;
-  is_active: boolean;
-  start_date: string | null;
-  weeks: number | null;
-  days: string[] | null;
+interface PlannedAssignment extends AssignmentLike {
+  coach_id?: string;
 }
 
 interface PlanLite {
@@ -31,8 +32,6 @@ interface Props {
   lang: Lang;
   clientId: string;
 }
-
-const DAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 
 const MONTHS_NL = [
   "Januari", "Februari", "Maart", "April", "Mei", "Juni",
@@ -68,6 +67,8 @@ export function WorkoutActivityCalendar({ assignments, plans, lang, clientId }: 
   const [cursor, setCursor] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [logged, setLogged] = useState<Map<string, LoggedSession[]>>(new Map());
+  const [overrides, setOverrides] = useState<OverrideLike[]>([]);
+  const [refreshTick, setRefreshTick] = useState(0);
 
   const planName = (id: string) => plans.find((p) => p.id === id)?.name ?? "";
 
@@ -126,36 +127,30 @@ export function WorkoutActivityCalendar({ assignments, plans, lang, clientId }: 
       setLogged(map);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clientId, plans]);
+  }, [clientId, plans, refreshTick]);
 
-  // Build map: dateKey -> ScheduledOccurrence[] (with occurrence index per assignment)
-  const planned = useMemo(() => {
-    const map = new Map<string, ScheduledOccurrence[]>();
-    for (const a of assignments) {
-      if (!a.is_active || !a.start_date || !a.weeks || !a.days || a.days.length === 0) continue;
-      const start = startOfDay(new Date(a.start_date));
-      const totalDays = a.weeks * 7;
-      let occurrence = 0;
-      for (let i = 0; i < totalDays; i++) {
-        const d = addDays(start, i);
-        const key = DAY_KEYS[d.getDay()];
-        if (a.days.includes(key)) {
-          occurrence++;
-          const k = d.toISOString().slice(0, 10);
-          const arr = map.get(k) ?? [];
-          arr.push({
-            assignmentId: a.id,
-            planId: a.plan_id,
-            planName: planName(a.plan_id),
-            occurrenceIndex: occurrence,
-          });
-          map.set(k, arr);
-        }
-      }
-    }
-    return map;
+  // Load schedule overrides
+  useEffect(() => {
+    if (!clientId) return;
+    (async () => {
+      const { data } = await supabase
+        .from("workout_schedule_overrides")
+        .select(
+          "id, client_id, assignment_id, plan_id, action, original_date, scheduled_date, occurrence_index, source_override_id",
+        )
+        .eq("client_id", clientId);
+      setOverrides((data as OverrideLike[]) ?? []);
+    })();
+  }, [clientId, refreshTick]);
+
+  const refresh = useCallback(() => setRefreshTick((n) => n + 1), []);
+
+  // Build map: dateKey -> ComputedOccurrence[]
+  const planned = useMemo(
+    () => computeScheduledOccurrences(assignments, overrides, planName),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [assignments, plans]);
+    [assignments, overrides, plans],
+  );
 
   // Build grid for current month (start on Monday)
   const year = cursor.getFullYear();
@@ -176,13 +171,14 @@ export function WorkoutActivityCalendar({ assignments, plans, lang, clientId }: 
   let loggedCount = 0;
   cells.forEach((d) => {
     if (d.getMonth() !== month) return;
-    const k = d.toISOString().slice(0, 10);
+    const k = formatDateKey(d);
     if (planned.has(k)) plannedCount++;
     if (logged.has(k)) loggedCount++;
   });
 
-  const selectedKey = selectedDate ? selectedDate.toISOString().slice(0, 10) : null;
-  const selectedOccurrences = selectedKey ? planned.get(selectedKey) ?? [] : [];
+  const selectedKey = selectedDate ? formatDateKey(selectedDate) : null;
+  const selectedOccurrences: ComputedOccurrence[] =
+    selectedKey ? planned.get(selectedKey) ?? [] : [];
   const selectedLogged = selectedKey ? logged.get(selectedKey) ?? [] : [];
 
   return (
@@ -240,7 +236,7 @@ export function WorkoutActivityCalendar({ assignments, plans, lang, clientId }: 
         {cells.map((d, idx) => {
           const inMonth = d.getMonth() === month;
           const isToday = sameDay(d, today);
-          const key = d.toISOString().slice(0, 10);
+          const key = formatDateKey(d);
           const dayPlans = planned.get(key);
           const dayLogged = logged.get(key);
           const hasPlan = !!dayPlans?.length;
@@ -340,6 +336,7 @@ export function WorkoutActivityCalendar({ assignments, plans, lang, clientId }: 
         loggedSessions={selectedLogged}
         clientId={clientId}
         lang={lang}
+        onChanged={refresh}
       />
     </Card>
   );
