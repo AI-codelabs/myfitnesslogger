@@ -26,17 +26,30 @@ Deno.serve(async (req) => {
       return json({ error: "mode must be 'sunday' or 'monday'" }, 400);
     }
 
-    // Optional shared-secret protection (cron sets this header)
-    const cronSecret = Deno.env.get("CRON_SECRET");
-    if (cronSecret) {
-      const provided = req.headers.get("x-cron-secret");
-      if (provided !== cronSecret) {
-        return json({ error: "Forbidden" }, 403);
-      }
-    }
-
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+    // Shared-secret protection: accept either CRON_SECRET env var
+    // or the `cron_token` value stored in public.internal_secrets
+    // (same pattern as the cronometer cron job).
+    const provided = req.headers.get("x-cron-secret");
+    const envSecret = Deno.env.get("CRON_SECRET");
+    let allowed = !!envSecret && provided === envSecret;
+    if (!allowed) {
+      const adminCheck = createClient(supabaseUrl, serviceKey);
+      const { data: tokenRow } = await adminCheck
+        .from("internal_secrets")
+        .select("value")
+        .eq("name", "cron_token")
+        .maybeSingle();
+      if (tokenRow?.value && provided === tokenRow.value) {
+        allowed = true;
+      }
+    }
+    if (!allowed) {
+      return json({ error: "Forbidden" }, 403);
+    }
+
     const clientId = Deno.env.get("GOOGLE_OAUTH_CLIENT_ID")!;
     const clientSecret = Deno.env.get("GOOGLE_OAUTH_CLIENT_SECRET")!;
 
