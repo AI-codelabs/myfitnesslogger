@@ -48,6 +48,25 @@ export default function Settings() {
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [testEmail, setTestEmail] = useState("");
+  const [sendingTest, setSendingTest] = useState<TemplateKey | null>(null);
+
+  const sendTest = async (key: TemplateKey) => {
+    if (!testEmail.trim()) {
+      toast.error("Enter an email address first");
+      return;
+    }
+    setSendingTest(key);
+    const { data, error } = await supabase.functions.invoke("send-test-checkin-email", {
+      body: { mode: key, recipientEmail: testEmail.trim() },
+    });
+    setSendingTest(null);
+    if (error || (data as any)?.error) {
+      toast.error((data as any)?.error || error?.message || "Failed to send test email");
+      return;
+    }
+    toast.success(`Test email sent to ${testEmail.trim()}`);
+  };
   const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
