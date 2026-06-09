@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Loader2, Upload, Trash2, Image as ImageIcon } from "lucide-react";
+import { Loader2, Upload, Trash2, Image as ImageIcon, Send } from "lucide-react";
 import { GmailConnectionCard } from "@/components/GmailConnectionCard";
 
 type TemplateKey = "sunday" | "monday";
@@ -48,6 +48,25 @@ export default function Settings() {
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [testEmail, setTestEmail] = useState("");
+  const [sendingTest, setSendingTest] = useState<TemplateKey | null>(null);
+
+  const sendTest = async (key: TemplateKey) => {
+    if (!testEmail.trim()) {
+      toast.error("Enter an email address first");
+      return;
+    }
+    setSendingTest(key);
+    const { data, error } = await supabase.functions.invoke("send-test-checkin-email", {
+      body: { mode: key, recipientEmail: testEmail.trim() },
+    });
+    setSendingTest(null);
+    if (error || (data as any)?.error) {
+      toast.error((data as any)?.error || error?.message || "Failed to send test email");
+      return;
+    }
+    toast.success(`Test email sent to ${testEmail.trim()}`);
+  };
   const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
@@ -230,18 +249,41 @@ export default function Settings() {
                   )}
                 </div>
 
-                <div className="flex justify-end gap-2 pt-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => update(DEFAULTS[key])}
-                    disabled={saving}
-                  >
-                    Reset to default
-                  </Button>
-                  <Button onClick={save} disabled={saving}>
-                    {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Upload className="h-4 w-4 mr-1" />}
-                    Save template
-                  </Button>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 pt-2 border-t border-border/60">
+                  <div className="flex-1 flex gap-2 items-center">
+                    <Input
+                      type="email"
+                      placeholder="test@example.com"
+                      value={testEmail}
+                      onChange={(e) => setTestEmail(e.target.value)}
+                      className="max-w-xs"
+                    />
+                    <Button
+                      variant="secondary"
+                      onClick={() => sendTest(key)}
+                      disabled={sendingTest === key}
+                    >
+                      {sendingTest === key ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                      ) : (
+                        <Send className="h-4 w-4 mr-1" />
+                      )}
+                      Send test
+                    </Button>
+                  </div>
+                  <div className="flex gap-2 sm:ml-auto">
+                    <Button
+                      variant="outline"
+                      onClick={() => update(DEFAULTS[key])}
+                      disabled={saving}
+                    >
+                      Reset to default
+                    </Button>
+                    <Button onClick={save} disabled={saving}>
+                      {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Upload className="h-4 w-4 mr-1" />}
+                      Save template
+                    </Button>
+                  </div>
                 </div>
               </TabsContent>
             ))}
