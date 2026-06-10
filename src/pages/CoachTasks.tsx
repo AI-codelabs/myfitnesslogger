@@ -20,11 +20,16 @@ import {
 import { toast } from "sonner";
 import { formatHumanDate, getExpectedCheckinWeekStart } from "@/lib/weeklyCheckin";
 
+import { clientFullName } from "@/lib/clientName";
+
 type Client = {
   user_id: string;
   display_name: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
   email: string | null;
 };
+
 
 type CoachMsg = {
   client_id: string;
@@ -87,7 +92,7 @@ export default function CoachTasks() {
     }
 
     const [profilesRes, onboardingRes, nutritionRes, assignRes, msgRes, checkinsRes, reviewsRes] = await Promise.all([
-      supabase.from("profiles").select("user_id, display_name").in("user_id", clientIds),
+      supabase.from("profiles").select("user_id, display_name, first_name, last_name").in("user_id", clientIds),
       supabase
         .from("onboarding_responses")
         .select("user_id, completed_at")
@@ -141,8 +146,11 @@ export default function CoachTasks() {
         client: {
           user_id: cid,
           display_name: profile?.display_name ?? null,
+          first_name: profile?.first_name ?? null,
+          last_name: profile?.last_name ?? null,
           email: null,
         },
+
         hasOnboarding: onboardingSet.has(cid),
         hasNutrition: nutritionSet.has(cid),
         hasSchedule: assignSet.has(cid),
