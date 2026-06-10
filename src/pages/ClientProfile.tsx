@@ -126,7 +126,7 @@ const ClientProfile = () => {
       setLoading(true);
       const { data: u } = await supabase.auth.getUser();
       setCoachId(u.user?.id ?? null);
-      const [invQ, respQ, nutQ, logsQ] = await Promise.all([
+      const [invQ, respQ, nutQ, logsQ, profQ] = await Promise.all([
         supabase
           .from("invitations")
           .select("id, email, status, accepted_at, created_at, coaching_start_date, coaching_end_date")
@@ -148,14 +148,20 @@ const ClientProfile = () => {
           .eq("client_id", clientId)
           .order("log_date", { ascending: false })
           .limit(60),
+        supabase
+          .from("profiles")
+          .select("first_name, last_name, display_name")
+          .eq("user_id", clientId)
+          .maybeSingle(),
       ]);
-      setInvite(invQ.data);
+      setInvite({ ...(invQ.data as any), ...(profQ.data as any) });
       setCoachingStart((invQ.data as any)?.coaching_start_date ?? "");
       setCoachingEnd((invQ.data as any)?.coaching_end_date ?? "");
       setResponse(respQ.data);
       setNutrition(nutQ.data);
       setNutritionLogs((logsQ.data as DailyLog[]) || []);
       setLoading(false);
+
 
       // Sign URLs for any uploaded photos
       if (respQ.data) {
@@ -229,10 +235,11 @@ const ClientProfile = () => {
       <div className="flex items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-            {response?.full_name || invite?.email || "Client"}
+            {clientFullName({ ...(invite ?? {}), full_name: response?.full_name })}
           </h1>
           <p className="text-sm text-muted-foreground">{invite?.email}</p>
         </div>
+
         <div className="flex items-center gap-2 flex-wrap justify-end">
           <Badge variant={statusVariant as any} className="capitalize h-8 px-3 rounded-md text-xs flex items-center">{invite?.status}</Badge>
           {(() => {
