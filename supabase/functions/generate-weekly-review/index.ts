@@ -180,6 +180,7 @@ Deno.serve(async (req) => {
       sessionsRes,
       nutritionLogsRes,
       previousMessageRes,
+      activeGoalRes,
     ] = await Promise.all([
       fetch(
         `${SUPABASE_URL}/rest/v1/onboarding_responses?user_id=eq.${clientId}&select=*`,
@@ -209,6 +210,10 @@ Deno.serve(async (req) => {
         `${SUPABASE_URL}/rest/v1/coach_messages?client_id=eq.${clientId}&select=client_actions,client_attention,client_positive&limit=1`,
         { headers },
       ),
+      fetch(
+        `${SUPABASE_URL}/rest/v1/client_goals?client_id=eq.${clientId}&is_active=eq.true&order=created_at.desc&limit=1&select=*`,
+        { headers },
+      ),
     ]);
 
     const intakeArr = await intakeRes.json();
@@ -218,6 +223,9 @@ Deno.serve(async (req) => {
     const sessions = await sessionsRes.json();
     const nutritionLogs = await nutritionLogsRes.json();
     const prevMessage = await previousMessageRes.json();
+    const activeGoalArr = await activeGoalRes.json();
+    const activeGoal = Array.isArray(activeGoalArr) && activeGoalArr[0] ? activeGoalArr[0] : null;
+
 
     const intake = Array.isArray(intakeArr) && intakeArr[0] ? intakeArr[0] : null;
     const nutritionPlan = Array.isArray(nutritionArr) && nutritionArr[0] ? nutritionArr[0] : null;
