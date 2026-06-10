@@ -72,7 +72,27 @@ const Clients = () => {
         .order("created_at", { ascending: false }),
       supabase.rpc("get_clients_last_active", { _coach_id: user.id }),
     ]);
-    setInvitations(invs ?? []);
+    const baseInvs = (invs ?? []) as Invitation[];
+    const acceptedIds = baseInvs.map((i) => i.accepted_user_id).filter(Boolean) as string[];
+    let profileMap: Record<string, { first_name: string | null; last_name: string | null; display_name: string | null }> = {};
+    if (acceptedIds.length > 0) {
+      const { data: profs } = await supabase
+        .from("profiles")
+        .select("user_id, first_name, last_name, display_name")
+        .in("user_id", acceptedIds);
+      (profs ?? []).forEach((p: any) => {
+        profileMap[p.user_id] = {
+          first_name: p.first_name,
+          last_name: p.last_name,
+          display_name: p.display_name,
+        };
+      });
+    }
+    const merged = baseInvs.map((inv) => ({
+      ...inv,
+      ...(inv.accepted_user_id ? profileMap[inv.accepted_user_id] : {}),
+    }));
+    setInvitations(merged);
     const map: Record<string, string | null> = {};
     (la ?? []).forEach((r: any) => {
       map[r.user_id] = r.last_sign_in_at;
@@ -80,6 +100,7 @@ const Clients = () => {
     setLastActive(map);
     setLoading(false);
   };
+
 
   useEffect(() => {
     load();
