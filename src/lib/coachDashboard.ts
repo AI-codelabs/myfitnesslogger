@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getExpectedCheckinWeekStart, getWeekStart } from "./weeklyCheckin";
-import { judgeWeightChange, type GoalType } from "./clientGoal";
+import type { GoalType } from "./clientGoal";
 
 
 export type DashCheckin = {
