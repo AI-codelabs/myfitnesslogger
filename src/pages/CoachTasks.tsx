@@ -347,7 +347,7 @@ export default function CoachTasks() {
                     >
                       <Circle className="h-4 w-4 text-amber-500 shrink-0" />
                       <span className="flex-1 text-sm font-medium truncate">
-                        {row.client.display_name ?? "Naamloos"}
+                        {clientFullName(row.client)}
                       </span>
                       <Badge variant="outline" className="text-amber-600 border-amber-300 dark:text-amber-400">
                         Onboarding open
@@ -395,7 +395,7 @@ export default function CoachTasks() {
                       >
                         <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
                         <span className="flex-1 text-sm font-medium truncate">
-                          {row.client.display_name ?? "Naamloos"}
+                          {clientFullName(row.client)}
                         </span>
                         <Button asChild size="sm" variant="ghost">
                           <Link to={`/clients/${row.client.user_id}`}>Bekijk</Link>
@@ -436,7 +436,7 @@ export default function CoachTasks() {
                     <Card key={row.client.user_id} className="px-4 py-3 flex items-center gap-3">
                       <Circle className="h-4 w-4 text-amber-500 shrink-0" />
                       <span className="flex-1 text-sm font-medium truncate">
-                        {row.client.display_name ?? "Naamloos"}
+                        {clientFullName(row.client)}
                       </span>
                       <Badge variant="outline" className="text-amber-600 border-amber-300 dark:text-amber-400">
                         Check-in open
@@ -480,7 +480,7 @@ export default function CoachTasks() {
                         <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium truncate">
-                            {row.client.display_name ?? "Naamloos"}
+                            {clientFullName(row.client)}
                           </p>
                           <p className="text-xs text-muted-foreground">
                             Check-in {formatHumanDate(submittedAt!, "nl")} · review gepubliceerd
@@ -569,7 +569,7 @@ function ClientTaskCollapsible({
           >
             <div className="min-w-0 flex-1">
               <p className="font-semibold truncate">
-                {row.client.display_name ?? "Naamloos"}
+                {clientFullName(row.client)}
               </p>
               {!intakeReady ? (
                 <p className="text-xs text-amber-600 dark:text-amber-400">
