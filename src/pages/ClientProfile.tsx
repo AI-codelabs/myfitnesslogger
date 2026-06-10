@@ -332,6 +332,7 @@ const ClientProfile = () => {
       <Tabs defaultValue={new URLSearchParams(window.location.search).get("tab") || "overview"}>
         <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="overview">{lang === "nl" ? "Overzicht" : "Overview"}</TabsTrigger>
+          <TabsTrigger value="goals">{lang === "nl" ? "Doelen & AI" : "Goals & AI"}</TabsTrigger>
           <TabsTrigger value="workouts">{lang === "nl" ? "Workouts" : "Workouts"}</TabsTrigger>
           <TabsTrigger value="nutrition">{lang === "nl" ? "Voeding" : "Nutrition"}</TabsTrigger>
           <TabsTrigger value="progression">{lang === "nl" ? "Progressie" : "Progress"}</TabsTrigger>
@@ -339,6 +340,13 @@ const ClientProfile = () => {
           <TabsTrigger value="checkins">{lang === "nl" ? "Check-ins" : "Check-ins"}</TabsTrigger>
           <TabsTrigger value="review">{lang === "nl" ? "Review" : "Review"}</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="goals" className="mt-4">
+          {coachId && clientId ? (
+            <ClientGoalsTab clientId={clientId} coachId={coachId} lang={lang} />
+          ) : null}
+        </TabsContent>
+
 
         <TabsContent value="message" className="mt-4">
           {coachId && clientId ? (
