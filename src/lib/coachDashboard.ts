@@ -315,26 +315,34 @@ export function detectRisksForClient(
       prev &&
       latest.weight_kg != null &&
       prev.weight_kg != null &&
-      client.primary_goal
+      (client.active_goal_type || client.primary_goal)
     ) {
       const delta = Number(latest.weight_kg) - Number(prev.weight_kg);
+      const tol = Math.abs(client.active_goal_tolerance_kg ?? 0.4);
       if (Math.abs(delta) >= 0.4) {
-        if (delta > 0 && isLossGoal(client.primary_goal)) {
+        if (delta > 0 && isLossGoal(client)) {
           risks.push({
             type: "goal_mismatch",
-            reason: `Gewicht ↑ ${delta.toFixed(1)} kg terwijl doel afvallen is`,
+            reason: `Gewicht ↑ ${delta.toFixed(1)} kg terwijl doel vetverlies is`,
             severity: 2,
           });
-        } else if (delta < 0 && isGainGoal(client.primary_goal)) {
+        } else if (delta < 0 && isGainGoal(client)) {
           risks.push({
             type: "goal_mismatch",
             reason: `Gewicht ↓ ${Math.abs(delta).toFixed(1)} kg terwijl doel spiergroei is`,
+            severity: 2,
+          });
+        } else if (isMaintainGoal(client) && Math.abs(delta) > Math.max(tol, 0.5)) {
+          risks.push({
+            type: "goal_mismatch",
+            reason: `Gewicht ${delta > 0 ? "↑" : "↓"} ${Math.abs(delta).toFixed(1)} kg buiten onderhoudsbandbreedte`,
             severity: 2,
           });
         }
       }
     }
   }
+
 
   // Missed streak: count consecutive recent weeks with no checkin
   const submittedWeeks = new Set(sorted.map((c) => c.week_start));
