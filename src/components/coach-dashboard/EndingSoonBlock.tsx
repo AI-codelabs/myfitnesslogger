@@ -4,6 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { DashboardBlock, DashboardEmpty } from "./DashboardBlock";
 import type { DashboardData, DashClient } from "@/lib/coachDashboard";
 import { Button } from "@/components/ui/button";
+import { clientFullName } from "@/lib/clientName";
+
 
 interface Props {
   data: DashboardData | null;
@@ -104,7 +106,7 @@ export function EndingSoonBlock({ data, loading }: Props) {
                     >
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">
-                          {c.display_name || c.email || "Onbekend"}
+                          {clientFullName(c)}
                         </p>
                         <p className="text-xs text-muted-foreground truncate">
                           {c.coaching_end_date
