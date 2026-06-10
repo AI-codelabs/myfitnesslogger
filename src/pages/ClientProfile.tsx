@@ -30,6 +30,9 @@ import { WeeklyReviewTab } from "@/components/WeeklyReviewTab";
 import { ClientProgressionTab } from "@/components/ClientProgressionTab";
 import { NutritionWeeklyOverview, DailyLog } from "@/components/NutritionWeeklyOverview";
 import { ClientNutritionDocuments } from "@/components/ClientNutritionDocuments";
+import { ClientGoalsTab } from "@/components/ClientGoalsTab";
+import { clientFullName } from "@/lib/clientName";
+
 
 
 const ClientProfile = () => {
