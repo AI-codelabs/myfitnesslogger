@@ -208,9 +208,13 @@ const Clients = () => {
           <Badge className={`border-0 ${style.className}`}>{style.label}</Badge>
         </div>
         <div className="min-w-0">
-          <p className="font-medium truncate">{inv.email}</p>
+          <p className="font-medium truncate">{inv.accepted_user_id ? clientFullName(inv) : inv.email}</p>
+          {inv.accepted_user_id && clientFullName(inv) !== inv.email && (
+            <p className="text-xs text-muted-foreground truncate">{inv.email}</p>
+          )}
           <p className="text-xs text-muted-foreground mt-1">{subtitleFor(inv)}</p>
         </div>
+
         {inv.status === "pending" && (
           <div className="mt-auto pt-2" onClick={(e) => e.preventDefault()}>
             {deleteInviteDialog(
