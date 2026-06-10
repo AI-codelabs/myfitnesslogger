@@ -162,9 +162,13 @@ const Clients = () => {
           <Mail className="h-4 w-4 text-muted-foreground" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-medium truncate">{inv.email}</p>
-          <p className="text-xs text-muted-foreground">{subtitleFor(inv)}</p>
+          <p className="font-medium truncate">{inv.accepted_user_id ? clientFullName(inv) : inv.email}</p>
+          <p className="text-xs text-muted-foreground truncate">
+            {inv.accepted_user_id && clientFullName(inv) !== inv.email ? `${inv.email} · ` : ""}
+            {subtitleFor(inv)}
+          </p>
         </div>
+
         <Badge className={`flex-shrink-0 border-0 ${style.className}`}>{style.label}</Badge>
         {inv.status === "pending" &&
           deleteInviteDialog(
