@@ -384,13 +384,46 @@ Deno.serve(async (req) => {
 
     // ---------- build user prompt ----------
     const parts: string[] = [];
-    parts.push("=== KLANT INTAKE (samenvatting) ===");
+
+    // ACTIVE GOAL — single source of truth. Overrides any onboarding goal.
+    parts.push("=== ACTIEF DOEL (HEILIG — gebruik deze waardes, NIET de oorspronkelijke intake-goal) ===");
+    if (activeGoal) {
+      const labelMap: Record<string, string> = {
+        cut: "Vet verliezen / cutten",
+        bulk: "Spiermassa / bulken",
+        maintain: "Onderhoud",
+        custom: "Aangepast doel",
+      };
+      parts.push(
+        [
+          `Doeltype: ${labelMap[activeGoal.goal_type] ?? activeGoal.goal_type}`,
+          activeGoal.goal_label && `Doelomschrijving: ${activeGoal.goal_label}`,
+          activeGoal.goal_weight_kg != null && `Streefgewicht: ${activeGoal.goal_weight_kg} kg`,
+          activeGoal.starting_weight_kg != null && `Startgewicht: ${activeGoal.starting_weight_kg} kg`,
+          activeGoal.target_date && `Streefdatum: ${activeGoal.target_date}`,
+          activeGoal.maintenance_calories != null && `Onderhoudscalorieën (coach-opgegeven): ${activeGoal.maintenance_calories} kcal`,
+          activeGoal.activity_level && `Activiteitsniveau: ${activeGoal.activity_level}`,
+          activeGoal.weekly_drift_tolerance_kg != null && `Wekelijkse drift-tolerantie: ±${activeGoal.weekly_drift_tolerance_kg} kg`,
+          activeGoal.notes && `Notities coach: ${activeGoal.notes}`,
+          `Doel laatst bijgewerkt: ${activeGoal.updated_at ?? activeGoal.created_at}`,
+        ]
+          .filter(Boolean)
+          .join("\n"),
+      );
+      parts.push(
+        "BELANGRIJK: baseer ALLE adviezen (calorieën, gewicht, training) op dit ACTIEVE doel. Als het actieve doel afwijkt van het oorspronkelijke intake-doel, volg ALTIJD het actieve doel.",
+      );
+    } else {
+      parts.push("(geen actief client_goals record — val terug op intake)");
+    }
+
+    parts.push("\n=== KLANT INTAKE (context — kan verouderd zijn) ===");
     if (intake) {
       parts.push(
         [
           intake.full_name && `Naam: ${intake.full_name}`,
-          intake.primary_goal && `Doel: ${intake.primary_goal}`,
-          intake.target_outcome && `Gewenst resultaat: ${intake.target_outcome}`,
+          intake.primary_goal && `Oorspronkelijk intake-doel (mogelijk verouderd): ${intake.primary_goal}`,
+          intake.target_outcome && `Oorspronkelijk gewenst resultaat: ${intake.target_outcome}`,
           intake.train_freq_target && `Target frequentie: ${intake.train_freq_target}x/week`,
           intake.injuries && `Blessures: ${intake.injuries}`,
           intake.coach_expectations && `Verwachtingen: ${intake.coach_expectations}`,
@@ -401,6 +434,7 @@ Deno.serve(async (req) => {
     } else {
       parts.push("(geen intake)");
     }
+
 
     parts.push("\n=== HUIDIG VOEDINGSPLAN ===");
     if (nutritionPlan) {
