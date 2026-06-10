@@ -3,6 +3,8 @@ import { AlertTriangle, ArrowRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { DashboardBlock, DashboardEmpty } from "./DashboardBlock";
 import { detectAllRisks, type DashboardData, type RiskType } from "@/lib/coachDashboard";
+import { clientFullName } from "@/lib/clientName";
+
 
 interface Props {
   data: DashboardData | null;
@@ -59,7 +61,7 @@ export function RiskAttentionBlock({ data, loading }: Props) {
               >
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">
-                    {client.display_name ?? client.email ?? "Client"}
+                    {clientFullName(client)}
                   </p>
                   <div className="flex flex-wrap gap-1.5 mt-1.5">
                     {rr.slice(0, 3).map((r, i) => (

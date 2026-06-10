@@ -39,12 +39,43 @@ interface ClientContext {
   intake: Record<string, unknown> | null;
   nutrition: Record<string, unknown> | null;
   assignments: Array<Record<string, unknown>>;
+  activeGoal: Record<string, unknown> | null;
 }
+
 
 function buildUserPrompt(ctx: ClientContext): string {
   const parts: string[] = [];
 
-  parts.push("=== INTAKE FORMULIER ===");
+  // ACTIVE GOAL — must override any older onboarding goal
+  parts.push("=== ACTIEF DOEL (gebruik deze — overrulet intake) ===");
+  if (ctx.activeGoal) {
+    const g = ctx.activeGoal;
+    const labelMap: Record<string, string> = {
+      cut: "Vet verliezen / cutten",
+      bulk: "Spiermassa / bulken",
+      maintain: "Onderhoud",
+      custom: "Aangepast doel",
+    };
+    parts.push(
+      [
+        `Doeltype: ${labelMap[String(g.goal_type)] ?? g.goal_type}`,
+        g.goal_label && `Doelomschrijving: ${g.goal_label}`,
+        g.goal_weight_kg != null && `Streefgewicht: ${g.goal_weight_kg} kg`,
+        g.starting_weight_kg != null && `Startgewicht: ${g.starting_weight_kg} kg`,
+        g.target_date && `Streefdatum: ${g.target_date}`,
+        g.maintenance_calories != null && `Onderhoudscalorieën: ${g.maintenance_calories} kcal`,
+        g.activity_level && `Activiteitsniveau: ${g.activity_level}`,
+        g.notes && `Notities coach: ${g.notes}`,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    );
+  } else {
+    parts.push("(geen actief doel ingesteld — val terug op intake)");
+  }
+
+  parts.push("\n=== INTAKE FORMULIER (context — kan verouderd zijn) ===");
+
   if (ctx.intake) {
     const i = ctx.intake;
     const fmt = (k: string, v: unknown) =>
@@ -207,8 +238,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Fetch intake, nutrition, assignments+plans+days+exercises
-    const [intakeRes, nutritionRes, assignRes] = await Promise.all([
+    // Fetch intake, nutrition, assignments+plans+days+exercises, active goal
+    const [intakeRes, nutritionRes, assignRes, goalRes] = await Promise.all([
       fetch(
         `${SUPABASE_URL}/rest/v1/onboarding_responses?user_id=eq.${clientId}&select=*`,
         { headers },
@@ -221,17 +252,24 @@ Deno.serve(async (req) => {
         `${SUPABASE_URL}/rest/v1/client_workout_assignments?client_id=eq.${clientId}&is_active=eq.true&select=*,plan:workout_plans(name,description,frequency_per_week,workout_plan_days(day_index,name,workout_plan_exercises(order_index,sets_reps,notes,exercises(name,muscle_group,equipment))))`,
         { headers },
       ),
+      fetch(
+        `${SUPABASE_URL}/rest/v1/client_goals?client_id=eq.${clientId}&is_active=eq.true&order=created_at.desc&limit=1&select=*`,
+        { headers },
+      ),
     ]);
 
     const intakeArr = await intakeRes.json();
     const nutritionArr = await nutritionRes.json();
     const assignments = await assignRes.json();
+    const goalArr = await goalRes.json();
 
     const ctx: ClientContext = {
       intake: Array.isArray(intakeArr) && intakeArr[0] ? intakeArr[0] : null,
       nutrition: Array.isArray(nutritionArr) && nutritionArr[0] ? nutritionArr[0] : null,
       assignments: Array.isArray(assignments) ? assignments : [],
+      activeGoal: Array.isArray(goalArr) && goalArr[0] ? goalArr[0] : null,
     };
+
 
     const userPrompt = buildUserPrompt(ctx);
 

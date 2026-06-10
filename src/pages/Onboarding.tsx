@@ -39,13 +39,20 @@ const Onboarding = () => {
     localStorage.setItem("onbLang", lang);
   }, [lang]);
 
-  // Pre-fill name + email from auth
+  // Pre-fill name from auth (legacy display_name) -> seed first_name when possible
   useEffect(() => {
     if (!user) return;
-    setValues((v) => ({
-      ...v,
-      full_name: v.full_name ?? user.user_metadata?.display_name ?? "",
-    }));
+    setValues((v) => {
+      if (v.first_name) return v;
+      const dn = (user.user_metadata?.display_name as string | undefined)?.trim();
+      if (!dn) return v;
+      const sp = dn.indexOf(" ");
+      return {
+        ...v,
+        first_name: sp === -1 ? dn : dn.slice(0, sp),
+        last_name: sp === -1 ? "" : dn.slice(sp + 1),
+      };
+    });
   }, [user]);
 
   const sections = onboardingSections;
@@ -123,10 +130,21 @@ const Onboarding = () => {
           details[f.name] = v;
           continue;
         }
-        // Skip the synthetic image-front-side-back field (its 3 paths are stored separately)
         if (f.type === "image-front-side-back") continue;
         row[f.name] = numericColumns.has(f.name) ? Number(v) : v;
       }
+    }
+
+    // Derive legacy fields for AI/back-compat
+    const firstName = (values.first_name as string | undefined)?.trim() || null;
+    const lastName = (values.last_name as string | undefined)?.trim() || null;
+    if (firstName || lastName) {
+      row.full_name = [firstName, lastName].filter(Boolean).join(" ");
+    }
+    // Map new goal_type back to legacy primary_goal slug
+    const goalType = values.goal_type as string | undefined;
+    if (goalType) {
+      row.primary_goal = goalType === "bulk" ? "muscle" : goalType === "maintain" ? "energy" : goalType === "custom" ? "combo" : goalType;
     }
     row.details = details;
 
@@ -134,11 +152,41 @@ const Onboarding = () => {
       .from("onboarding_responses")
       .upsert(row as any, { onConflict: "user_id" });
 
-    setSubmitting(false);
     if (error) {
+      setSubmitting(false);
       toast.error(error.message);
       return;
     }
+
+    // Write first/last name to profiles (used by all coach UI)
+    if (firstName || lastName) {
+      await supabase
+        .from("profiles")
+        .update({
+          first_name: firstName,
+          last_name: lastName,
+          display_name: [firstName, lastName].filter(Boolean).join(" ") || undefined,
+        })
+        .eq("user_id", user.id);
+    }
+
+    // Create the first active client_goals row from onboarding answers
+    if (goalType) {
+      const gw = values.goal_weight_kg ? Number(values.goal_weight_kg) : null;
+      const sw = values.weight_kg ? Number(values.weight_kg) : null;
+      await supabase.from("client_goals").insert({
+        client_id: user.id,
+        goal_type: goalType as any,
+        goal_label: values.goal_reason || values.target_outcome || null,
+        goal_weight_kg: gw,
+        starting_weight_kg: sw,
+        notes: values.target_outcome || null,
+        is_active: true,
+        created_by: user.id,
+      });
+    }
+
+    setSubmitting(false);
     toast.success(lang === "nl" ? "Gelukt! Welkom." : "Done! Welcome.");
     await refreshOnboarding();
     navigate("/");

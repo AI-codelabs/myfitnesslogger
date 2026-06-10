@@ -14,6 +14,60 @@ export type Database = {
   }
   public: {
     Tables: {
+      client_goals: {
+        Row: {
+          activity_level: Database["public"]["Enums"]["activity_level"] | null
+          client_id: string
+          created_at: string
+          created_by: string | null
+          goal_label: string | null
+          goal_type: Database["public"]["Enums"]["goal_type"]
+          goal_weight_kg: number | null
+          id: string
+          is_active: boolean
+          maintenance_calories: number | null
+          notes: string | null
+          starting_weight_kg: number | null
+          target_date: string | null
+          updated_at: string
+          weekly_drift_tolerance_kg: number | null
+        }
+        Insert: {
+          activity_level?: Database["public"]["Enums"]["activity_level"] | null
+          client_id: string
+          created_at?: string
+          created_by?: string | null
+          goal_label?: string | null
+          goal_type: Database["public"]["Enums"]["goal_type"]
+          goal_weight_kg?: number | null
+          id?: string
+          is_active?: boolean
+          maintenance_calories?: number | null
+          notes?: string | null
+          starting_weight_kg?: number | null
+          target_date?: string | null
+          updated_at?: string
+          weekly_drift_tolerance_kg?: number | null
+        }
+        Update: {
+          activity_level?: Database["public"]["Enums"]["activity_level"] | null
+          client_id?: string
+          created_at?: string
+          created_by?: string | null
+          goal_label?: string | null
+          goal_type?: Database["public"]["Enums"]["goal_type"]
+          goal_weight_kg?: number | null
+          id?: string
+          is_active?: boolean
+          maintenance_calories?: number | null
+          notes?: string | null
+          starting_weight_kg?: number | null
+          target_date?: string | null
+          updated_at?: string
+          weekly_drift_tolerance_kg?: number | null
+        }
+        Relationships: []
+      }
       client_nutrition_documents: {
         Row: {
           client_id: string
@@ -731,7 +785,9 @@ export type Database = {
           bio: string | null
           created_at: string
           display_name: string | null
+          first_name: string | null
           id: string
+          last_name: string | null
           updated_at: string
           user_id: string
         }
@@ -740,7 +796,9 @@ export type Database = {
           bio?: string | null
           created_at?: string
           display_name?: string | null
+          first_name?: string | null
           id?: string
+          last_name?: string | null
           updated_at?: string
           user_id: string
         }
@@ -749,7 +807,9 @@ export type Database = {
           bio?: string | null
           created_at?: string
           display_name?: string | null
+          first_name?: string | null
           id?: string
+          last_name?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -1284,6 +1344,32 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_active_client_goal: {
+        Args: { _client_id: string }
+        Returns: {
+          activity_level: Database["public"]["Enums"]["activity_level"] | null
+          client_id: string
+          created_at: string
+          created_by: string | null
+          goal_label: string | null
+          goal_type: Database["public"]["Enums"]["goal_type"]
+          goal_weight_kg: number | null
+          id: string
+          is_active: boolean
+          maintenance_calories: number | null
+          notes: string | null
+          starting_weight_kg: number | null
+          target_date: string | null
+          updated_at: string
+          weekly_drift_tolerance_kg: number | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "client_goals"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       get_clients_last_active: {
         Args: { _coach_id: string }
         Returns: {
@@ -1313,7 +1399,14 @@ export type Database = {
       }
     }
     Enums: {
+      activity_level:
+        | "sedentary"
+        | "light"
+        | "moderate"
+        | "active"
+        | "very_active"
       app_role: "user" | "coach"
+      goal_type: "cut" | "bulk" | "maintain" | "custom"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1441,7 +1534,15 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      activity_level: [
+        "sedentary",
+        "light",
+        "moderate",
+        "active",
+        "very_active",
+      ],
       app_role: ["user", "coach"],
+      goal_type: ["cut", "bulk", "maintain", "custom"],
     },
   },
 } as const

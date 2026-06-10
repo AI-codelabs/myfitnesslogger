@@ -1,6 +1,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getExpectedCheckinWeekStart, getWeekStart } from "./weeklyCheckin";
+import type { GoalType } from "./clientGoal";
+
 
 export type DashCheckin = {
   id: string;
@@ -22,14 +24,21 @@ export type DashCheckin = {
 export type DashClient = {
   user_id: string;
   display_name: string | null;
+  first_name: string | null;
+  last_name: string | null;
   email: string | null;
   invitation_status: string;
   accepted_at: string | null;
   primary_goal: string | null;
+  /** Latest editable goal from client_goals (overrides primary_goal). */
+  active_goal_type: GoalType | null;
+  active_goal_weight_kg: number | null;
+  active_goal_tolerance_kg: number | null;
   onboarding_completed: boolean;
   coaching_start_date: string | null;
   coaching_end_date: string | null;
 };
+
 
 export type DashMessage = {
   client_id: string;
@@ -103,16 +112,21 @@ export function useCoachDashboardData(coachId: string | undefined) {
     lookback.setDate(lookback.getDate() - 7 * 8);
     const lookbackIso = lookback.toISOString().slice(0, 10);
 
-    const [profilesRes, onboardingRes, checkinsRes, msgsRes, reviewsRes] =
+    const [profilesRes, onboardingRes, goalsRes, checkinsRes, msgsRes, reviewsRes] =
       await Promise.all([
         supabase
           .from("profiles")
-          .select("user_id, display_name")
+          .select("user_id, display_name, first_name, last_name")
           .in("user_id", clientIds),
         supabase
           .from("onboarding_responses")
           .select("user_id, completed_at, primary_goal")
           .in("user_id", clientIds),
+        supabase
+          .from("client_goals")
+          .select("client_id, goal_type, goal_weight_kg, weekly_drift_tolerance_kg, is_active, created_at")
+          .in("client_id", clientIds)
+          .eq("is_active", true),
         supabase
           .from("weekly_checkins")
           .select(
@@ -135,22 +149,30 @@ export function useCoachDashboardData(coachId: string | undefined) {
 
     const profiles = (profilesRes.data ?? []) as any[];
     const onboarding = (onboardingRes.data ?? []) as any[];
+    const goals = (goalsRes.data ?? []) as any[];
 
     const clients: DashClient[] = accepted.map((inv: any) => {
       const p = profiles.find((x) => x.user_id === inv.accepted_user_id);
       const ob = onboarding.find((x) => x.user_id === inv.accepted_user_id);
+      const g = goals.find((x) => x.client_id === inv.accepted_user_id);
       return {
         user_id: inv.accepted_user_id,
         display_name: p?.display_name ?? null,
+        first_name: p?.first_name ?? null,
+        last_name: p?.last_name ?? null,
         email: inv.email,
         invitation_status: inv.status,
         accepted_at: inv.accepted_at,
         primary_goal: ob?.primary_goal ?? null,
+        active_goal_type: (g?.goal_type as GoalType | undefined) ?? null,
+        active_goal_weight_kg: g?.goal_weight_kg != null ? Number(g.goal_weight_kg) : null,
+        active_goal_tolerance_kg: g?.weekly_drift_tolerance_kg != null ? Number(g.weekly_drift_tolerance_kg) : null,
         onboarding_completed: !!ob?.completed_at,
         coaching_start_date: inv.coaching_start_date ?? null,
         coaching_end_date: inv.coaching_end_date ?? null,
       };
     });
+
 
     setData({
       clients,
@@ -213,14 +235,20 @@ function scanNegative(...texts: Array<string | null | undefined>): string | null
   return null;
 }
 
-function isLossGoal(goal: string | null): boolean {
-  if (!goal) return false;
-  return /cut|lose|loss|afval|vet/i.test(goal);
+function isLossGoal(client: DashClient): boolean {
+  if (client.active_goal_type) return client.active_goal_type === "cut";
+  const g = client.primary_goal;
+  return !!g && /cut|lose|loss|afval|vet/i.test(g);
 }
-function isGainGoal(goal: string | null): boolean {
-  if (!goal) return false;
-  return /muscle|gain|bulk|spier|massa/i.test(goal);
+function isGainGoal(client: DashClient): boolean {
+  if (client.active_goal_type) return client.active_goal_type === "bulk";
+  const g = client.primary_goal;
+  return !!g && /muscle|gain|bulk|spier|massa/i.test(g);
 }
+function isMaintainGoal(client: DashClient): boolean {
+  return client.active_goal_type === "maintain";
+}
+
 
 export function detectRisksForClient(
   client: DashClient,
@@ -287,26 +315,34 @@ export function detectRisksForClient(
       prev &&
       latest.weight_kg != null &&
       prev.weight_kg != null &&
-      client.primary_goal
+      (client.active_goal_type || client.primary_goal)
     ) {
       const delta = Number(latest.weight_kg) - Number(prev.weight_kg);
+      const tol = Math.abs(client.active_goal_tolerance_kg ?? 0.4);
       if (Math.abs(delta) >= 0.4) {
-        if (delta > 0 && isLossGoal(client.primary_goal)) {
+        if (delta > 0 && isLossGoal(client)) {
           risks.push({
             type: "goal_mismatch",
-            reason: `Gewicht ↑ ${delta.toFixed(1)} kg terwijl doel afvallen is`,
+            reason: `Gewicht ↑ ${delta.toFixed(1)} kg terwijl doel vetverlies is`,
             severity: 2,
           });
-        } else if (delta < 0 && isGainGoal(client.primary_goal)) {
+        } else if (delta < 0 && isGainGoal(client)) {
           risks.push({
             type: "goal_mismatch",
             reason: `Gewicht ↓ ${Math.abs(delta).toFixed(1)} kg terwijl doel spiergroei is`,
+            severity: 2,
+          });
+        } else if (isMaintainGoal(client) && Math.abs(delta) > Math.max(tol, 0.5)) {
+          risks.push({
+            type: "goal_mismatch",
+            reason: `Gewicht ${delta > 0 ? "↑" : "↓"} ${Math.abs(delta).toFixed(1)} kg buiten onderhoudsbandbreedte`,
             severity: 2,
           });
         }
       }
     }
   }
+
 
   // Missed streak: count consecutive recent weeks with no checkin
   const submittedWeeks = new Set(sorted.map((c) => c.week_start));

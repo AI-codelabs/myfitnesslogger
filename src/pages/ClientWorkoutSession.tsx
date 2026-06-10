@@ -124,13 +124,16 @@ const ClientWorkoutSession = () => {
         : Promise.resolve({ data: null } as any),
       supabase
         .from("profiles")
-        .select("display_name")
+        .select("display_name, first_name, last_name")
         .eq("user_id", clientId)
         .maybeSingle(),
     ]);
     setPlanName(plan?.name ?? "");
     setDayName(dayRes?.data?.name ?? null);
-    setClientName(profile?.display_name ?? "");
+    const p = profile as any;
+    const fullName = [p?.first_name, p?.last_name].filter(Boolean).join(" ");
+    setClientName(fullName || p?.display_name || "");
+
 
     let ex: PlanExerciseRow[] = [];
     if (s.day_id) {

@@ -3,6 +3,8 @@ import { MessageSquare, ClipboardCheck, UserCheck, Sparkles } from "lucide-react
 import { formatDistanceToNow } from "date-fns";
 import { DashboardBlock, DashboardEmpty } from "./DashboardBlock";
 import type { DashboardData } from "@/lib/coachDashboard";
+import { clientFullName } from "@/lib/clientName";
+
 
 interface Props {
   data: DashboardData | null;
@@ -27,8 +29,9 @@ export function RecentActivityBlock({ data, loading }: Props) {
   if (data) {
     const nameOf = (cid: string) => {
       const c = data.clients.find((x) => x.user_id === cid);
-      return c?.display_name ?? c?.email ?? "Client";
+      return clientFullName(c);
     };
+
 
     data.checkins.forEach((c) => {
       const t = new Date(c.submitted_at).getTime();
@@ -70,7 +73,7 @@ export function RecentActivityBlock({ data, loading }: Props) {
         icon: UserCheck,
         iconColor: "text-emerald-500",
         iconBg: "bg-emerald-500/10",
-        label: c.display_name ?? c.email ?? "Client",
+        label: clientFullName(c),
         description: "Onboarding afgerond",
         at: c.accepted_at,
         href: `/clients/${c.user_id}`,

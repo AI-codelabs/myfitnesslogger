@@ -3,6 +3,8 @@ import { Flame, ArrowRight, ClipboardCheck, UserPlus, Mail, AlertCircle } from "
 import { Badge } from "@/components/ui/badge";
 import { DashboardBlock, DashboardEmpty } from "./DashboardBlock";
 import type { DashboardData } from "@/lib/coachDashboard";
+import { clientFullName } from "@/lib/clientName";
+
 
 interface Props {
   data: DashboardData | null;
@@ -43,7 +45,7 @@ export function ActionRequiredBlock({ data, loading }: Props) {
       items.push({
         key: "ci-" + c.id,
         icon: ClipboardCheck,
-        label: cl?.display_name ?? cl?.email ?? "Client",
+        label: clientFullName(cl),
         detail: "Nieuwe check-in te beoordelen",
         href: `/clients/${c.client_id}?tab=checkins`,
         tone: "blue",
@@ -62,7 +64,8 @@ export function ActionRequiredBlock({ data, loading }: Props) {
         items.push({
           key: "miss-" + c.user_id,
           icon: AlertCircle,
-          label: c.display_name ?? c.email ?? "Client",
+          label: clientFullName(c),
+
           detail: "Check-in deze week nog niet ingevuld",
           href: `/clients/${c.user_id}?tab=checkins`,
           tone: "amber",
@@ -81,7 +84,7 @@ export function ActionRequiredBlock({ data, loading }: Props) {
         items.push({
           key: "ob-" + c.user_id,
           icon: UserPlus,
-          label: c.display_name ?? c.email ?? "Client",
+          label: clientFullName(c),
           detail: "Startbericht nog niet gepubliceerd",
           href: `/clients/${c.user_id}`,
           tone: "purple",

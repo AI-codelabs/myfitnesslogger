@@ -21,6 +21,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
+import { clientFullName } from "@/lib/clientName";
+
 interface Invitation {
   id: string;
   email: string;
@@ -28,7 +30,11 @@ interface Invitation {
   accepted_user_id: string | null;
   created_at: string;
   accepted_at: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  display_name?: string | null;
 }
+
 
 type ViewMode = "list" | "grid";
 
@@ -66,7 +72,27 @@ const Clients = () => {
         .order("created_at", { ascending: false }),
       supabase.rpc("get_clients_last_active", { _coach_id: user.id }),
     ]);
-    setInvitations(invs ?? []);
+    const baseInvs = (invs ?? []) as Invitation[];
+    const acceptedIds = baseInvs.map((i) => i.accepted_user_id).filter(Boolean) as string[];
+    let profileMap: Record<string, { first_name: string | null; last_name: string | null; display_name: string | null }> = {};
+    if (acceptedIds.length > 0) {
+      const { data: profs } = await supabase
+        .from("profiles")
+        .select("user_id, first_name, last_name, display_name")
+        .in("user_id", acceptedIds);
+      (profs ?? []).forEach((p: any) => {
+        profileMap[p.user_id] = {
+          first_name: p.first_name,
+          last_name: p.last_name,
+          display_name: p.display_name,
+        };
+      });
+    }
+    const merged = baseInvs.map((inv) => ({
+      ...inv,
+      ...(inv.accepted_user_id ? profileMap[inv.accepted_user_id] : {}),
+    }));
+    setInvitations(merged);
     const map: Record<string, string | null> = {};
     (la ?? []).forEach((r: any) => {
       map[r.user_id] = r.last_sign_in_at;
@@ -74,6 +100,7 @@ const Clients = () => {
     setLastActive(map);
     setLoading(false);
   };
+
 
   useEffect(() => {
     load();
@@ -135,9 +162,13 @@ const Clients = () => {
           <Mail className="h-4 w-4 text-muted-foreground" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-medium truncate">{inv.email}</p>
-          <p className="text-xs text-muted-foreground">{subtitleFor(inv)}</p>
+          <p className="font-medium truncate">{inv.accepted_user_id ? clientFullName(inv) : inv.email}</p>
+          <p className="text-xs text-muted-foreground truncate">
+            {inv.accepted_user_id && clientFullName(inv) !== inv.email ? `${inv.email} · ` : ""}
+            {subtitleFor(inv)}
+          </p>
         </div>
+
         <Badge className={`flex-shrink-0 border-0 ${style.className}`}>{style.label}</Badge>
         {inv.status === "pending" &&
           deleteInviteDialog(
@@ -177,9 +208,13 @@ const Clients = () => {
           <Badge className={`border-0 ${style.className}`}>{style.label}</Badge>
         </div>
         <div className="min-w-0">
-          <p className="font-medium truncate">{inv.email}</p>
+          <p className="font-medium truncate">{inv.accepted_user_id ? clientFullName(inv) : inv.email}</p>
+          {inv.accepted_user_id && clientFullName(inv) !== inv.email && (
+            <p className="text-xs text-muted-foreground truncate">{inv.email}</p>
+          )}
           <p className="text-xs text-muted-foreground mt-1">{subtitleFor(inv)}</p>
         </div>
+
         {inv.status === "pending" && (
           <div className="mt-auto pt-2" onClick={(e) => e.preventDefault()}>
             {deleteInviteDialog(

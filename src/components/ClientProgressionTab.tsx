@@ -152,11 +152,20 @@ export function ClientProgressionTab({ clientId, lang }: Props) {
           delta={dF}
         />
         <Stat
+          label={lang === "nl" ? "Gem. RPE" : "Avg RPE"}
+          value={(() => {
+            const rpes = checkins.map((c) => c.intensity_rpe).filter((v): v is number => v != null);
+            if (rpes.length === 0) return "—";
+            return (rpes.reduce((a, b) => a + b, 0) / rpes.length).toFixed(1);
+          })()}
+          unit="/5"
+        />
+        <Stat
           label={lang === "nl" ? "Check-ins" : "Check-ins"}
           value={String(checkins.length)}
         />
-        <Stat label={lang === "nl" ? "Foto sessies" : "Photo sessions"} value={String(photos.length)} />
       </div>
+
 
       <Card className="p-4 sm:p-5 space-y-3">
         <h3 className="font-semibold">{lang === "nl" ? "Gewicht over tijd" : "Weight over time"}</h3>
