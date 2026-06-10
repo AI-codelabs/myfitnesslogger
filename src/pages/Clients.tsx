@@ -21,6 +21,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
+import { clientFullName } from "@/lib/clientName";
+
 interface Invitation {
   id: string;
   email: string;
@@ -28,7 +30,11 @@ interface Invitation {
   accepted_user_id: string | null;
   created_at: string;
   accepted_at: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  display_name?: string | null;
 }
+
 
 type ViewMode = "list" | "grid";
 
