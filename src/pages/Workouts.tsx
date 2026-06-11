@@ -8,9 +8,20 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dumbbell, Sparkles, User as UserIcon, Search, X, Pencil, Video, Plus } from "lucide-react";
+import { Dumbbell, Sparkles, User as UserIcon, Search, X, Pencil, Video, Plus, Trash2 } from "lucide-react";
 import { CreatePlanDialog } from "@/components/CreatePlanDialog";
 import { ExerciseDialog, type ExerciseRecord } from "@/components/ExerciseDialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from "@/hooks/use-toast";
 
 interface Plan {
   id: string;
