@@ -19,11 +19,28 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { ArrowLeft, ArrowDown, ArrowUp, Plus, Trash2, Video, Loader2, Pencil, Check, Copy } from "lucide-react";
+import { ArrowLeft, ArrowDown, ArrowUp, Plus, Trash2, Video, Loader2, Pencil, Check, Copy, GripVertical } from "lucide-react";
 import { toast } from "sonner";
 import { AddExerciseToDayDialog } from "@/components/AddExerciseToDayDialog";
 import { DuplicatePlanDialog } from "@/components/DuplicatePlanDialog";
 import { SetsRepsEditor } from "@/components/SetsRepsEditor";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  rectSortingStrategy,
+  sortableKeyboardCoordinates,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface Plan {
   id: string;
@@ -171,6 +188,34 @@ function detectDayType(dayName: string, muscleGroups: string[]): DayTypeKey {
   return "other";
 }
 
+function SortableDayWrapper({
+  id,
+  disabled,
+  children,
+}: {
+  id: string;
+  disabled?: boolean;
+  children: (handle: {
+    attributes: React.HTMLAttributes<HTMLElement>;
+    listeners: React.HTMLAttributes<HTMLElement> | undefined;
+    isDragging: boolean;
+  }) => React.ReactNode;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id, disabled });
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.6 : 1,
+    zIndex: isDragging ? 10 : undefined,
+  };
+  return (
+    <div ref={setNodeRef} style={style}>
+      {children({ attributes: attributes as any, listeners: listeners as any, isDragging })}
+    </div>
+  );
+}
+
 export default function WorkoutPlan() {
   const { planId } = useParams();
   const { user, role } = useAuth();
@@ -186,6 +231,21 @@ export default function WorkoutPlan() {
   const canEdit = canEditPlan && editMode;
   const [extraCategories, setExtraCategories] = useState<string[]>([]);
   const [newCategory, setNewCategory] = useState("");
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  function handleDayDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIdx = days.findIndex((d) => d.id === active.id);
+    const newIdx = days.findIndex((d) => d.id === over.id);
+    if (oldIdx < 0 || newIdx < 0) return;
+    const reordered = arrayMove(days, oldIdx, newIdx);
+    persistDayOrder(reordered);
+  }
 
   async function load() {
     if (!planId) return;
@@ -261,6 +321,34 @@ export default function WorkoutPlan() {
     const { error } = await supabase.from("workout_plan_days").delete().eq("id", dayId);
     if (error) return toast.error(error.message);
     load();
+  }
+
+  async function persistDayOrder(ordered: Day[]) {
+    // Optimistically update day_index, then persist via two-phase update to
+    // avoid violating any unique (plan_id, day_index) constraint.
+    const withIdx = ordered.map((d, i) => ({ ...d, day_index: i }));
+    setDays(withIdx);
+    if (!plan) return;
+    // Phase 1: shift to high indexes (offset by 1000) to avoid collisions.
+    await Promise.all(
+      withIdx.map((d, i) =>
+        supabase
+          .from("workout_plan_days")
+          .update({ day_index: 1000 + i })
+          .eq("id", d.id),
+      ),
+    );
+    // Phase 2: assign final indexes.
+    const results = await Promise.all(
+      withIdx.map((d, i) =>
+        supabase.from("workout_plan_days").update({ day_index: i }).eq("id", d.id),
+      ),
+    );
+    const failed = results.find((r) => r.error);
+    if (failed?.error) {
+      toast.error(failed.error.message);
+      load();
+    }
   }
 
   // ----- Exercise-level edits -----
@@ -451,6 +539,12 @@ export default function WorkoutPlan() {
       </Card>
 
       {/* Days grid */}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDayDragEnd}
+      >
+        <SortableContext items={days.map((d) => d.id)} strategy={rectSortingStrategy}>
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
         {days.map((d) => {
           const dayItems = items
@@ -463,13 +557,25 @@ export default function WorkoutPlan() {
             new Set(muscles.filter(Boolean).map((m) => m.toLowerCase())),
           );
           return (
+            <SortableDayWrapper key={d.id} id={d.id} disabled={!canEdit}>
+              {({ attributes, listeners }) => (
             <Card
-              key={d.id}
               className={`overflow-hidden flex flex-col shadow-sm hover:shadow-md transition-shadow ${theme.ring}`}
             >
               <CardHeader className={`py-3 ${theme.header}`}>
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0 flex-1">
+                    {canEdit && (
+                      <button
+                        type="button"
+                        {...attributes}
+                        {...listeners}
+                        className="shrink-0 -ml-1 p-1 rounded text-muted-foreground hover:bg-background/60 cursor-grab active:cursor-grabbing touch-none"
+                        aria-label="Drag to reorder day"
+                      >
+                        <GripVertical className="h-4 w-4" />
+                      </button>
+                    )}
                     <span className={`h-2.5 w-2.5 rounded-full shrink-0 ${theme.dot}`} />
                     {canEdit ? (
                       <Input
@@ -685,9 +791,13 @@ export default function WorkoutPlan() {
                 )}
               </CardContent>
             </Card>
+              )}
+            </SortableDayWrapper>
           );
         })}
       </div>
+        </SortableContext>
+      </DndContext>
 
       {canEdit && (
         <div className="flex justify-center">

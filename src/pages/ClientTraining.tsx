@@ -265,7 +265,7 @@ const ClientTraining = () => {
         </div>
         <div className="grid grid-cols-7 gap-1.5">
           {weekDays.map((d, i) => {
-            const k = d.toISOString().slice(0, 10);
+            const k = formatDateKey(d);
             const hasPlan = planned.has(k);
             const isSelected = sameDay(d, currentDate);
             const isToday = sameDay(d, today);

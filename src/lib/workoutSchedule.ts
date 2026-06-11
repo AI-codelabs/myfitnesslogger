@@ -96,7 +96,7 @@ export function computeScheduledOccurrences(
       occurrence++;
       const key = `${a.id}:${occurrence}`;
       if (deleteSet.has(key)) continue;
-      const originalDate = d.toISOString().slice(0, 10);
+      const originalDate = formatDateKey(d);
       const move = moveMap.get(key);
       const scheduledDate = move?.scheduled_date ?? originalDate;
       push(scheduledDate, {
