@@ -311,6 +311,7 @@ export default function Workouts() {
                   <TableHead>Video</TableHead>
                   <TableHead className="w-[1%]"></TableHead>
                   <TableHead className="w-[1%]"></TableHead>
+                  <TableHead className="w-[1%]"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
