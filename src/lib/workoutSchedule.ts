@@ -91,7 +91,7 @@ export function computeScheduledOccurrences(
   for (const a of assignments) {
     if (!a.is_active || !a.start_date || !a.weeks || !a.days || a.days.length === 0) continue;
     const isRecurring = (a.weeks ?? 1) * (a.days?.length ?? 0) > 1;
-    const start = startOfDay(new Date(a.start_date));
+    const start = startOfDay(parseLocalDate(a.start_date));
     const totalDays = a.weeks * 7;
     let occurrence = 0;
     for (let i = 0; i < totalDays; i++) {
