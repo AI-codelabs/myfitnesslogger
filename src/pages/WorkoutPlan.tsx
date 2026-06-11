@@ -188,6 +188,34 @@ function detectDayType(dayName: string, muscleGroups: string[]): DayTypeKey {
   return "other";
 }
 
+function SortableDayWrapper({
+  id,
+  disabled,
+  children,
+}: {
+  id: string;
+  disabled?: boolean;
+  children: (handle: {
+    attributes: React.HTMLAttributes<HTMLElement>;
+    listeners: React.HTMLAttributes<HTMLElement> | undefined;
+    isDragging: boolean;
+  }) => React.ReactNode;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id, disabled });
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.6 : 1,
+    zIndex: isDragging ? 10 : undefined,
+  };
+  return (
+    <div ref={setNodeRef} style={style}>
+      {children({ attributes: attributes as any, listeners: listeners as any, isDragging })}
+    </div>
+  );
+}
+
 export default function WorkoutPlan() {
   const { planId } = useParams();
   const { user, role } = useAuth();
