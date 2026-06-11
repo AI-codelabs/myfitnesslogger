@@ -8,9 +8,20 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dumbbell, Sparkles, User as UserIcon, Search, X, Pencil, Video, Plus } from "lucide-react";
+import { Dumbbell, Sparkles, User as UserIcon, Search, X, Pencil, Video, Plus, Trash2 } from "lucide-react";
 import { CreatePlanDialog } from "@/components/CreatePlanDialog";
 import { ExerciseDialog, type ExerciseRecord } from "@/components/ExerciseDialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from "@/hooks/use-toast";
 
 interface Plan {
   id: string;
@@ -43,6 +54,41 @@ export default function Workouts() {
   const [editing, setEditing] = useState<ExerciseRecord | null>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [newExOpen, setNewExOpen] = useState(false);
+  const [deleting, setDeleting] = useState<Exercise | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+
+  async function handleDeleteExercise() {
+    if (!deleting) return;
+    setDeleteBusy(true);
+    try {
+      const { count } = await supabase
+        .from("workout_plan_exercises")
+        .select("id", { count: "exact", head: true })
+        .eq("exercise_id", deleting.id);
+      if ((count ?? 0) > 0) {
+        toast({
+          title: "Cannot delete exercise",
+          description: `This exercise is used in ${count} plan day${count === 1 ? "" : "s"}. Remove it from those plans first.`,
+          variant: "destructive",
+        });
+        setDeleting(null);
+        return;
+      }
+      const { error } = await supabase.from("exercises").delete().eq("id", deleting.id);
+      if (error) throw error;
+      toast({ title: "Exercise deleted", description: deleting.name });
+      setDeleting(null);
+      await reloadExercises();
+    } catch (err: any) {
+      toast({
+        title: "Delete failed",
+        description: err?.message ?? "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleteBusy(false);
+    }
+  }
 
   async function reloadExercises() {
     const { data } = await supabase
@@ -265,6 +311,7 @@ export default function Workouts() {
                   <TableHead>Video</TableHead>
                   <TableHead className="w-[1%]"></TableHead>
                   <TableHead className="w-[1%]"></TableHead>
+                  <TableHead className="w-[1%]"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -314,11 +361,25 @@ export default function Workouts() {
                         <Pencil className="h-4 w-4" />
                       </Button>
                     </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(ev) => {
+                          ev.stopPropagation();
+                          setDeleting(e);
+                        }}
+                        aria-label="Delete exercise"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
                 {filteredEx.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                       No exercises match your filter.
                     </TableCell>
                   </TableRow>
@@ -348,6 +409,31 @@ export default function Workouts() {
         defaultName={exFilter.trim()}
         onSaved={reloadExercises}
       />
+
+      <AlertDialog open={!!deleting} onOpenChange={(o) => !o && !deleteBusy && setDeleting(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete exercise?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently removes <span className="font-medium">{deleting?.name}</span> from the library.
+              If it's used in any workout plan, you'll need to remove it from those plans first.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteBusy}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(ev) => {
+                ev.preventDefault();
+                handleDeleteExercise();
+              }}
+              disabled={deleteBusy}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteBusy ? "Deleting…" : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

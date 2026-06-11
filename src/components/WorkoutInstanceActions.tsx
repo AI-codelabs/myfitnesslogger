@@ -465,7 +465,7 @@ async function applyDelete(
         assignment_id: occ.assignmentId,
         plan_id: occ.planId,
         action: "delete",
-        original_date: d.toISOString().slice(0, 10),
+        original_date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`,
         occurrence_index: occurrence,
       });
     }

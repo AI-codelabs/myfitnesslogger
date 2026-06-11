@@ -58,6 +58,11 @@ function addDays(d: Date, n: number) {
   x.setDate(x.getDate() + n);
   return x;
 }
+/** Parse a YYYY-MM-DD date string as local-midnight (avoids UTC tz drift). */
+function parseLocalDate(s: string): Date {
+  const [y, m, d] = s.split("-").map(Number);
+  return new Date(y, (m ?? 1) - 1, d ?? 1);
+}
 
 /** Compute all calendar occurrences (planned + overrides), grouped by date key (YYYY-MM-DD). */
 export function computeScheduledOccurrences(
@@ -86,7 +91,7 @@ export function computeScheduledOccurrences(
   for (const a of assignments) {
     if (!a.is_active || !a.start_date || !a.weeks || !a.days || a.days.length === 0) continue;
     const isRecurring = (a.weeks ?? 1) * (a.days?.length ?? 0) > 1;
-    const start = startOfDay(new Date(a.start_date));
+    const start = startOfDay(parseLocalDate(a.start_date));
     const totalDays = a.weeks * 7;
     let occurrence = 0;
     for (let i = 0; i < totalDays; i++) {
