@@ -539,6 +539,12 @@ export default function WorkoutPlan() {
       </Card>
 
       {/* Days grid */}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDayDragEnd}
+      >
+        <SortableContext items={days.map((d) => d.id)} strategy={rectSortingStrategy}>
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
         {days.map((d) => {
           const dayItems = items
