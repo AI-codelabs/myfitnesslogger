@@ -557,13 +557,25 @@ export default function WorkoutPlan() {
             new Set(muscles.filter(Boolean).map((m) => m.toLowerCase())),
           );
           return (
+            <SortableDayWrapper key={d.id} id={d.id} disabled={!canEdit}>
+              {({ attributes, listeners }) => (
             <Card
-              key={d.id}
               className={`overflow-hidden flex flex-col shadow-sm hover:shadow-md transition-shadow ${theme.ring}`}
             >
               <CardHeader className={`py-3 ${theme.header}`}>
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0 flex-1">
+                    {canEdit && (
+                      <button
+                        type="button"
+                        {...attributes}
+                        {...listeners}
+                        className="shrink-0 -ml-1 p-1 rounded text-muted-foreground hover:bg-background/60 cursor-grab active:cursor-grabbing touch-none"
+                        aria-label="Drag to reorder day"
+                      >
+                        <GripVertical className="h-4 w-4" />
+                      </button>
+                    )}
                     <span className={`h-2.5 w-2.5 rounded-full shrink-0 ${theme.dot}`} />
                     {canEdit ? (
                       <Input
