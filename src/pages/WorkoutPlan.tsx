@@ -791,9 +791,13 @@ export default function WorkoutPlan() {
                 )}
               </CardContent>
             </Card>
+              )}
+            </SortableDayWrapper>
           );
         })}
       </div>
+        </SortableContext>
+      </DndContext>
 
       {canEdit && (
         <div className="flex justify-center">
