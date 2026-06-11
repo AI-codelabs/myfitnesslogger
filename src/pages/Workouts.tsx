@@ -361,6 +361,20 @@ export default function Workouts() {
                         <Pencil className="h-4 w-4" />
                       </Button>
                     </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(ev) => {
+                          ev.stopPropagation();
+                          setDeleting(e);
+                        }}
+                        aria-label="Delete exercise"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
                 {filteredEx.length === 0 && (
