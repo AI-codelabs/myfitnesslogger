@@ -232,6 +232,21 @@ export default function WorkoutPlan() {
   const [extraCategories, setExtraCategories] = useState<string[]>([]);
   const [newCategory, setNewCategory] = useState("");
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  function handleDayDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIdx = days.findIndex((d) => d.id === active.id);
+    const newIdx = days.findIndex((d) => d.id === over.id);
+    if (oldIdx < 0 || newIdx < 0) return;
+    const reordered = arrayMove(days, oldIdx, newIdx);
+    persistDayOrder(reordered);
+  }
+
   async function load() {
     if (!planId) return;
     const [{ data: p }, { data: d }] = await Promise.all([
