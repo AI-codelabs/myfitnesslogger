@@ -33,7 +33,8 @@ interface Props {
 
 export function ScheduleWorkoutDialog({ open, onOpenChange, prefillDays, lang, busy, onConfirm }: Props) {
   const tx = (nl: string, en: string) => (lang === "nl" ? nl : en);
-  const today = new Date().toISOString().slice(0, 10);
+  const _td = new Date();
+  const today = `${_td.getFullYear()}-${String(_td.getMonth() + 1).padStart(2, "0")}-${String(_td.getDate()).padStart(2, "0")}`;
   const [startDate, setStartDate] = useState(today);
   const [weeks, setWeeks] = useState(10);
   const [days, setDays] = useState<string[]>([]);
