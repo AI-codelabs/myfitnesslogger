@@ -170,8 +170,8 @@ const ClientTraining = () => {
         .not("completed_at", "is", null);
       const completed = new Set<string>();
       for (const s of sessions ?? []) {
-        const key = `${s.plan_id}:${s.day_id || '_'}:${s.scheduled_date || '_'}`;
-        completed.add(key);
+        if (!s.scheduled_date) continue;
+        completed.add(`${s.plan_id}:${s.scheduled_date}`);
       }
       setCompletedSessions(completed);
 
