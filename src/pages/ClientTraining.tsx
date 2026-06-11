@@ -73,8 +73,12 @@ const ClientTraining = () => {
   );
   const tx = (nl: string, en: string) => (lang === "nl" ? nl : en);
 
-  const isOccurrenceCompleted = (planId: string, dayId: string | undefined, date: string) => {
-    const key = `${planId}:${dayId || '_'}:${date}`;
+  const isOccurrenceCompleted = (planId: string, _dayId: string | undefined, date: string) => {
+    // Match by plan + date only. If the coach reorders plan days after the
+    // client has already logged a workout, the day_id assigned to that
+    // calendar date can change — but the workout the client actually
+    // completed on that date is still a completion for that plan.
+    const key = `${planId}:${date}`;
     return completedSessions.has(key);
   };
 
@@ -166,8 +170,8 @@ const ClientTraining = () => {
         .not("completed_at", "is", null);
       const completed = new Set<string>();
       for (const s of sessions ?? []) {
-        const key = `${s.plan_id}:${s.day_id || '_'}:${s.scheduled_date || '_'}`;
-        completed.add(key);
+        if (!s.scheduled_date) continue;
+        completed.add(`${s.plan_id}:${s.scheduled_date}`);
       }
       setCompletedSessions(completed);
 
