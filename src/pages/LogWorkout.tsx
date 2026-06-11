@@ -133,10 +133,13 @@ const LogWorkout = () => {
           return;
         }
 
-        // Try to resume an existing session for the same plan/day/date.
-        // Pick the most recent one regardless of completion — if the client
-        // already finished and comes back, we reopen that session so previously
-        // logged sets remain visible instead of starting from an empty grid.
+        // Try to resume an existing session for the same plan/date.
+        // We intentionally do NOT filter by day_id: if the coach reorders
+        // plan days after the client logged a workout, the day_id assigned
+        // to that calendar date can change. We still want to reopen the
+        // session the client already started/completed for that date,
+        // instead of creating a new empty placeholder and making the
+        // previous completion look lost.
         let existingQuery = supabase
           .from("workout_sessions")
           .select("id, plan_id, day_id, scheduled_date, completed_at")
@@ -144,8 +147,6 @@ const LogWorkout = () => {
           .eq("plan_id", planId);
         if (date) existingQuery = existingQuery.eq("scheduled_date", date);
         else existingQuery = existingQuery.is("scheduled_date", null);
-        if (dayId) existingQuery = existingQuery.eq("day_id", dayId);
-        else existingQuery = existingQuery.is("day_id", null);
 
         const { data: existing } = await existingQuery
           .order("started_at", { ascending: false })
@@ -153,15 +154,9 @@ const LogWorkout = () => {
           .maybeSingle();
 
         if (existing) {
-          // If it was already completed, reopen it so the client can review
-          // and continue logging without losing previously entered data.
-          if (existing.completed_at) {
-            await supabase
-              .from("workout_sessions")
-              .update({ completed_at: null })
-              .eq("id", existing.id);
-            existing.completed_at = null;
-          }
+          // Reopen as-is. Preserve completed_at so the client can see the
+          // workout is already marked complete; they can add more sets and
+          // re-finish if they want, but we never silently un-complete it.
           session = existing;
           sid = existing.id;
           navigate(`/training/log/${sid}`, { replace: true });
