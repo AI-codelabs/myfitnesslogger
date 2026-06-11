@@ -409,6 +409,31 @@ export default function Workouts() {
         defaultName={exFilter.trim()}
         onSaved={reloadExercises}
       />
+
+      <AlertDialog open={!!deleting} onOpenChange={(o) => !o && !deleteBusy && setDeleting(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete exercise?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently removes <span className="font-medium">{deleting?.name}</span> from the library.
+              If it's used in any workout plan, you'll need to remove it from those plans first.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteBusy}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(ev) => {
+                ev.preventDefault();
+                handleDeleteExercise();
+              }}
+              disabled={deleteBusy}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteBusy ? "Deleting…" : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
