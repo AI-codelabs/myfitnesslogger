@@ -58,6 +58,11 @@ function addDays(d: Date, n: number) {
   x.setDate(x.getDate() + n);
   return x;
 }
+/** Parse a YYYY-MM-DD date string as local-midnight (avoids UTC tz drift). */
+function parseLocalDate(s: string): Date {
+  const [y, m, d] = s.split("-").map(Number);
+  return new Date(y, (m ?? 1) - 1, d ?? 1);
+}
 
 /** Compute all calendar occurrences (planned + overrides), grouped by date key (YYYY-MM-DD). */
 export function computeScheduledOccurrences(
