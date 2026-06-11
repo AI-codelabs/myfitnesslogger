@@ -54,6 +54,41 @@ export default function Workouts() {
   const [editing, setEditing] = useState<ExerciseRecord | null>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [newExOpen, setNewExOpen] = useState(false);
+  const [deleting, setDeleting] = useState<Exercise | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+
+  async function handleDeleteExercise() {
+    if (!deleting) return;
+    setDeleteBusy(true);
+    try {
+      const { count } = await supabase
+        .from("workout_plan_exercises")
+        .select("id", { count: "exact", head: true })
+        .eq("exercise_id", deleting.id);
+      if ((count ?? 0) > 0) {
+        toast({
+          title: "Cannot delete exercise",
+          description: `This exercise is used in ${count} plan day${count === 1 ? "" : "s"}. Remove it from those plans first.`,
+          variant: "destructive",
+        });
+        setDeleting(null);
+        return;
+      }
+      const { error } = await supabase.from("exercises").delete().eq("id", deleting.id);
+      if (error) throw error;
+      toast({ title: "Exercise deleted", description: deleting.name });
+      setDeleting(null);
+      await reloadExercises();
+    } catch (err: any) {
+      toast({
+        title: "Delete failed",
+        description: err?.message ?? "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleteBusy(false);
+    }
+  }
 
   async function reloadExercises() {
     const { data } = await supabase
