@@ -280,6 +280,34 @@ export default function WorkoutPlan() {
     load();
   }
 
+  async function persistDayOrder(ordered: Day[]) {
+    // Optimistically update day_index, then persist via two-phase update to
+    // avoid violating any unique (plan_id, day_index) constraint.
+    const withIdx = ordered.map((d, i) => ({ ...d, day_index: i }));
+    setDays(withIdx);
+    if (!plan) return;
+    // Phase 1: shift to high indexes (offset by 1000) to avoid collisions.
+    await Promise.all(
+      withIdx.map((d, i) =>
+        supabase
+          .from("workout_plan_days")
+          .update({ day_index: 1000 + i })
+          .eq("id", d.id),
+      ),
+    );
+    // Phase 2: assign final indexes.
+    const results = await Promise.all(
+      withIdx.map((d, i) =>
+        supabase.from("workout_plan_days").update({ day_index: i }).eq("id", d.id),
+      ),
+    );
+    const failed = results.find((r) => r.error);
+    if (failed?.error) {
+      toast.error(failed.error.message);
+      load();
+    }
+  }
+
   // ----- Exercise-level edits -----
   async function updateExercise(id: string, patch: Partial<PlanExercise>) {
     setItems((prev) => prev.map((it) => (it.id === id ? { ...it, ...patch } : it)));
