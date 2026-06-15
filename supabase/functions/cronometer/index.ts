@@ -1450,6 +1450,9 @@ serve(async (req) => {
     return json({ error: "Invalid action. Use: connect_and_save, sync, push_targets, connect, export, or login_and_export" }, 400);
   } catch (e) {
     console.error("Cronometer error:", e);
+    if (e instanceof CronometerUserError) {
+      return json({ error: e.code, message: e.message }, e.status);
+    }
     const msg = e instanceof Error ? e.message : "Unknown error";
     return json({ error: msg }, 500);
   }
