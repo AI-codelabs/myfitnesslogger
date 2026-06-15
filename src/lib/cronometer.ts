@@ -5,6 +5,12 @@ type CronometerFunctionError = {
   message?: string;
 };
 
+export type CronometerConnectResult = {
+  success: boolean;
+  error?: string;
+  needsTotp?: boolean;
+};
+
 async function parseCronometerFunctionError(error: unknown): Promise<CronometerFunctionError | null> {
   const context = (error as { context?: unknown } | null)?.context;
 
@@ -31,15 +37,20 @@ async function parseCronometerFunctionError(error: unknown): Promise<CronometerF
 export async function connectCronometerServer(
   username: string,
   password: string,
-): Promise<{ success: boolean; error?: string }> {
+  totpCode?: string,
+): Promise<CronometerConnectResult> {
   const { data, error } = await supabase.functions.invoke("cronometer", {
-    body: { action: "connect_and_save", username, password },
+    body: { action: "connect_and_save", username, password, totpCode },
   });
   if (error) {
     const parsed = await parseCronometerFunctionError(error);
-    return { success: false, error: parsed?.message || parsed?.error || error.message };
+    const needsTotp = parsed?.error === "totp_required" || parsed?.error === "totp_incorrect";
+    return { success: false, needsTotp, error: parsed?.message || parsed?.error || error.message };
   }
-  if ((data as any)?.error) return { success: false, error: (data as any).error };
+  if ((data as any)?.error) {
+    const needsTotp = (data as any).error === "totp_required" || (data as any).error === "totp_incorrect";
+    return { success: false, needsTotp, error: (data as any).message || (data as any).error };
+  }
   return { success: true };
 }
 

@@ -21,6 +21,17 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+class CronometerUserError extends Error {
+  constructor(
+    public code: string,
+    message: string,
+    public status = 400,
+  ) {
+    super(message);
+    this.name = "CronometerUserError";
+  }
+}
+
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
@@ -135,11 +146,16 @@ function cookieString(jar: Map<string, string>): string {
 }
 
 // Step 2: Login
-async function login(username: string, password: string, cookieJar: Map<string, string>) {
+async function login(username: string, password: string, cookieJar: Map<string, string>, totpCode?: string) {
   const csrf = await getAntiCsrf(cookieJar);
 
   console.log("Step 2: Posting login credentials...");
-  const body = new URLSearchParams({ anticsrf: csrf, username, password });
+  const body = new URLSearchParams({
+    anticsrf: csrf,
+    username,
+    password,
+    userCode: totpCode?.trim() || "",
+  });
   const resp = await fetch(CRONOMETER_LOGIN_API, {
     method: "POST",
     headers: {
@@ -174,7 +190,23 @@ async function login(username: string, password: string, cookieJar: Map<string, 
     throw new Error(`Login response was not JSON (status ${resp.status}): ${text.substring(0, 300)}`);
   }
 
-  if (result.error) throw new Error(`Cronometer login error: ${result.error}`);
+  if (result.error === "TOTP_CODE_REQUIRED") {
+    throw new CronometerUserError(
+      "totp_required",
+      "Cronometer requires the 6-digit code from your authenticator app.",
+      409,
+    );
+  }
+  if (result.error === "TOTP_CODE_INCORRECT") {
+    throw new CronometerUserError(
+      "totp_incorrect",
+      "That Cronometer authentication code is wrong or expired. Please try a fresh 6-digit code.",
+      409,
+    );
+  }
+  if (result.error) {
+    throw new CronometerUserError("login_failed", `Cronometer login error: ${result.error}`, 401);
+  }
   if (!result.success && !result.redirect) throw new Error(`Login failed. Response: ${JSON.stringify(result)}`);
 }
 
@@ -1099,14 +1131,14 @@ serve(async (req) => {
       const auth = await authedClient(req);
       if ("error" in auth) return json({ error: auth.error }, auth.status);
 
-      const { username, password } = body;
+      const { username, password, totpCode } = body;
       if (!username || !password) {
         return json({ error: "Username and password are required" }, 400);
       }
 
       await refreshGwtValues();
       const cookieJar = new Map<string, string>();
-      await login(username, password, cookieJar);
+      await login(username, password, cookieJar, totpCode);
       const userId = await gwtAuthenticate(cookieJar);
       const cookies = Object.fromEntries(cookieJar);
 
@@ -1238,7 +1270,7 @@ serve(async (req) => {
     }
 
     // ==== Legacy actions (unchanged) ====
-    const { username, password, start, end, cookies, user_id, gwt_permutation, gwt_header } = body;
+    const { username, password, totpCode, start, end, cookies, user_id, gwt_permutation, gwt_header } = body;
 
     if (action === "connect") {
       if (!username || !password) {
@@ -1246,7 +1278,7 @@ serve(async (req) => {
       }
       await refreshGwtValues();
       const cookieJar = new Map<string, string>();
-      await login(username, password, cookieJar);
+      await login(username, password, cookieJar, totpCode);
       const userId = await gwtAuthenticate(cookieJar);
       const cookiesOut = Object.fromEntries(cookieJar);
       return json({
@@ -1282,7 +1314,7 @@ serve(async (req) => {
       }
       await refreshGwtValues();
       const cookieJar = new Map<string, string>();
-      await login(username, password, cookieJar);
+      await login(username, password, cookieJar, totpCode);
       const userId = await gwtAuthenticate(cookieJar);
       const endDate = end || new Date().toISOString().split("T")[0];
       const startDate = start || (() => {
@@ -1418,6 +1450,9 @@ serve(async (req) => {
     return json({ error: "Invalid action. Use: connect_and_save, sync, push_targets, connect, export, or login_and_export" }, 400);
   } catch (e) {
     console.error("Cronometer error:", e);
+    if (e instanceof CronometerUserError) {
+      return json({ error: e.code, message: e.message }, e.status);
+    }
     const msg = e instanceof Error ? e.message : "Unknown error";
     return json({ error: msg }, 500);
   }

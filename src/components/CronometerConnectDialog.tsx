@@ -21,6 +21,8 @@ const copy = {
     desc: "Log in zodat we je dagelijkse voedingsdata automatisch kunnen synchroniseren. Je kunt dit later opnieuw doen vanaf het tabblad Voeding.",
     user: "Gebruikersnaam of e-mail",
     pw: "Wachtwoord",
+    code: "Authenticatiecode",
+    codeHint: "Vul de 6-cijferige code uit je authenticator-app in.",
     submit: "Verbinden",
     later: "Later",
     success: "Cronometer verbonden!",
@@ -30,6 +32,8 @@ const copy = {
     desc: "Sign in so we can automatically sync your daily nutrition data. You can redo this later from the Nutrition tab.",
     user: "Username or email",
     pw: "Password",
+    code: "Authentication code",
+    codeHint: "Enter the 6-digit code from your authenticator app.",
     submit: "Connect",
     later: "Later",
     success: "Cronometer connected!",
@@ -39,30 +43,44 @@ const copy = {
 export const CronometerConnectDialog = ({ open, onOpenChange, lang = "nl", onConnected }: Props) => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [totpCode, setTotpCode] = useState("");
+  const [needsTotp, setNeedsTotp] = useState(false);
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const c = copy[lang];
 
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen) {
+      setErr(null);
+      setTotpCode("");
+      setNeedsTotp(false);
+    }
+    onOpenChange(nextOpen);
+  };
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErr(null);
     setLoading(true);
-    const res = await connectCronometerServer(username.trim(), password);
+    const res = await connectCronometerServer(username.trim(), password, needsTotp ? totpCode : undefined);
     setLoading(false);
     if (!res.success) {
+      if (res.needsTotp) setNeedsTotp(true);
       setErr(res.error || "Failed to connect");
       return;
     }
     toast.success(c.success);
     setUsername("");
     setPassword("");
-    onOpenChange(false);
+    setTotpCode("");
+    setNeedsTotp(false);
+    handleOpenChange(false);
     onConnected?.();
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{c.title}</DialogTitle>
@@ -101,13 +119,28 @@ export const CronometerConnectDialog = ({ open, onOpenChange, lang = "nl", onCon
               </button>
             </div>
           </div>
+          {needsTotp && (
+            <div className="space-y-1.5">
+              <Label htmlFor="cron-code">{c.code}</Label>
+              <Input
+                id="cron-code"
+                value={totpCode}
+                onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                placeholder="000000"
+                required
+              />
+              <p className="text-xs text-muted-foreground">{c.codeHint}</p>
+            </div>
+          )}
           {err && (
             <p className="text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-md px-3 py-2">
               {err}
             </p>
           )}
           <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={loading}>
+            <Button type="button" variant="ghost" onClick={() => handleOpenChange(false)} disabled={loading}>
               {c.later}
             </Button>
             <Button type="submit" disabled={loading}>
