@@ -1131,14 +1131,14 @@ serve(async (req) => {
       const auth = await authedClient(req);
       if ("error" in auth) return json({ error: auth.error }, auth.status);
 
-      const { username, password } = body;
+      const { username, password, totpCode } = body;
       if (!username || !password) {
         return json({ error: "Username and password are required" }, 400);
       }
 
       await refreshGwtValues();
       const cookieJar = new Map<string, string>();
-      await login(username, password, cookieJar);
+      await login(username, password, cookieJar, totpCode);
       const userId = await gwtAuthenticate(cookieJar);
       const cookies = Object.fromEntries(cookieJar);
 
@@ -1270,7 +1270,7 @@ serve(async (req) => {
     }
 
     // ==== Legacy actions (unchanged) ====
-    const { username, password, start, end, cookies, user_id, gwt_permutation, gwt_header } = body;
+    const { username, password, totpCode, start, end, cookies, user_id, gwt_permutation, gwt_header } = body;
 
     if (action === "connect") {
       if (!username || !password) {
@@ -1278,7 +1278,7 @@ serve(async (req) => {
       }
       await refreshGwtValues();
       const cookieJar = new Map<string, string>();
-      await login(username, password, cookieJar);
+      await login(username, password, cookieJar, totpCode);
       const userId = await gwtAuthenticate(cookieJar);
       const cookiesOut = Object.fromEntries(cookieJar);
       return json({
@@ -1314,7 +1314,7 @@ serve(async (req) => {
       }
       await refreshGwtValues();
       const cookieJar = new Map<string, string>();
-      await login(username, password, cookieJar);
+      await login(username, password, cookieJar, totpCode);
       const userId = await gwtAuthenticate(cookieJar);
       const endDate = end || new Date().toISOString().split("T")[0];
       const startDate = start || (() => {
