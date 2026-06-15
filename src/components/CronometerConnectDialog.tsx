@@ -21,6 +21,8 @@ const copy = {
     desc: "Log in zodat we je dagelijkse voedingsdata automatisch kunnen synchroniseren. Je kunt dit later opnieuw doen vanaf het tabblad Voeding.",
     user: "Gebruikersnaam of e-mail",
     pw: "Wachtwoord",
+    code: "Authenticatiecode",
+    codeHint: "Vul de 6-cijferige code uit je authenticator-app in.",
     submit: "Verbinden",
     later: "Later",
     success: "Cronometer verbonden!",
@@ -30,6 +32,8 @@ const copy = {
     desc: "Sign in so we can automatically sync your daily nutrition data. You can redo this later from the Nutrition tab.",
     user: "Username or email",
     pw: "Password",
+    code: "Authentication code",
+    codeHint: "Enter the 6-digit code from your authenticator app.",
     submit: "Connect",
     later: "Later",
     success: "Cronometer connected!",
@@ -39,6 +43,8 @@ const copy = {
 export const CronometerConnectDialog = ({ open, onOpenChange, lang = "nl", onConnected }: Props) => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [totpCode, setTotpCode] = useState("");
+  const [needsTotp, setNeedsTotp] = useState(false);
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -48,15 +54,18 @@ export const CronometerConnectDialog = ({ open, onOpenChange, lang = "nl", onCon
     e.preventDefault();
     setErr(null);
     setLoading(true);
-    const res = await connectCronometerServer(username.trim(), password);
+    const res = await connectCronometerServer(username.trim(), password, needsTotp ? totpCode : undefined);
     setLoading(false);
     if (!res.success) {
+      if (res.needsTotp) setNeedsTotp(true);
       setErr(res.error || "Failed to connect");
       return;
     }
     toast.success(c.success);
     setUsername("");
     setPassword("");
+    setTotpCode("");
+    setNeedsTotp(false);
     onOpenChange(false);
     onConnected?.();
   };
