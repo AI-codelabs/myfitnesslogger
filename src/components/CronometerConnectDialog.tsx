@@ -50,6 +50,15 @@ export const CronometerConnectDialog = ({ open, onOpenChange, lang = "nl", onCon
   const [err, setErr] = useState<string | null>(null);
   const c = copy[lang];
 
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen) {
+      setErr(null);
+      setTotpCode("");
+      setNeedsTotp(false);
+    }
+    onOpenChange(nextOpen);
+  };
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErr(null);
@@ -66,12 +75,12 @@ export const CronometerConnectDialog = ({ open, onOpenChange, lang = "nl", onCon
     setPassword("");
     setTotpCode("");
     setNeedsTotp(false);
-    onOpenChange(false);
+    handleOpenChange(false);
     onConnected?.();
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{c.title}</DialogTitle>
@@ -131,7 +140,7 @@ export const CronometerConnectDialog = ({ open, onOpenChange, lang = "nl", onCon
             </p>
           )}
           <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={loading}>
+            <Button type="button" variant="ghost" onClick={() => handleOpenChange(false)} disabled={loading}>
               {c.later}
             </Button>
             <Button type="submit" disabled={loading}>
