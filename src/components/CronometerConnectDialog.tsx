@@ -110,6 +110,21 @@ export const CronometerConnectDialog = ({ open, onOpenChange, lang = "nl", onCon
               </button>
             </div>
           </div>
+          {needsTotp && (
+            <div className="space-y-1.5">
+              <Label htmlFor="cron-code">{c.code}</Label>
+              <Input
+                id="cron-code"
+                value={totpCode}
+                onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                placeholder="000000"
+                required
+              />
+              <p className="text-xs text-muted-foreground">{c.codeHint}</p>
+            </div>
+          )}
           {err && (
             <p className="text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-md px-3 py-2">
               {err}
