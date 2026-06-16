@@ -8,11 +8,12 @@ const EXPORT_URL = "https://cronometer.com/export";
 
 const GWT_CONTENT_TYPE = "text/x-gwt-rpc; charset=UTF-8";
 const GWT_MODULE_BASE = "https://cronometer.com/cronometer/";
+const GWT_NOCACHE_JS_URL = "https://cronometer.com/cronometer/cronometer.nocache.js";
 
-// These values change with Cronometer deploys. We try to scrape them dynamically,
-// falling back to known values.
-let cachedGwtPermutation = "7B121DC5483BF272B1BC1916DA9FA963";
-let cachedGwtHeader = "2D6A926E3729946302DC68073CB0D550";
+// These values change with Cronometer deploys. We scrape them dynamically,
+// falling back to known values when discovery fails.
+let cachedGwtPermutation = "4F2E46C723ED6E81F4C1402DD938E421";
+let cachedGwtHeader = "08048AF8BA7E897E74754A658DF1BEC5";
 let gwtValuesLastFetched = 0;
 
 const corsHeaders = {
@@ -39,50 +40,45 @@ function json(data: unknown, status = 200) {
   });
 }
 
-// Try to scrape the current GWT permutation & header from cronometer.com
-async function refreshGwtValues() {
-  if (Date.now() - gwtValuesLastFetched < 3600_000) return; // cache 1hr
+// Scrape current GWT permutation & header from Cronometer's bootstrap JS.
+// Pattern matches cronometer-mcp v2 discovery logic.
+async function refreshGwtValues(force = false) {
+  if (!force && Date.now() - gwtValuesLastFetched < 3600_000) return; // cache 1hr
   try {
-    // Fetch the main page to find the .nocache.js URL
-    const mainResp = await fetch("https://cronometer.com/cronometer/", {
+    const noCacheResp = await fetch(GWT_NOCACHE_JS_URL, {
       headers: { "User-Agent": "Mozilla/5.0" },
     });
-    const mainHtml = await mainResp.text();
-
-    // Find the nocache.js script
-    const noCacheMatch = mainHtml.match(/src="([^"]*\.nocache\.js)"/);
-    if (noCacheMatch) {
-      const noCacheUrl = noCacheMatch[1].startsWith("http")
-        ? noCacheMatch[1]
-        : `https://cronometer.com/cronometer/${noCacheMatch[1]}`;
-      const noCacheResp = await fetch(noCacheUrl, {
-        headers: { "User-Agent": "Mozilla/5.0" },
-      });
-      const noCacheJs = await noCacheResp.text();
-
-      // Extract permutation hash - it's a 32-char hex string used in URL
-      const permMatch = noCacheJs.match(/\b([A-F0-9]{32})\b/);
-      if (permMatch) {
-        cachedGwtPermutation = permMatch[1];
-      }
+    if (!noCacheResp.ok) {
+      throw new Error(`nocache.js returned ${noCacheResp.status}`);
     }
+    const noCacheJs = await noCacheResp.text();
 
-    // For the header value, we'd need to inspect the compiled JS which is complex.
-    // The header value is embedded in the GWT-serialized payloads.
-    // We'll try fetching the permutation JS file to find it.
-    const permUrl = `https://cronometer.com/cronometer/${cachedGwtPermutation}.cache.js`;
-    const permResp = await fetch(permUrl, {
+    const permMatch = noCacheJs.match(/='([A-F0-9]{32})'/);
+    if (!permMatch) {
+      throw new Error("Could not extract GWT permutation from nocache.js");
+    }
+    const permutation = permMatch[1];
+
+    const cacheUrl = `https://cronometer.com/cronometer/${permutation}.cache.js`;
+    const cacheResp = await fetch(cacheUrl, {
       headers: { "User-Agent": "Mozilla/5.0" },
     });
-    if (permResp.ok) {
-      const permJs = await permResp.text();
-      // The serialization policy hash appears as a string constant
-      const headerMatch = permJs.match(/'([A-F0-9]{32})'/);
-      if (headerMatch) {
-        cachedGwtHeader = headerMatch[1];
-      }
+    if (!cacheResp.ok) {
+      throw new Error(`cache.js returned ${cacheResp.status}`);
+    }
+    const cacheJs = await cacheResp.text();
+
+    // Serialization policy hash for the 'app' GWT endpoint.
+    const headerMatch = cacheJs.match(/'app','([A-F0-9]{32})'/);
+    if (!headerMatch) {
+      console.warn("Could not extract GWT header; updating permutation only");
+      cachedGwtPermutation = permutation;
+      gwtValuesLastFetched = Date.now();
+      return;
     }
 
+    cachedGwtPermutation = permutation;
+    cachedGwtHeader = headerMatch[1];
     gwtValuesLastFetched = Date.now();
     console.log(`GWT values refreshed: perm=${cachedGwtPermutation}, header=${cachedGwtHeader}`);
   } catch (e) {
@@ -936,9 +932,7 @@ async function reapplyTodayTargetsForClient(
     return { ok: false as const, error: "no_saved_targets" };
   }
 
-  await refreshGwtValues();
-  cachedGwtPermutation = session.gwt_permutation || cachedGwtPermutation;
-  cachedGwtHeader = session.gwt_header || cachedGwtHeader;
+  await refreshGwtValues(true);
   const cookieJar = new Map<string, string>(
     Object.entries(session.cookies as Record<string, string>),
   );
@@ -1047,8 +1041,7 @@ async function runSyncForSession(
   let csv: string;
   try {
     csv = await withGwtLock(async () => {
-      cachedGwtPermutation = session.gwt_permutation || cachedGwtPermutation;
-      cachedGwtHeader = session.gwt_header || cachedGwtHeader;
+      await refreshGwtValues();
       return await withRetry(
         () => exportServings(cookieJar, session.user_id_external, startIso, todayIso),
         2,
@@ -1102,6 +1095,8 @@ async function runSyncForSession(
       last_synced_at: new Date().toISOString(),
       last_error: null,
       cookies: Object.fromEntries(cookieJar),
+      gwt_permutation: cachedGwtPermutation,
+      gwt_header: cachedGwtHeader,
     })
     .eq("client_id", clientId);
 
@@ -1136,7 +1131,7 @@ serve(async (req) => {
         return json({ error: "Username and password are required" }, 400);
       }
 
-      await refreshGwtValues();
+      await refreshGwtValues(true);
       const cookieJar = new Map<string, string>();
       await login(username, password, cookieJar, totpCode);
       const userId = await gwtAuthenticate(cookieJar);
@@ -1372,9 +1367,7 @@ serve(async (req) => {
         await admin.from("cronometer_target_pushes").insert(logRow);
         return json({ error: "no_session", message: "Client has not connected Cronometer" }, 400);
       }
-      await refreshGwtValues();
-      cachedGwtPermutation = session.gwt_permutation || cachedGwtPermutation;
-      cachedGwtHeader = session.gwt_header || cachedGwtHeader;
+      await refreshGwtValues(true);
       const cookieJar = new Map<string, string>(
         Object.entries(session.cookies as Record<string, string>),
       );

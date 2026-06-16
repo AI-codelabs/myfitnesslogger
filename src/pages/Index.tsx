@@ -91,6 +91,7 @@ const Index = () => {
     let cancelled = false;
     hasCronometerSession(user.id).then((has) => {
       if (cancelled) return;
+      if (localStorage.getItem(dismissedKey)) return;
       if (!has) setShowCronometerDialog(true);
     });
     return () => { cancelled = true; };
@@ -169,6 +170,11 @@ const Index = () => {
         open={showCronometerDialog}
         onOpenChange={handleDialogChange}
         lang={lang}
+        onConnected={() => {
+          if (user?.id) {
+            localStorage.setItem(`cron_prompt_dismissed_${user.id}`, "1");
+          }
+        }}
       />
     </AppLayout>
   );

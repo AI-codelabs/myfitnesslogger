@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, RefreshCw, Plug, AlertTriangle, Unplug } from "lucide-react";
+import { Loader2, RefreshCw, Plug, Unplug } from "lucide-react";
 import { Lang } from "@/lib/onboardingSchema";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import { CronometerConnectDialog } from "@/components/CronometerConnectDialog";
@@ -35,8 +35,7 @@ const ClientNutrition = () => {
   const [connected, setConnected] = useState(false);
   const [logs, setLogs] = useState<NutritionLog[]>([]);
   const [syncing, setSyncing] = useState(false);
-  const [connectOpen, setConnectOpen] = useState(false);
-  const [reauth, setReauth] = useState(false);
+  const [connectDialogOpen, setConnectDialogOpen] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   const t = (nl: string, en: string) => (lang === "nl" ? nl : en);
 
@@ -72,12 +71,13 @@ const ClientNutrition = () => {
     const res = await syncCronometer();
     setSyncing(false);
     if (res.sessionExpired) {
-      setReauth(true);
+      toast.error(t("Cronometer-sessie verlopen. Log opnieuw in.", "Cronometer session expired. Please sign in again."));
+      setConnectDialogOpen(true);
       return;
     }
     if (!res.success) {
       if (res.error === "no_session") {
-        setConnectOpen(true);
+        setConnectDialogOpen(true);
       } else {
         toast.error(res.error || t("Synchroniseren mislukt", "Sync failed"));
       }
@@ -186,7 +186,7 @@ const ClientNutrition = () => {
                 </Button>
               </>
             ) : (
-              <Button onClick={() => setConnectOpen(true)} className="flex-1 sm:flex-none">
+              <Button onClick={() => setConnectDialogOpen(true)} className="flex-1 sm:flex-none">
                 <Plug className="h-4 w-4 mr-2" />
                 {t("Verbinden", "Connect")}
               </Button>
@@ -265,27 +265,11 @@ const ClientNutrition = () => {
 
 
       <CronometerConnectDialog
-        open={connectOpen}
-        onOpenChange={setConnectOpen}
+        open={connectDialogOpen}
+        onOpenChange={setConnectDialogOpen}
         lang={lang}
         onConnected={() => loadAll()}
       />
-      <CronometerConnectDialog
-        open={reauth}
-        onOpenChange={setReauth}
-        lang={lang}
-        onConnected={() => {
-          loadAll();
-          // auto-resync after re-auth
-          handleSync();
-        }}
-      />
-      {reauth && (
-        <div className="hidden">
-          {/* Re-auth prompt is the dialog above; show toast for context */}
-          <AlertTriangle />
-        </div>
-      )}
     </div>
   );
 };
