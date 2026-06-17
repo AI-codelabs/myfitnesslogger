@@ -1006,7 +1006,7 @@ async function runSyncForSession(
   session: any,
 ): Promise<
   | { ok: true; days_synced: number; days_scanned: number; up_to_date: boolean; from: string; to: string; skipped?: boolean }
-  | { ok: false; expired: boolean; message: string }
+  | { ok: false; expired: boolean; goldRequired?: boolean; message: string }
 > {
   const clientId = session.client_id as string;
 
