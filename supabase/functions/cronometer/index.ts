@@ -284,6 +284,16 @@ async function exportServings(
 
   if (!resp.ok) {
     const text = await resp.text();
+    // 403 from /export means the session is valid but the account is not
+    // permitted to use CSV export — this is a Cronometer Gold-only feature.
+    // Surface a dedicated error so we don't ask the user to re-login forever.
+    if (resp.status === 403) {
+      throw new CronometerUserError(
+        "gold_required",
+        "Cronometer's CSV export is only available to Cronometer Gold subscribers. The connection is fine, but nutrition data can't be synced until this account upgrades to Gold on cronometer.com.",
+        402,
+      );
+    }
     throw new Error(`Export failed (${resp.status}): ${text.substring(0, 200)}`);
   }
 
