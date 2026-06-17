@@ -75,6 +75,17 @@ const ClientNutrition = () => {
       setConnectDialogOpen(true);
       return;
     }
+    if (res.goldRequired) {
+      toast.error(
+        res.error ||
+          t(
+            "Cronometer CSV-export is alleen beschikbaar voor Cronometer Gold-abonnees.",
+            "Cronometer CSV export is only available to Cronometer Gold subscribers.",
+          ),
+        { duration: 10000 },
+      );
+      return;
+    }
     if (!res.success) {
       if (res.error === "no_session") {
         setConnectDialogOpen(true);
