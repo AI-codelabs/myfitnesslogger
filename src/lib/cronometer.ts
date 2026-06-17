@@ -5,11 +5,21 @@ type CronometerFunctionError = {
   message?: string;
 };
 
+type CronometerFunctionResponse = CronometerFunctionError & {
+  success?: boolean;
+  days_synced?: number;
+  up_to_date?: boolean;
+  from?: string;
+  to?: string;
+};
+
 export type CronometerConnectResult = {
   success: boolean;
   error?: string;
+  errorCode?: string;
   needsTotp?: boolean;
   goldRequired?: boolean;
+  exportForbidden?: boolean;
 };
 
 async function parseCronometerFunctionError(error: unknown): Promise<CronometerFunctionError | null> {
@@ -47,12 +57,29 @@ export async function connectCronometerServer(
     const parsed = await parseCronometerFunctionError(error);
     const needsTotp = parsed?.error === "totp_required" || parsed?.error === "totp_incorrect";
     const goldRequired = parsed?.error === "gold_required";
-    return { success: false, needsTotp, goldRequired, error: parsed?.message || parsed?.error || error.message };
+    const exportForbidden = parsed?.error === "export_forbidden";
+    return {
+      success: false,
+      errorCode: parsed?.error,
+      needsTotp,
+      goldRequired,
+      exportForbidden,
+      error: parsed?.message || parsed?.error || error.message,
+    };
   }
-  if ((data as any)?.error) {
-    const needsTotp = (data as any).error === "totp_required" || (data as any).error === "totp_incorrect";
-    const goldRequired = (data as any).error === "gold_required";
-    return { success: false, needsTotp, goldRequired, error: (data as any).message || (data as any).error };
+  const d = data as CronometerFunctionResponse | null;
+  if (d?.error) {
+    const needsTotp = d.error === "totp_required" || d.error === "totp_incorrect";
+    const goldRequired = d.error === "gold_required";
+    const exportForbidden = d.error === "export_forbidden";
+    return {
+      success: false,
+      errorCode: d.error,
+      needsTotp,
+      goldRequired,
+      exportForbidden,
+      error: d.message || d.error,
+    };
   }
   return { success: true };
 }
@@ -60,8 +87,10 @@ export async function connectCronometerServer(
 export interface SyncResult {
   success: boolean;
   error?: string;
+  errorCode?: string;
   sessionExpired?: boolean;
   goldRequired?: boolean;
+  exportForbidden?: boolean;
   daysSynced?: number;
   upToDate?: boolean;
   from?: string;
@@ -76,23 +105,33 @@ export async function syncCronometer(): Promise<SyncResult> {
   if (error) {
     const parsed = await parseCronometerFunctionError(error);
     if (parsed?.error === "session_expired") {
-      return { success: false, sessionExpired: true, error: parsed.message };
+      return { success: false, errorCode: parsed.error, sessionExpired: true, error: parsed.message };
     }
     if (parsed?.error === "gold_required") {
-      return { success: false, goldRequired: true, error: parsed.message };
+      return { success: false, errorCode: parsed.error, goldRequired: true, error: parsed.message };
+    }
+    if (parsed?.error === "export_forbidden") {
+      return { success: false, errorCode: parsed.error, exportForbidden: true, error: parsed.message };
     }
     if (parsed?.error === "no_session") {
-      return { success: false, error: "no_session" };
+      return { success: false, errorCode: parsed.error, error: "no_session" };
     }
     if (parsed) {
-      return { success: false, error: parsed.message || parsed.error || error.message };
+      return { success: false, errorCode: parsed.error, error: parsed.message || parsed.error || error.message };
     }
     return { success: false, error: error.message };
   }
-  const d = data as any;
-  if (d?.error === "session_expired") return { success: false, sessionExpired: true, error: d.message };
-  if (d?.error === "gold_required") return { success: false, goldRequired: true, error: d.message };
-  if (d?.error) return { success: false, error: d.message || d.error };
+  const d = data as CronometerFunctionResponse | null;
+  if (d?.error === "session_expired") {
+    return { success: false, errorCode: d.error, sessionExpired: true, error: d.message };
+  }
+  if (d?.error === "gold_required") {
+    return { success: false, errorCode: d.error, goldRequired: true, error: d.message };
+  }
+  if (d?.error === "export_forbidden") {
+    return { success: false, errorCode: d.error, exportForbidden: true, error: d.message };
+  }
+  if (d?.error) return { success: false, errorCode: d.error, error: d.message || d.error };
   return {
     success: true,
     daysSynced: d?.days_synced ?? 0,

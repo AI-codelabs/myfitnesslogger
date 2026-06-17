@@ -201,6 +201,22 @@ export default function WeeklyCheckin() {
         toast.error("Cronometer-sessie verlopen. Verbind opnieuw.");
         return;
       }
+      if (res.goldRequired) {
+        toast.error(
+          res.error ||
+            "Cronometer geeft aan dat deze export Gold vereist voor dit account.",
+          { duration: 10000 },
+        );
+        return;
+      }
+      if (res.exportForbidden) {
+        toast.error(
+          res.error ||
+            "Cronometer weigert de voedings-export voor dit account. Probeer Food & Recipe Entries te exporteren via het Cronometer webdashboard.",
+          { duration: 12000 },
+        );
+        return;
+      }
       toast.error(res.error || "Synchroniseren mislukt");
       return;
     }

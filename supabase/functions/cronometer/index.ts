@@ -33,11 +33,25 @@ class CronometerUserError extends Error {
   }
 }
 
+class CronometerExportError extends Error {
+  constructor(
+    public status: number,
+    public body: string,
+  ) {
+    super(`Export failed (${status}): ${previewForMessage(body)}`);
+    this.name = "CronometerExportError";
+  }
+}
+
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
+}
+
+function previewForMessage(text: string, max = 240): string {
+  return text.replace(/\s+/g, " ").trim().substring(0, max);
 }
 
 // Scrape current GWT permutation & header from Cronometer's bootstrap JS.
@@ -284,20 +298,15 @@ async function exportServings(
 
   if (!resp.ok) {
     const text = await resp.text();
-    // 403 from /export means the session is valid but the account is not
-    // permitted to use CSV export — this is a Cronometer Gold-only feature.
-    // Surface a dedicated error so we don't ask the user to re-login forever.
-    if (resp.status === 403) {
-      throw new CronometerUserError(
-        "gold_required",
-        "Cronometer's CSV export is only available to Cronometer Gold subscribers. The connection is fine, but nutrition data can't be synced until this account upgrades to Gold on cronometer.com.",
-        402,
-      );
-    }
-    throw new Error(`Export failed (${resp.status}): ${text.substring(0, 200)}`);
+    throw new CronometerExportError(resp.status, text);
   }
 
-  return await resp.text();
+  const csv = await resp.text();
+  if (!looksLikeServingsCsv(csv)) {
+    throw new CronometerExportError(resp.status, csv);
+  }
+
+  return csv;
 }
 
 // Parse CSV into structured data
@@ -391,6 +400,12 @@ function parseCSVRow(line: string): string[] {
   }
   result.push(current.trim());
   return result;
+}
+
+function looksLikeServingsCsv(csv: string): boolean {
+  const firstLine = csv.replace(/\uFEFF/g, "").split(/\r?\n/, 1)[0] || "";
+  const headers = parseCSVRow(firstLine).map((h) => h.trim().replace(/"/g, "").toLowerCase());
+  return headers.includes("day") && headers.includes("food name") && headers.includes("energy (kcal)");
 }
 
 // Return YYYY-MM-DD for "now" in a given IANA timezone.
@@ -980,22 +995,116 @@ async function reapplyTodayTargetsForClient(
   }
 }
 
-// Decide whether an export error indicates a truly expired session vs. a
+type ExportFailureCode = "session_expired" | "gold_required" | "export_forbidden" | "sync_failed";
 
-// transient network/upstream error we should not log the user out for.
-function classifyExportError(err: unknown): { expired: boolean; goldRequired: boolean; message: string } {
-  if (err instanceof CronometerUserError && err.code === "gold_required") {
-    return { expired: false, goldRequired: true, message: err.message };
+function isExplicitAuthFailure(text: string): boolean {
+  return /login\s*required|not\s+authenticated|unauthori[sz]ed|session\s+expired|session\s+timed?\s*out|please\s+(log|sign)\s+in|sign\s*in\s+again|anti-?csrf/i.test(text);
+}
+
+function isExplicitGoldRequirement(text: string): boolean {
+  return /(?:requires?|must\s+be|only\s+available\s+to|available\s+for)\s+(?:a\s+)?(?:cronometer\s+)?gold|gold\s+(?:subscription|subscriber|account)\s+(?:required|only)|upgrade\s+to\s+(?:cronometer\s+)?gold\s+to\s+(?:use|export|access)/i.test(text);
+}
+
+function exportFailureMessage(
+  code: ExportFailureCode,
+  fallback: string,
+  status?: number,
+): string {
+  if (code === "session_expired") {
+    return "Cronometer says this saved session is no longer authenticated. Please reconnect your Cronometer account.";
   }
+  if (code === "gold_required") {
+    return "Cronometer says this nutrition export requires a Cronometer Gold subscription for this account.";
+  }
+  if (code === "export_forbidden") {
+    return `Cronometer rejected the nutrition export${status ? ` (HTTP ${status})` : ""}. Your login worked, but Cronometer did not allow this account to export food entries. Please try exporting Food & Recipe Entries from Cronometer's web dashboard; if that also fails, the account's Cronometer export access is the blocker.`;
+  }
+  return fallback;
+}
+
+// Decide whether an export error indicates a truly expired session vs. a
+// deterministic export permission problem or transient network/upstream error.
+function classifyExportError(err: unknown): {
+  code: ExportFailureCode;
+  expired: boolean;
+  goldRequired: boolean;
+  message: string;
+  status: number;
+} {
+  if (err instanceof CronometerUserError && err.code === "gold_required") {
+    return { code: "gold_required", expired: false, goldRequired: true, message: err.message, status: err.status };
+  }
+  if (err instanceof CronometerUserError && err.code === "session_expired") {
+    return { code: "session_expired", expired: true, goldRequired: false, message: err.message, status: err.status };
+  }
+
+  if (err instanceof CronometerExportError) {
+    const text = err.body || "";
+    if (err.status === 401 || isExplicitAuthFailure(text)) {
+      const code = "session_expired";
+      return {
+        code,
+        expired: true,
+        goldRequired: false,
+        message: exportFailureMessage(code, err.message, err.status),
+        status: 401,
+      };
+    }
+    if (isExplicitGoldRequirement(text)) {
+      const code = "gold_required";
+      return {
+        code,
+        expired: false,
+        goldRequired: true,
+        message: exportFailureMessage(code, err.message, err.status),
+        status: 402,
+      };
+    }
+    if (err.status === 403) {
+      const code = "export_forbidden";
+      return {
+        code,
+        expired: false,
+        goldRequired: false,
+        message: exportFailureMessage(code, err.message, err.status),
+        status: 403,
+      };
+    }
+    return {
+      code: "sync_failed",
+      expired: false,
+      goldRequired: false,
+      message: err.message,
+      status: err.status >= 500 ? 502 : 500,
+    };
+  }
+
   const msg = err instanceof Error ? err.message : String(err);
   // Explicit signals from Cronometer that the session is no longer valid.
-  // Note: 403 is NOT included here — Cronometer returns 403 for Gold-only
-  // features (like CSV export) on otherwise valid sessions.
-  if (/\b401\b/.test(msg)) return { expired: true, goldRequired: false, message: msg };
-  if (/login|signin|sign\s*in|anti-?csrf|not authenticated|unauthor/i.test(msg)) {
-    return { expired: true, goldRequired: false, message: msg };
+  // Note: status-only 403 is NOT included here. Cronometer uses 403 for
+  // several cases, and free accounts can export raw data, so body text must
+  // prove whether this is auth, Gold, or another permission problem.
+  if (/\b401\b/.test(msg) || isExplicitAuthFailure(msg)) {
+    const code = "session_expired";
+    return {
+      code,
+      expired: true,
+      goldRequired: false,
+      message: exportFailureMessage(code, msg),
+      status: 401,
+    };
   }
-  return { expired: false, goldRequired: false, message: msg };
+  if (isExplicitGoldRequirement(msg)) {
+    const code = "gold_required";
+    return {
+      code,
+      expired: false,
+      goldRequired: true,
+      message: exportFailureMessage(code, msg),
+      status: 402,
+    };
+  }
+  return { code: "sync_failed", expired: false, goldRequired: false, message: msg, status: 502 };
 }
 
 // Core sync routine, reusable by the authed `sync` action and the cron-driven
@@ -1006,7 +1115,7 @@ async function runSyncForSession(
   session: any,
 ): Promise<
   | { ok: true; days_synced: number; days_scanned: number; up_to_date: boolean; from: string; to: string; skipped?: boolean }
-  | { ok: false; expired: boolean; goldRequired?: boolean; message: string }
+  | { ok: false; code: ExportFailureCode; expired: boolean; goldRequired?: boolean; message: string; status: number }
 > {
   const clientId = session.client_id as string;
 
@@ -1064,12 +1173,12 @@ async function runSyncForSession(
       );
     });
   } catch (e) {
-    const { expired, goldRequired, message } = classifyExportError(e);
+    const { code, expired, goldRequired, message, status } = classifyExportError(e);
     await db
       .from("cronometer_sessions")
       .update({ last_error: message })
       .eq("client_id", clientId);
-    return { ok: false, expired, goldRequired, message };
+    return { ok: false, code, expired, goldRequired, message, status };
   }
 
   const parsed = parseServingsCSV(csv);
@@ -1151,21 +1260,20 @@ serve(async (req) => {
       await login(username, password, cookieJar, totpCode);
       const userId = await gwtAuthenticate(cookieJar);
 
-      // Probe: ensure this account can actually use the CSV export endpoint.
-      // Cronometer gates CSV export behind a Gold subscription and returns
-      // 403 for non-Gold accounts. We surface that here so the user gets a
-      // clear message instead of an endless "session expired" loop later.
+      // Probe: ensure this freshly authenticated session can actually use the
+      // CSV export endpoint before we report "connected". Cronometer can return
+      // the same HTTP status for several causes, so classify by status + body.
       const probeEnd = new Date().toISOString().slice(0, 10);
       const probeStart = addDaysIso(probeEnd, -1);
       try {
         await exportServings(cookieJar, userId, probeStart, probeEnd);
       } catch (probeErr) {
-        if (probeErr instanceof CronometerUserError && probeErr.code === "gold_required") {
-          return json({ error: probeErr.code, message: probeErr.message }, probeErr.status);
-        }
-        // Other probe failures aren't fatal — let the save proceed and let
-        // the normal sync flow surface the error.
-        console.warn("connect probe export failed (non-fatal):", probeErr);
+        const classified = classifyExportError(probeErr);
+        console.warn("connect probe export failed:", classified.message);
+        return json(
+          { error: classified.code, message: classified.message },
+          classified.status,
+        );
       }
 
       const cookies = Object.fromEntries(cookieJar);
@@ -1208,12 +1316,9 @@ serve(async (req) => {
       const forced = { ...session, last_synced_at: null };
       const result = await runSyncForSession(auth.supabase, forced);
       if (!result.ok) {
-        if (result.goldRequired) {
-          return json({ error: "gold_required", message: result.message }, 402);
-        }
         return json(
-          { error: result.expired ? "session_expired" : "sync_failed", message: result.message },
-          result.expired ? 401 : 502,
+          { error: result.code, message: result.message },
+          result.status,
         );
       }
       return json({
