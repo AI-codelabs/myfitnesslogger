@@ -983,14 +983,19 @@ async function reapplyTodayTargetsForClient(
 // Decide whether an export error indicates a truly expired session vs. a
 
 // transient network/upstream error we should not log the user out for.
-function classifyExportError(err: unknown): { expired: boolean; message: string } {
+function classifyExportError(err: unknown): { expired: boolean; goldRequired: boolean; message: string } {
+  if (err instanceof CronometerUserError && err.code === "gold_required") {
+    return { expired: false, goldRequired: true, message: err.message };
+  }
   const msg = err instanceof Error ? err.message : String(err);
   // Explicit signals from Cronometer that the session is no longer valid.
-  if (/\b(401|403)\b/.test(msg)) return { expired: true, message: msg };
+  // Note: 403 is NOT included here — Cronometer returns 403 for Gold-only
+  // features (like CSV export) on otherwise valid sessions.
+  if (/\b401\b/.test(msg)) return { expired: true, goldRequired: false, message: msg };
   if (/login|signin|sign\s*in|anti-?csrf|not authenticated|unauthor/i.test(msg)) {
-    return { expired: true, message: msg };
+    return { expired: true, goldRequired: false, message: msg };
   }
-  return { expired: false, message: msg };
+  return { expired: false, goldRequired: false, message: msg };
 }
 
 // Core sync routine, reusable by the authed `sync` action and the cron-driven
