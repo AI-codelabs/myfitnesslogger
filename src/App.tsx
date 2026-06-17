@@ -65,6 +65,7 @@ const App = () => (
             <Route path="/clients" element={<Protected><AppLayout><Clients /></AppLayout></Protected>} />
             <Route path="/tasks" element={<Protected><AppLayout><CoachTasks /></AppLayout></Protected>} />
             <Route path="/account" element={<Protected><AppLayout><Account /></AppLayout></Protected>} />
+            <Route path="/change-password" element={<Protected><AppLayout><ChangePassword /></AppLayout></Protected>} />
             <Route path="/settings" element={<Protected><AppLayout><Settings /></AppLayout></Protected>} />
             <Route path="/onboarding" element={<Protected requireOnboarding={false}><Onboarding /></Protected>} />
             <Route path="/clients/:clientId" element={<Protected><AppLayout><ClientProfile /></AppLayout></Protected>} />
