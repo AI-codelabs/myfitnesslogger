@@ -1190,6 +1190,9 @@ serve(async (req) => {
       const forced = { ...session, last_synced_at: null };
       const result = await runSyncForSession(auth.supabase, forced);
       if (!result.ok) {
+        if (result.goldRequired) {
+          return json({ error: "gold_required", message: result.message }, 402);
+        }
         return json(
           { error: result.expired ? "session_expired" : "sync_failed", message: result.message },
           result.expired ? 401 : 502,
