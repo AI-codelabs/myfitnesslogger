@@ -1064,12 +1064,12 @@ async function runSyncForSession(
       );
     });
   } catch (e) {
-    const { expired, message } = classifyExportError(e);
+    const { expired, goldRequired, message } = classifyExportError(e);
     await db
       .from("cronometer_sessions")
       .update({ last_error: message })
       .eq("client_id", clientId);
-    return { ok: false, expired, message };
+    return { ok: false, expired, goldRequired, message };
   }
 
   const parsed = parseServingsCSV(csv);
