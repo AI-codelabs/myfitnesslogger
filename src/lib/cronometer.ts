@@ -9,6 +9,7 @@ export type CronometerConnectResult = {
   success: boolean;
   error?: string;
   needsTotp?: boolean;
+  goldRequired?: boolean;
 };
 
 async function parseCronometerFunctionError(error: unknown): Promise<CronometerFunctionError | null> {
@@ -45,11 +46,13 @@ export async function connectCronometerServer(
   if (error) {
     const parsed = await parseCronometerFunctionError(error);
     const needsTotp = parsed?.error === "totp_required" || parsed?.error === "totp_incorrect";
-    return { success: false, needsTotp, error: parsed?.message || parsed?.error || error.message };
+    const goldRequired = parsed?.error === "gold_required";
+    return { success: false, needsTotp, goldRequired, error: parsed?.message || parsed?.error || error.message };
   }
   if ((data as any)?.error) {
     const needsTotp = (data as any).error === "totp_required" || (data as any).error === "totp_incorrect";
-    return { success: false, needsTotp, error: (data as any).message || (data as any).error };
+    const goldRequired = (data as any).error === "gold_required";
+    return { success: false, needsTotp, goldRequired, error: (data as any).message || (data as any).error };
   }
   return { success: true };
 }
@@ -58,6 +61,7 @@ export interface SyncResult {
   success: boolean;
   error?: string;
   sessionExpired?: boolean;
+  goldRequired?: boolean;
   daysSynced?: number;
   upToDate?: boolean;
   from?: string;
@@ -74,6 +78,9 @@ export async function syncCronometer(): Promise<SyncResult> {
     if (parsed?.error === "session_expired") {
       return { success: false, sessionExpired: true, error: parsed.message };
     }
+    if (parsed?.error === "gold_required") {
+      return { success: false, goldRequired: true, error: parsed.message };
+    }
     if (parsed?.error === "no_session") {
       return { success: false, error: "no_session" };
     }
@@ -84,6 +91,7 @@ export async function syncCronometer(): Promise<SyncResult> {
   }
   const d = data as any;
   if (d?.error === "session_expired") return { success: false, sessionExpired: true, error: d.message };
+  if (d?.error === "gold_required") return { success: false, goldRequired: true, error: d.message };
   if (d?.error) return { success: false, error: d.message || d.error };
   return {
     success: true,
