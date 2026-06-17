@@ -9,6 +9,7 @@ export type CronometerConnectResult = {
   success: boolean;
   error?: string;
   needsTotp?: boolean;
+  goldRequired?: boolean;
 };
 
 async function parseCronometerFunctionError(error: unknown): Promise<CronometerFunctionError | null> {
