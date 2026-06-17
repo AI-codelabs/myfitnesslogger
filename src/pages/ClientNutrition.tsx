@@ -79,10 +79,21 @@ const ClientNutrition = () => {
       toast.error(
         res.error ||
           t(
-            "Cronometer CSV-export is alleen beschikbaar voor Cronometer Gold-abonnees.",
-            "Cronometer CSV export is only available to Cronometer Gold subscribers.",
+            "Cronometer geeft aan dat deze export Gold vereist voor dit account.",
+            "Cronometer says this export requires Gold for this account.",
           ),
         { duration: 10000 },
+      );
+      return;
+    }
+    if (res.exportForbidden) {
+      toast.error(
+        res.error ||
+          t(
+            "Cronometer weigert de voedings-export voor dit account. Probeer Food & Recipe Entries te exporteren via het Cronometer webdashboard.",
+            "Cronometer rejected nutrition export for this account. Try exporting Food & Recipe Entries from Cronometer's web dashboard.",
+          ),
+        { duration: 12000 },
       );
       return;
     }

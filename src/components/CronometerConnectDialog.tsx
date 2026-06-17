@@ -68,11 +68,22 @@ export const CronometerConnectDialog = ({ open, onOpenChange, lang = "nl", onCon
     if (!res.success) {
       if (res.needsTotp) setNeedsTotp(true);
       if (res.goldRequired) {
-        // Credentials were fine — the account just can't use CSV export.
-        // Show a long-lived toast and close the dialog so we don't trap the user.
         toast.error(
           res.error ||
-            "Cronometer CSV export is only available to Cronometer Gold subscribers.",
+            "Cronometer says this nutrition export requires Gold for this account.",
+          { duration: 12000 },
+        );
+        setUsername("");
+        setPassword("");
+        setTotpCode("");
+        setNeedsTotp(false);
+        handleOpenChange(false);
+        return;
+      }
+      if (res.exportForbidden) {
+        toast.error(
+          res.error ||
+            "Cronometer rejected the nutrition export for this account. Try exporting Food & Recipe Entries from Cronometer's web dashboard.",
           { duration: 12000 },
         );
         setUsername("");
