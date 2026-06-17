@@ -1150,6 +1150,24 @@ serve(async (req) => {
       const cookieJar = new Map<string, string>();
       await login(username, password, cookieJar, totpCode);
       const userId = await gwtAuthenticate(cookieJar);
+
+      // Probe: ensure this account can actually use the CSV export endpoint.
+      // Cronometer gates CSV export behind a Gold subscription and returns
+      // 403 for non-Gold accounts. We surface that here so the user gets a
+      // clear message instead of an endless "session expired" loop later.
+      const probeEnd = new Date().toISOString().slice(0, 10);
+      const probeStart = addDaysIso(probeEnd, -1);
+      try {
+        await exportServings(cookieJar, userId, probeStart, probeEnd);
+      } catch (probeErr) {
+        if (probeErr instanceof CronometerUserError && probeErr.code === "gold_required") {
+          return json({ error: probeErr.code, message: probeErr.message }, probeErr.status);
+        }
+        // Other probe failures aren't fatal — let the save proceed and let
+        // the normal sync flow surface the error.
+        console.warn("connect probe export failed (non-fatal):", probeErr);
+      }
+
       const cookies = Object.fromEntries(cookieJar);
 
       const { error: upsertErr } = await auth.supabase
