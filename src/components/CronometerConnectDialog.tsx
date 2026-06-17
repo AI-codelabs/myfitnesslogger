@@ -67,6 +67,21 @@ export const CronometerConnectDialog = ({ open, onOpenChange, lang = "nl", onCon
     setLoading(false);
     if (!res.success) {
       if (res.needsTotp) setNeedsTotp(true);
+      if (res.goldRequired) {
+        // Credentials were fine — the account just can't use CSV export.
+        // Show a long-lived toast and close the dialog so we don't trap the user.
+        toast.error(
+          res.error ||
+            "Cronometer CSV export is only available to Cronometer Gold subscribers.",
+          { duration: 12000 },
+        );
+        setUsername("");
+        setPassword("");
+        setTotpCode("");
+        setNeedsTotp(false);
+        handleOpenChange(false);
+        return;
+      }
       setErr(res.error || "Failed to connect");
       return;
     }
