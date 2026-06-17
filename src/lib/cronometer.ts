@@ -46,11 +46,13 @@ export async function connectCronometerServer(
   if (error) {
     const parsed = await parseCronometerFunctionError(error);
     const needsTotp = parsed?.error === "totp_required" || parsed?.error === "totp_incorrect";
-    return { success: false, needsTotp, error: parsed?.message || parsed?.error || error.message };
+    const goldRequired = parsed?.error === "gold_required";
+    return { success: false, needsTotp, goldRequired, error: parsed?.message || parsed?.error || error.message };
   }
   if ((data as any)?.error) {
     const needsTotp = (data as any).error === "totp_required" || (data as any).error === "totp_incorrect";
-    return { success: false, needsTotp, error: (data as any).message || (data as any).error };
+    const goldRequired = (data as any).error === "gold_required";
+    return { success: false, needsTotp, goldRequired, error: (data as any).message || (data as any).error };
   }
   return { success: true };
 }
