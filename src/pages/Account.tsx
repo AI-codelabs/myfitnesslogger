@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { LogOut, User as UserIcon, Mail, Shield } from "lucide-react";
+import { LogOut, User as UserIcon, Mail, Shield, KeyRound } from "lucide-react";
+import { Link } from "react-router-dom";
 
 import { supabase } from "@/integrations/supabase/client";
 
