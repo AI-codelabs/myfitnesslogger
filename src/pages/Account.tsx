@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { LogOut, User as UserIcon, Mail, Shield } from "lucide-react";
+import { LogOut, User as UserIcon, Mail, Shield, KeyRound } from "lucide-react";
+import { Link } from "react-router-dom";
 
 import { supabase } from "@/integrations/supabase/client";
 
@@ -61,7 +62,13 @@ const Account = () => {
           </div>
         </div>
 
-        <div className="pt-4 border-t border-border/60">
+        <div className="pt-4 border-t border-border/60 flex flex-col sm:flex-row gap-3">
+          <Button variant="outline" asChild className="gap-2 w-full sm:w-auto h-11">
+            <Link to="/change-password">
+              <KeyRound className="h-4 w-4" />
+              Change password
+            </Link>
+          </Button>
           <Button variant="outline" onClick={signOut} className="gap-2 w-full sm:w-auto h-11">
             <LogOut className="h-4 w-4" />
             Sign out
