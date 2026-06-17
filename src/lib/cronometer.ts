@@ -61,6 +61,7 @@ export interface SyncResult {
   success: boolean;
   error?: string;
   sessionExpired?: boolean;
+  goldRequired?: boolean;
   daysSynced?: number;
   upToDate?: boolean;
   from?: string;
@@ -77,6 +78,9 @@ export async function syncCronometer(): Promise<SyncResult> {
     if (parsed?.error === "session_expired") {
       return { success: false, sessionExpired: true, error: parsed.message };
     }
+    if (parsed?.error === "gold_required") {
+      return { success: false, goldRequired: true, error: parsed.message };
+    }
     if (parsed?.error === "no_session") {
       return { success: false, error: "no_session" };
     }
@@ -87,6 +91,7 @@ export async function syncCronometer(): Promise<SyncResult> {
   }
   const d = data as any;
   if (d?.error === "session_expired") return { success: false, sessionExpired: true, error: d.message };
+  if (d?.error === "gold_required") return { success: false, goldRequired: true, error: d.message };
   if (d?.error) return { success: false, error: d.message || d.error };
   return {
     success: true,
