@@ -276,23 +276,31 @@ async function generateAuthToken(
   return match[1];
 }
 
-// Step 5: Export servings CSV
-async function exportServings(
+type CronometerExportKind = "servings" | "dailySummary";
+
+// Step 5: Export Cronometer CSV.
+async function exportCsv(
   cookieJar: Map<string, string>,
   userId: string,
   startDate: string,
-  endDate: string
+  endDate: string,
+  generate: CronometerExportKind,
 ): Promise<string> {
   const nonce = await generateAuthToken(cookieJar, userId);
 
-  const url = `${EXPORT_URL}?nonce=${encodeURIComponent(nonce)}&generate=servings&start=${startDate}&end=${endDate}`;
+  const url = `${EXPORT_URL}?nonce=${encodeURIComponent(nonce)}&generate=${generate}&start=${startDate}&end=${endDate}`;
   const resp = await fetch(url, {
     headers: {
-      "User-Agent": "Mozilla/5.0",
+      "Accept": "text/csv,application/csv,text/plain,*/*",
+      "Accept-Language": "en-US,en;q=0.9",
+      "Referer": "https://cronometer.com/",
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
       Cookie: cookieString(cookieJar),
       "Sec-Fetch-Dest": "document",
       "Sec-Fetch-Mode": "navigate",
       "Sec-Fetch-Site": "same-origin",
+      "Sec-Fetch-User": "?1",
+      "Upgrade-Insecure-Requests": "1",
     },
   });
 
@@ -302,11 +310,49 @@ async function exportServings(
   }
 
   const csv = await resp.text();
-  if (!looksLikeServingsCsv(csv)) {
+  if (!looksLikeCronometerCsv(csv, generate)) {
     throw new CronometerExportError(resp.status, csv);
   }
 
   return csv;
+}
+
+async function exportNutritionCsv(
+  cookieJar: Map<string, string>,
+  userId: string,
+  startDate: string,
+  endDate: string,
+): Promise<{ kind: CronometerExportKind; csv: string; servingsError?: CronometerExportError }> {
+  try {
+    return {
+      kind: "servings",
+      csv: await exportCsv(cookieJar, userId, startDate, endDate, "servings"),
+    };
+  } catch (err) {
+    if (!(err instanceof CronometerExportError) || err.status !== 403) {
+      throw err;
+    }
+
+    console.warn(
+      "[cronometer] servings export denied; trying daily summary fallback:",
+      describeExportFailure(err),
+    );
+
+    return {
+      kind: "dailySummary",
+      csv: await exportCsv(cookieJar, userId, startDate, endDate, "dailySummary"),
+      servingsError: err,
+    };
+  }
+}
+
+async function exportServings(
+  cookieJar: Map<string, string>,
+  userId: string,
+  startDate: string,
+  endDate: string,
+): Promise<string> {
+  return await exportCsv(cookieJar, userId, startDate, endDate, "servings");
 }
 
 // Parse CSV into structured data
@@ -375,6 +421,57 @@ function parseServingsCSV(csv: string) {
   return { days, headers };
 }
 
+function parseDailySummaryCSV(csv: string) {
+  const lines = csv.replace(/\uFEFF/g, "").trim().split(/\r?\n/);
+  if (lines.length < 2) return { days: [], headers: [] };
+
+  const headers = parseCSVRow(lines[0]).map((h) => h.trim().replace(/"/g, ""));
+  const col = (...names: string[]) => {
+    const normalized = headers.map(normalizeHeader);
+    for (const name of names) {
+      const idx = normalized.indexOf(normalizeHeader(name));
+      if (idx >= 0) return idx;
+    }
+    return -1;
+  };
+
+  const dayIdx = col("Day", "Date");
+  const energyIdx = col("Energy (kcal)", "Calories", "Calories (kcal)");
+  const proteinIdx = col("Protein (g)", "Protein");
+  const carbsIdx = col("Carbs (g)", "Carbohydrates (g)", "Carbohydrates", "Carbs");
+  const fatIdx = col("Fat (g)", "Fat");
+  const sugarIdx = col("Sugars (g)", "Sugar (g)", "Sugars", "Sugar");
+  const sodiumIdx = col("Sodium (mg)", "Sodium");
+  const fiberIdx = col("Fiber (g)", "Fiber");
+
+  if (dayIdx < 0 || energyIdx < 0) {
+    throw new Error(`Daily summary CSV missing expected date/energy columns: ${headers.join(", ")}`);
+  }
+
+  const days = [];
+  for (let i = 1; i < lines.length; i++) {
+    const row = parseCSVRow(lines[i]);
+    if (!row.length) continue;
+    const date = row[dayIdx];
+    if (!date) continue;
+    days.push({
+      date,
+      entries: [],
+      totals: {
+        calories: parseNumberCell(row[energyIdx]),
+        protein: proteinIdx >= 0 ? parseNumberCell(row[proteinIdx]) : 0,
+        carbohydrates: carbsIdx >= 0 ? parseNumberCell(row[carbsIdx]) : 0,
+        fat: fatIdx >= 0 ? parseNumberCell(row[fatIdx]) : 0,
+        sugar: sugarIdx >= 0 ? parseNumberCell(row[sugarIdx]) : 0,
+        sodium: sodiumIdx >= 0 ? parseNumberCell(row[sodiumIdx]) : 0,
+        fiber: fiberIdx >= 0 ? parseNumberCell(row[fiberIdx]) : 0,
+      },
+    });
+  }
+
+  return { days: days.sort((a, b) => b.date.localeCompare(a.date)), headers };
+}
+
 function parseCSVRow(line: string): string[] {
   // Drop any trailing \r before parsing (defense-in-depth against CRLF).
   const clean = line.replace(/\r$/, "");
@@ -402,10 +499,51 @@ function parseCSVRow(line: string): string[] {
   return result;
 }
 
-function looksLikeServingsCsv(csv: string): boolean {
+function looksLikeCronometerCsv(csv: string, kind: CronometerExportKind): boolean {
   const firstLine = csv.replace(/\uFEFF/g, "").split(/\r?\n/, 1)[0] || "";
-  const headers = parseCSVRow(firstLine).map((h) => h.trim().replace(/"/g, "").toLowerCase());
-  return headers.includes("day") && headers.includes("food name") && headers.includes("energy (kcal)");
+  const headers = parseCSVRow(firstLine).map((h) => normalizeHeader(h));
+  if (kind === "servings") {
+    return headers.includes("day") && headers.includes("food name") && headers.includes("energy kcal");
+  }
+  return (
+    (headers.includes("day") || headers.includes("date")) &&
+    (headers.includes("energy kcal") || headers.includes("calories") || headers.includes("calories kcal"))
+  );
+}
+
+function normalizeHeader(header: string): string {
+  return header
+    .trim()
+    .replace(/"/g, "")
+    .replace(/[()]/g, "")
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+}
+
+function parseNumberCell(value: string | undefined): number {
+  if (!value) return 0;
+  const n = parseFloat(value.replace(/,/g, ""));
+  return Number.isFinite(n) ? n : 0;
+}
+
+function describeExportFailure(err: CronometerExportError): string {
+  const body = err.body || "";
+  const preview = previewForMessage(body, 180);
+  let reason = "unknown";
+  if (!preview) {
+    reason = "empty_response";
+  } else if (/cloudflare|cf-error|just a moment|attention required|error\s*1020|ray id/i.test(body)) {
+    reason = "cronometer_security_challenge";
+  } else if (/invalid|expired|nonce|token|authorization/i.test(body)) {
+    reason = "invalid_export_token";
+  } else if (/gold|subscription|subscriber|upgrade/i.test(body)) {
+    reason = "subscription_message";
+  } else if (/forbidden|access denied|not permitted|permission/i.test(body)) {
+    reason = "permission_denied";
+  } else if (/<html|<!doctype/i.test(body)) {
+    reason = "html_error_page";
+  }
+  return `status=${err.status}; reason=${reason}${preview ? `; body="${preview}"` : ""}`;
 }
 
 // Return YYYY-MM-DD for "now" in a given IANA timezone.
@@ -1062,11 +1200,12 @@ function classifyExportError(err: unknown): {
     }
     if (err.status === 403) {
       const code = "export_forbidden";
+      const diagnostic = describeExportFailure(err);
       return {
         code,
         expired: false,
         goldRequired: false,
-        message: exportFailureMessage(code, err.message, err.status),
+        message: `${exportFailureMessage(code, err.message, err.status)} Diagnostic: ${diagnostic}.`,
         status: 403,
       };
     }
@@ -1162,12 +1301,12 @@ async function runSyncForSession(
     Object.entries(session.cookies as Record<string, string>),
   );
 
-  let csv: string;
+  let exported: { kind: CronometerExportKind; csv: string; servingsError?: CronometerExportError };
   try {
-    csv = await withGwtLock(async () => {
+    exported = await withGwtLock(async () => {
       await refreshGwtValues();
       return await withRetry(
-        () => exportServings(cookieJar, session.user_id_external, startIso, todayIso),
+        () => exportNutritionCsv(cookieJar, session.user_id_external, startIso, todayIso),
         2,
         500,
       );
@@ -1181,7 +1320,9 @@ async function runSyncForSession(
     return { ok: false, code, expired, goldRequired, message, status };
   }
 
-  const parsed = parseServingsCSV(csv);
+  const parsed = exported.kind === "servings"
+    ? parseServingsCSV(exported.csv)
+    : parseDailySummaryCSV(exported.csv);
   const dayMap = new Map(parsed.days.map((d: any) => [d.date, d]));
 
   const rows: any[] = [];
@@ -1266,7 +1407,7 @@ serve(async (req) => {
       const probeEnd = new Date().toISOString().slice(0, 10);
       const probeStart = addDaysIso(probeEnd, -1);
       try {
-        await exportServings(cookieJar, userId, probeStart, probeEnd);
+        await exportNutritionCsv(cookieJar, userId, probeStart, probeEnd);
       } catch (probeErr) {
         const classified = classifyExportError(probeErr);
         console.warn("connect probe export failed:", classified.message);
