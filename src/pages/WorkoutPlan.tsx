@@ -24,6 +24,7 @@ import { toast } from "sonner";
 import { AddExerciseToDayDialog } from "@/components/AddExerciseToDayDialog";
 import { DuplicatePlanDialog } from "@/components/DuplicatePlanDialog";
 import { SetsRepsEditor } from "@/components/SetsRepsEditor";
+import { formatWorkoutPlanMutationError } from "@/lib/workoutPlanErrors";
 import {
   DndContext,
   closestCenter,
@@ -211,7 +212,11 @@ function SortableDayWrapper({
   };
   return (
     <div ref={setNodeRef} style={style}>
-      {children({ attributes: attributes as any, listeners: listeners as any, isDragging })}
+      {children({
+        attributes: attributes as React.HTMLAttributes<HTMLElement>,
+        listeners: listeners as React.HTMLAttributes<HTMLElement> | undefined,
+        isDragging,
+      })}
     </div>
   );
 }
@@ -226,7 +231,10 @@ export default function WorkoutPlan() {
   const [addToDayId, setAddToDayId] = useState<string | null>(null);
   const [dupOpen, setDupOpen] = useState(false);
 
-  const canEditPlan = !!plan && role === "coach" && (plan.coach_id === user?.id || plan.is_template);
+  const isOwnPlan = !!plan && role === "coach" && plan.coach_id === user?.id;
+  const isSharedTemplate = !!plan && role === "coach" && plan.is_template && plan.coach_id !== user?.id;
+  const canDuplicatePlan = !!plan && role === "coach";
+  const canEditPlan = isOwnPlan;
   const [editMode, setEditMode] = useState(false);
   const canEdit = canEditPlan && editMode;
   const [extraCategories, setExtraCategories] = useState<string[]>([]);
@@ -253,9 +261,10 @@ export default function WorkoutPlan() {
       supabase.from("workout_plans").select("*").eq("id", planId).maybeSingle(),
       supabase.from("workout_plan_days").select("*").eq("plan_id", planId).order("day_index"),
     ]);
+    const loadedDays = (d ?? []) as Day[];
     setPlan(p as Plan | null);
-    setDays((d ?? []) as Day[]);
-    const dayIds = (d ?? []).map((x: any) => x.id);
+    setDays(loadedDays);
+    const dayIds = loadedDays.map((x) => x.id);
     if (dayIds.length) {
       const { data: ex } = await supabase
         .from("workout_plan_exercises")
@@ -264,7 +273,7 @@ export default function WorkoutPlan() {
         )
         .in("day_id", dayIds)
         .order("order_index");
-      setItems((ex ?? []) as any);
+      setItems((ex ?? []) as unknown as PlanExercise[]);
     } else {
       setItems([]);
     }
@@ -273,7 +282,7 @@ export default function WorkoutPlan() {
     const extras = Array.from(
       new Set(
         (allCats ?? [])
-          .map((r: any) => (r.category || "").trim())
+          .map((r) => (r.category || "").trim())
           .filter((c: string) => c && !CATEGORIES.includes(c)),
       ),
     ) as string[];
@@ -293,7 +302,7 @@ export default function WorkoutPlan() {
     setPlan(next);
     const { error } = await supabase.from("workout_plans").update(patch).eq("id", plan.id);
     if (error) {
-      toast.error(error.message);
+      toast.error(formatWorkoutPlanMutationError(error), { duration: 8000 });
       load();
     }
   }
@@ -307,19 +316,19 @@ export default function WorkoutPlan() {
       .insert({ plan_id: plan.id, name: `Day ${nextIdx + 1}`, day_index: nextIdx })
       .select()
       .single();
-    if (error) return toast.error(error.message);
+    if (error) return toast.error(formatWorkoutPlanMutationError(error), { duration: 8000 });
     setDays([...days, data as Day]);
   }
 
   async function renameDay(dayId: string, name: string) {
     setDays((prev) => prev.map((d) => (d.id === dayId ? { ...d, name } : d)));
     const { error } = await supabase.from("workout_plan_days").update({ name }).eq("id", dayId);
-    if (error) toast.error(error.message);
+    if (error) toast.error(formatWorkoutPlanMutationError(error), { duration: 8000 });
   }
 
   async function removeDay(dayId: string) {
     const { error } = await supabase.from("workout_plan_days").delete().eq("id", dayId);
-    if (error) return toast.error(error.message);
+    if (error) return toast.error(formatWorkoutPlanMutationError(error), { duration: 8000 });
     load();
   }
 
@@ -346,7 +355,7 @@ export default function WorkoutPlan() {
     );
     const failed = results.find((r) => r.error);
     if (failed?.error) {
-      toast.error(failed.error.message);
+      toast.error(formatWorkoutPlanMutationError(failed.error), { duration: 8000 });
       load();
     }
   }
@@ -361,12 +370,12 @@ export default function WorkoutPlan() {
         notes: patch.notes ?? undefined,
       })
       .eq("id", id);
-    if (error) toast.error(error.message);
+    if (error) toast.error(formatWorkoutPlanMutationError(error), { duration: 8000 });
   }
 
   async function removeExercise(id: string) {
     const { error } = await supabase.from("workout_plan_exercises").delete().eq("id", id);
-    if (error) return toast.error(error.message);
+    if (error) return toast.error(formatWorkoutPlanMutationError(error), { duration: 8000 });
     setItems((prev) => prev.filter((it) => it.id !== id));
   }
 
@@ -384,10 +393,15 @@ export default function WorkoutPlan() {
         x.id === it.id ? { ...x, order_index: b } : x.id === other.id ? { ...x, order_index: a } : x,
       ),
     );
-    await Promise.all([
+    const results = await Promise.all([
       supabase.from("workout_plan_exercises").update({ order_index: b }).eq("id", it.id),
       supabase.from("workout_plan_exercises").update({ order_index: a }).eq("id", other.id),
     ]);
+    const failed = results.find((r) => r.error);
+    if (failed?.error) {
+      toast.error(formatWorkoutPlanMutationError(failed.error), { duration: 8000 });
+      load();
+    }
   }
 
   if (loading) return <div className="p-8 text-muted-foreground text-sm">Loading…</div>;
@@ -407,7 +421,7 @@ export default function WorkoutPlan() {
             <ArrowLeft className="h-4 w-4" /> Back to Workouts
           </Button>
         </Link>
-        {canEditPlan && (
+        {canDuplicatePlan && (
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
@@ -417,22 +431,24 @@ export default function WorkoutPlan() {
             >
               <Copy className="h-4 w-4" /> Duplicate
             </Button>
-            <Button
-              variant={editMode ? "default" : "outline"}
-              size="sm"
-              className="gap-2"
-              onClick={() => setEditMode((v) => !v)}
-            >
-              {editMode ? (
-                <>
-                  <Check className="h-4 w-4" /> Done
-                </>
-              ) : (
-                <>
-                  <Pencil className="h-4 w-4" /> Edit
-                </>
-              )}
-            </Button>
+            {canEditPlan && (
+              <Button
+                variant={editMode ? "default" : "outline"}
+                size="sm"
+                className="gap-2"
+                onClick={() => setEditMode((v) => !v)}
+              >
+                {editMode ? (
+                  <>
+                    <Check className="h-4 w-4" /> Done
+                  </>
+                ) : (
+                  <>
+                    <Pencil className="h-4 w-4" /> Edit
+                  </>
+                )}
+              </Button>
+            )}
           </div>
         )}
       </div>
@@ -537,6 +553,13 @@ export default function WorkoutPlan() {
           </>
         )}
       </Card>
+
+      {isSharedTemplate && (
+        <Card className="border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          This is a shared workout template, so it cannot be edited directly.
+          Duplicate it first to create your own copy, then make changes there.
+        </Card>
+      )}
 
       {/* Days grid */}
       <DndContext

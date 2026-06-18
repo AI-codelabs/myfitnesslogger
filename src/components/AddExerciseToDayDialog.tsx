@@ -16,6 +16,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, Search, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { ExerciseDialog } from "@/components/ExerciseDialog";
+import { formatWorkoutPlanMutationError } from "@/lib/workoutPlanErrors";
 
 interface Exercise {
   id: string;
@@ -93,7 +94,11 @@ export function AddExerciseToDayDialog({
   function toggle(id: string) {
     setSelected((prev) => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
       return next;
     });
   }
@@ -110,7 +115,7 @@ export function AddExerciseToDayDialog({
     }));
     const { error } = await supabase.from("workout_plan_exercises").insert(rows);
     setSaving(false);
-    if (error) return toast.error(error.message);
+    if (error) return toast.error(formatWorkoutPlanMutationError(error), { duration: 8000 });
     toast.success(`${rows.length} added to ${dayName}`);
     onOpenChange(false);
     onAdded();
