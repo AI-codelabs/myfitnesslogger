@@ -65,7 +65,28 @@ function parseOneEntry(raw: string): SetSpec | null {
 }
 
 export function serializeSetsReps(sets: SetSpec[]): string {
+  const hasCustomRest = sets.some((s) => normalizeRest(s.rest) !== DEFAULT_REST);
   return sets
-    .map((s) => `${s.reps || "0"}x @${Number.isFinite(s.rest) ? s.rest : DEFAULT_REST}s`)
-    .join(", ");
+    .map(formatSetSpec)
+    .join(hasCustomRest ? ", " : " ");
+}
+
+export function formatSetsRepsForDisplay(input: string | null | undefined): string {
+  const parsed = parseSetsReps(input);
+  if (!parsed.length) return (input ?? "").trim();
+
+  const hasCustomRest = parsed.some((s) => normalizeRest(s.rest) !== DEFAULT_REST);
+  return parsed
+    .map(formatSetSpec)
+    .join(hasCustomRest ? ", " : " ");
+}
+
+function formatSetSpec(set: SetSpec): string {
+  const reps = set.reps || "0";
+  const rest = normalizeRest(set.rest);
+  return rest === DEFAULT_REST ? `${reps}x` : `${reps}x @${rest}s`;
+}
+
+function normalizeRest(rest: number): number {
+  return Number.isFinite(rest) ? rest : DEFAULT_REST;
 }

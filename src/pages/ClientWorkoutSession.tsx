@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Lang } from "@/lib/onboardingSchema";
+import { formatSetsRepsForDisplay } from "@/lib/setsReps";
 import {
   LineChart,
   Line,
@@ -421,7 +422,9 @@ const ClientWorkoutSession = () => {
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {logged
                           ? `${logs.length} ${tx("sets", "sets")}`
-                          : ex.sets_reps ?? tx("Niet gelogd", "Not logged")}
+                          : ex.sets_reps
+                            ? formatSetsRepsForDisplay(ex.sets_reps)
+                            : tx("Niet gelogd", "Not logged")}
                       </p>
                     </div>
                     <ChevronDown

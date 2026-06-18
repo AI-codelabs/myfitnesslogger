@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ChevronLeft, Loader2, Plus, Trash2, Check, Dumbbell, ChevronRight, ListChecks, Video, CheckCircle2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { Lang } from "@/lib/onboardingSchema";
+import { formatSetsRepsForDisplay } from "@/lib/setsReps";
 
 interface PlanExercise {
   id: string;
@@ -514,7 +515,7 @@ const LogWorkout = () => {
               </div>
               {activeExercise.sets_reps && (
                 <p className="text-xs text-muted-foreground mt-1">
-                  {tx("Doel", "Target")}: {activeExercise.sets_reps}
+                  {tx("Doel", "Target")}: {formatSetsRepsForDisplay(activeExercise.sets_reps)}
                 </p>
               )}
               {activeExercise.notes && (
@@ -747,7 +748,7 @@ const LogWorkout = () => {
                       {ex.exercise?.name ?? "—"}
                     </div>
                     <div className="text-xs text-muted-foreground truncate">
-                      {ex.sets_reps || tx("Geen doel", "No target")}
+                      {ex.sets_reps ? formatSetsRepsForDisplay(ex.sets_reps) : tx("Geen doel", "No target")}
                       {done && setCount > 0 && (
                         <> · {setCount} {tx("sets gelogd", "sets logged")}</>
                       )}

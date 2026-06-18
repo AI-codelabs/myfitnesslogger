@@ -26,6 +26,7 @@ import { DuplicatePlanDialog } from "@/components/DuplicatePlanDialog";
 import { SetsRepsEditor } from "@/components/SetsRepsEditor";
 import { formatWorkoutPlanMutationError } from "@/lib/workoutPlanErrors";
 import { duplicateWorkoutPlan } from "@/lib/duplicateWorkoutPlan";
+import { formatSetsRepsForDisplay } from "@/lib/setsReps";
 import {
   DndContext,
   closestCenter,
@@ -821,7 +822,7 @@ export default function WorkoutPlan() {
                             <>
                               {it.sets_reps && (
                                 <div className="text-sm font-medium text-foreground/80 tabular-nums">
-                                  {it.sets_reps}
+                                  {formatSetsRepsForDisplay(it.sets_reps)}
                                 </div>
                               )}
                               {it.notes && (

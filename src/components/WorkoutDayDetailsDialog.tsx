@@ -9,6 +9,7 @@ import { Lang } from "@/lib/onboardingSchema";
 import { cn } from "@/lib/utils";
 import { ComputedOccurrence } from "@/lib/workoutSchedule";
 import { WorkoutInstanceActions } from "@/components/WorkoutInstanceActions";
+import { formatSetsRepsForDisplay } from "@/lib/setsReps";
 
 export type ScheduledOccurrence = ComputedOccurrence;
 
@@ -305,7 +306,7 @@ export function WorkoutDayDetailsDialog({
                             </div>
                             {e.sets_reps && (
                               <p className="text-xs text-muted-foreground mt-0.5">
-                                {e.sets_reps}
+                                {formatSetsRepsForDisplay(e.sets_reps)}
                               </p>
                             )}
                             {e.notes && (
