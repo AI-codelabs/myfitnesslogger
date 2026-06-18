@@ -1,5 +1,5 @@
 const WORKOUT_PLAN_RLS_MESSAGE =
-  "You can't edit this shared workout template directly. Duplicate the template first, then edit your own copy.";
+  "You can only edit workout templates you own. Create an editable template copy first, then make your changes there.";
 
 export function formatWorkoutPlanMutationError(error: unknown): string {
   const message =

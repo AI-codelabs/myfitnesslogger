@@ -2,15 +2,16 @@ import { supabase } from "@/integrations/supabase/client";
 
 /**
  * Deep-clone a workout plan (including its days and exercises) into a new
- * non-template plan owned by the given coach.
+ * plan owned by the given coach.
  * Returns the new plan id.
  */
 export async function duplicateWorkoutPlan(opts: {
   sourcePlanId: string;
   coachId: string;
   newName: string;
+  isTemplate?: boolean;
 }): Promise<string> {
-  const { sourcePlanId, coachId, newName } = opts;
+  const { sourcePlanId, coachId, newName, isTemplate = false } = opts;
 
   // 1. Load source plan
   const { data: src, error: srcErr } = await supabase
@@ -20,7 +21,7 @@ export async function duplicateWorkoutPlan(opts: {
     .single();
   if (srcErr || !src) throw srcErr ?? new Error("Plan not found");
 
-  // 2. Create new plan (always as non-template, owned by coach)
+  // 2. Create new plan/template owned by the coach.
   const { data: created, error: insErr } = await supabase
     .from("workout_plans")
     .insert({
@@ -29,7 +30,7 @@ export async function duplicateWorkoutPlan(opts: {
       category: src.category,
       frequency_per_week: src.frequency_per_week,
       coach_id: coachId,
-      is_template: false,
+      is_template: isTemplate,
     })
     .select("id")
     .single();

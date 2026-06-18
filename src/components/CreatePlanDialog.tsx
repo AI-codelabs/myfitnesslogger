@@ -52,6 +52,7 @@ export function CreatePlanDialog({ onCreated }: { onCreated?: () => void }) {
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState<string>("other");
   const [frequency, setFrequency] = useState<string>("3");
+  const [saveAsTemplate, setSaveAsTemplate] = useState(false);
 
   // Step 2
   const [exercises, setExercises] = useState<Exercise[]>([]);
@@ -75,6 +76,7 @@ export function CreatePlanDialog({ onCreated }: { onCreated?: () => void }) {
     setDescription("");
     setCategory("other");
     setFrequency("3");
+    setSaveAsTemplate(false);
     setDays([{ name: "Day 1", exercises: [] }]);
     setActiveDayIdx(0);
     setFilter("");
@@ -147,7 +149,7 @@ export function CreatePlanDialog({ onCreated }: { onCreated?: () => void }) {
           description: description.trim() || null,
           category,
           frequency_per_week: Number(frequency) || null,
-          is_template: false,
+          is_template: saveAsTemplate,
           coach_id: uid,
         })
         .select()
@@ -176,13 +178,13 @@ export function CreatePlanDialog({ onCreated }: { onCreated?: () => void }) {
         }
       }
 
-      toast.success("Workout plan created");
+      toast.success(saveAsTemplate ? "Workout template created" : "Workout plan created");
       setOpen(false);
       reset();
       onCreated?.();
       navigate(`/workouts/${plan.id}`);
-    } catch (err: any) {
-      toast.error(err.message ?? "Failed to create plan");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to create plan");
     } finally {
       setSaving(false);
     }
@@ -216,7 +218,7 @@ export function CreatePlanDialog({ onCreated }: { onCreated?: () => void }) {
           <DialogTitle>{step === 1 ? "New workout plan" : `Build days · ${name}`}</DialogTitle>
           <DialogDescription>
             {step === 1
-              ? "Set general information about the plan."
+              ? "Set general information about the plan or template."
               : "Add training days and pick exercises from the library."}
           </DialogDescription>
         </DialogHeader>
@@ -270,6 +272,19 @@ export function CreatePlanDialog({ onCreated }: { onCreated?: () => void }) {
                 />
               </div>
             </div>
+            <label className="flex items-start gap-3 rounded-md border p-3 text-sm">
+              <Checkbox
+                checked={saveAsTemplate}
+                onCheckedChange={(checked) => setSaveAsTemplate(checked === true)}
+                className="mt-0.5"
+              />
+              <span>
+                <span className="font-medium">Save as my template</span>
+                <span className="block text-muted-foreground">
+                  Templates you create are private to you and can be edited later.
+                </span>
+              </span>
+            </label>
           </div>
         )}
 
@@ -440,7 +455,7 @@ export function CreatePlanDialog({ onCreated }: { onCreated?: () => void }) {
           ) : (
             <Button onClick={handleSave} disabled={saving} className="gap-1">
               {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-              Create plan
+              {saveAsTemplate ? "Create template" : "Create plan"}
             </Button>
           )}
         </DialogFooter>

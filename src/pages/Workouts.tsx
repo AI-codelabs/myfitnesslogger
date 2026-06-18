@@ -79,10 +79,10 @@ export default function Workouts() {
       toast({ title: "Exercise deleted", description: deleting.name });
       setDeleting(null);
       await reloadExercises();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: "Delete failed",
-        description: err?.message ?? "Unknown error",
+        description: err instanceof Error ? err.message : "Unknown error",
         variant: "destructive",
       });
     } finally {
@@ -218,7 +218,7 @@ export default function Workouts() {
 
               <section>
                 <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-secondary" /> Predefined templates
+                  <Sparkles className="h-4 w-4 text-secondary" /> Templates
                 </h2>
                 {templates.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No templates match your filters.</p>
@@ -230,11 +230,16 @@ export default function Workouts() {
                         <Card className="flex flex-col w-full hover:border-primary transition-colors">
                           <CardHeader className="pb-3 space-y-3">
                             <div className="flex items-center justify-between gap-2 min-h-6 pr-9">
-                              {p.category ? (
-                                <Badge variant="outline" className="text-[10px] capitalize font-normal">
-                                  {p.category.replace("_", " ")}
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <Badge variant={p.coach_id ? "default" : "outline"} className="text-[10px]">
+                                  {p.coach_id ? "Mine" : "Seed"}
                                 </Badge>
-                              ) : <span />}
+                                {p.category ? (
+                                  <Badge variant="outline" className="text-[10px] capitalize font-normal">
+                                    {p.category.replace("_", " ")}
+                                  </Badge>
+                                ) : null}
+                              </div>
                               {p.frequency_per_week && (
                                 <Badge variant="secondary" className="text-[10px]">
                                   {p.frequency_per_week}x / week
@@ -264,7 +269,7 @@ export default function Workouts() {
                 </h2>
                 {myPlans.length === 0 ? (
                   <p className="text-sm text-muted-foreground">
-                    You haven't created any custom plans yet. Custom plan creation coming soon.
+                    You haven't created any custom plans yet. Use New plan to create one.
                   </p>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

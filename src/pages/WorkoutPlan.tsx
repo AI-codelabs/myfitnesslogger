@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,6 +25,7 @@ import { AddExerciseToDayDialog } from "@/components/AddExerciseToDayDialog";
 import { DuplicatePlanDialog } from "@/components/DuplicatePlanDialog";
 import { SetsRepsEditor } from "@/components/SetsRepsEditor";
 import { formatWorkoutPlanMutationError } from "@/lib/workoutPlanErrors";
+import { duplicateWorkoutPlan } from "@/lib/duplicateWorkoutPlan";
 import {
   DndContext,
   closestCenter,
@@ -223,6 +224,7 @@ function SortableDayWrapper({
 
 export default function WorkoutPlan() {
   const { planId } = useParams();
+  const navigate = useNavigate();
   const { user, role } = useAuth();
   const [plan, setPlan] = useState<Plan | null>(null);
   const [days, setDays] = useState<Day[]>([]);
@@ -230,9 +232,10 @@ export default function WorkoutPlan() {
   const [loading, setLoading] = useState(true);
   const [addToDayId, setAddToDayId] = useState<string | null>(null);
   const [dupOpen, setDupOpen] = useState(false);
+  const [copyingTemplate, setCopyingTemplate] = useState(false);
 
   const isOwnPlan = !!plan && role === "coach" && plan.coach_id === user?.id;
-  const isSharedTemplate = !!plan && role === "coach" && plan.is_template && plan.coach_id !== user?.id;
+  const isSeedTemplate = !!plan && role === "coach" && plan.is_template && plan.coach_id === null;
   const canDuplicatePlan = !!plan && role === "coach";
   const canEditPlan = isOwnPlan;
   const [editMode, setEditMode] = useState(false);
@@ -404,6 +407,25 @@ export default function WorkoutPlan() {
     }
   }
 
+  async function createEditableTemplateCopy() {
+    if (!plan || !user?.id) return;
+    setCopyingTemplate(true);
+    try {
+      const newPlanId = await duplicateWorkoutPlan({
+        sourcePlanId: plan.id,
+        coachId: user.id,
+        newName: plan.name,
+        isTemplate: true,
+      });
+      toast.success("Editable template copy created");
+      navigate(`/workouts/${newPlanId}`);
+    } catch (error) {
+      toast.error(formatWorkoutPlanMutationError(error), { duration: 8000 });
+    } finally {
+      setCopyingTemplate(false);
+    }
+  }
+
   if (loading) return <div className="p-8 text-muted-foreground text-sm">Loading…</div>;
   if (!plan) return <div className="p-8">Plan not found.</div>;
 
@@ -447,6 +469,21 @@ export default function WorkoutPlan() {
                     <Pencil className="h-4 w-4" /> Edit
                   </>
                 )}
+              </Button>
+            )}
+            {isSeedTemplate && (
+              <Button
+                size="sm"
+                className="gap-2"
+                onClick={createEditableTemplateCopy}
+                disabled={copyingTemplate}
+              >
+                {copyingTemplate ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Pencil className="h-4 w-4" />
+                )}
+                Create editable template copy
               </Button>
             )}
           </div>
@@ -544,7 +581,11 @@ export default function WorkoutPlan() {
           <>
             <div className="flex items-center gap-3 flex-wrap">
               <h1 className="text-3xl font-semibold tracking-tight">{plan.name}</h1>
-              {plan.is_template && <Badge variant="secondary">Template</Badge>}
+              {plan.is_template && (
+                <Badge variant="secondary">
+                  {plan.coach_id ? "My template" : "Seed template"}
+                </Badge>
+              )}
               {plan.frequency_per_week && (
                 <Badge variant="outline">{plan.frequency_per_week}x / week</Badge>
               )}
@@ -554,10 +595,11 @@ export default function WorkoutPlan() {
         )}
       </Card>
 
-      {isSharedTemplate && (
+      {isSeedTemplate && (
         <Card className="border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-          This is a shared workout template, so it cannot be edited directly.
-          Duplicate it first to create your own copy, then make changes there.
+          This is a seed template shared with all coaches. Create an editable
+          template copy first; changes to that copy will only affect your
+          account.
         </Card>
       )}
 
