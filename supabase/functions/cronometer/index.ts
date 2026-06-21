@@ -323,27 +323,12 @@ async function exportNutritionCsv(
   startDate: string,
   endDate: string,
 ): Promise<{ kind: CronometerExportKind; csv: string; servingsError?: CronometerExportError }> {
-  try {
-    return {
-      kind: "servings",
-      csv: await exportCsv(cookieJar, userId, startDate, endDate, "servings"),
-    };
-  } catch (err) {
-    if (!(err instanceof CronometerExportError) || err.status !== 403) {
-      throw err;
-    }
-
-    console.warn(
-      "[cronometer] servings export denied; trying daily summary fallback:",
-      describeExportFailure(err),
-    );
-
-    return {
-      kind: "dailySummary",
-      csv: await exportCsv(cookieJar, userId, startDate, endDate, "dailySummary"),
-      servingsError: err,
-    };
-  }
+  // Temporarily bypassing servings export to isolate dailySummary flow for debugging.
+  // Restore the try/catch block below once dailySummary is confirmed working.
+  return {
+    kind: "dailySummary",
+    csv: await exportCsv(cookieJar, userId, startDate, endDate, "dailySummary"),
+  };
 }
 
 async function exportServings(
