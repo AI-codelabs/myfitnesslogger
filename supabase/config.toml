@@ -6,3 +6,6 @@ verify_jwt = false
 [functions.cronometer]
 verify_jwt = false
 
+[functions.nutrition-ingest]
+verify_jwt = false
+

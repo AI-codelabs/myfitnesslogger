@@ -85,6 +85,15 @@ const MEASUREMENT_FIELDS: Array<{ key: keyof Form; label: string }> = [
   { key: "thigh_cm", label: "Bovenbeen (cm)" },
 ];
 
+type DetailsWithMeasurements = {
+  measurements?: Partial<Record<"waist_cm" | "belly_cm" | "hips_cm" | "chest_cm" | "arm_cm" | "thigh_cm", string>>;
+};
+
+function measurementsFromDetails(details: unknown) {
+  if (!details || typeof details !== "object") return {};
+  const measurements = (details as DetailsWithMeasurements).measurements;
+  return measurements && typeof measurements === "object" ? measurements : {};
+}
 
 function Section({ title, children }: { title?: string; children: React.ReactNode }) {
   return (
@@ -255,6 +264,7 @@ export default function WeeklyCheckin() {
         .maybeSingle();
       if (data) {
         setHasExisting(true);
+        const measurements = measurementsFromDetails(data.details);
         setForm({
           training_count: data.training_count ?? "",
           training_count_other: data.training_count_other ?? "",
@@ -268,12 +278,12 @@ export default function WeeklyCheckin() {
           energy: data.energy ?? null,
           soreness: data.soreness ?? null,
           weight_kg: data.weight_kg != null ? String(data.weight_kg) : "",
-          waist_cm: (data.details as any)?.measurements?.waist_cm ?? "",
-          belly_cm: (data.details as any)?.measurements?.belly_cm ?? "",
-          hips_cm: (data.details as any)?.measurements?.hips_cm ?? "",
-          chest_cm: (data.details as any)?.measurements?.chest_cm ?? "",
-          arm_cm: (data.details as any)?.measurements?.arm_cm ?? "",
-          thigh_cm: (data.details as any)?.measurements?.thigh_cm ?? "",
+          waist_cm: measurements.waist_cm ?? "",
+          belly_cm: measurements.belly_cm ?? "",
+          hips_cm: measurements.hips_cm ?? "",
+          chest_cm: measurements.chest_cm ?? "",
+          arm_cm: measurements.arm_cm ?? "",
+          thigh_cm: measurements.thigh_cm ?? "",
           body_fat_pct: data.body_fat_pct != null ? String(data.body_fat_pct) : "",
           feeling: data.feeling ?? null,
           structure_planning: data.structure_planning ?? "",
@@ -477,7 +487,7 @@ export default function WeeklyCheckin() {
             <div className="space-y-1">
               <Label className="block text-sm font-medium">Wekelijks voedingsoverzicht</Label>
               <p className="text-xs text-muted-foreground">
-                Eén klik haalt automatisch je laatste voedingsdata uit Cronometer op.
+                Apple Health Shortcut-sync loopt via de voedingspagina. Deze knop is de tijdelijke legacy Cronometer-sync.
               </p>
             </div>
             {cronoSynced ? (

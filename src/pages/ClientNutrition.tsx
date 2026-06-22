@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
@@ -9,6 +9,8 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recha
 import { CronometerConnectDialog } from "@/components/CronometerConnectDialog";
 import { NutritionWeeklyOverview } from "@/components/NutritionWeeklyOverview";
 import { ClientNutritionDocuments } from "@/components/ClientNutritionDocuments";
+import { AppleHealthShortcutCard } from "@/components/AppleHealthShortcutCard";
+import type { NutritionEntry } from "@/components/NutritionDayDetailDialog";
 import { hasCronometerSession, syncCronometer, disconnectCronometer } from "@/lib/cronometer";
 import { toast } from "sonner";
 
@@ -24,14 +26,31 @@ interface NutritionLog {
   fat_g: number;
   fiber_g: number;
   synced_at: string;
-  entries: any[] | null;
+  entries: NutritionEntry[] | null;
+}
+
+interface NutritionPlanDetails {
+  calories?: number | null;
+  protein_g?: number | null;
+  carbs_g?: number | null;
+  fat_g?: number | null;
+}
+
+interface NutritionPlan {
+  completed_at?: string | null;
+  updated_at: string;
+  gender?: string | null;
+  age?: number | null;
+  height_cm?: number | null;
+  weight_kg?: number | null;
+  details?: NutritionPlanDetails | null;
 }
 
 const ClientNutrition = () => {
   const { user } = useAuth();
   const [lang] = useState<Lang>(() => (localStorage.getItem("onbLang") as Lang) || "nl");
   const [loading, setLoading] = useState(true);
-  const [nutrition, setNutrition] = useState<any>(null);
+  const [nutrition, setNutrition] = useState<NutritionPlan | null>(null);
   const [connected, setConnected] = useState(false);
   const [logs, setLogs] = useState<NutritionLog[]>([]);
   const [syncing, setSyncing] = useState(false);
@@ -56,7 +75,7 @@ const ClientNutrition = () => {
         .order("log_date", { ascending: false })
         .limit(14),
     ]);
-    setNutrition(planRes.data);
+    setNutrition((planRes.data as NutritionPlan | null) ?? null);
     setConnected(!!sessionRes.data);
     setLogs((logsRes.data as NutritionLog[]) || []);
     setLoading(false);
@@ -149,13 +168,15 @@ const ClientNutrition = () => {
         </h1>
         <p className="text-sm text-muted-foreground">
           {t(
-            "Het voedingsschema dat je coach voor je heeft samengesteld.",
-            "The nutrition plan your coach has set up for you.",
+            "Bekijk je voedingsschema en synchroniseer je dagelijkse macro's.",
+            "Review your nutrition plan and sync your daily macros.",
           )}
         </p>
       </div>
 
-      {/* Cronometer connection card */}
+      <AppleHealthShortcutCard lang={lang} onTokenUsed={loadAll} />
+
+      {/* Legacy Cronometer connection card */}
       <Card className="p-4 sm:p-5">
         <div className="flex items-start sm:items-center justify-between gap-3 flex-col sm:flex-row">
           <div className="flex items-center gap-3 min-w-0">
@@ -164,7 +185,7 @@ const ClientNutrition = () => {
             </div>
             <div className="min-w-0">
               <p className="font-medium">
-                {t("Cronometer", "Cronometer")}{" "}
+                {t("Cronometer direct sync", "Cronometer direct sync")}{" "}
                 <span className={`ml-1 text-xs ${connected ? "text-emerald-600" : "text-muted-foreground"}`}>
                   {connected ? t("verbonden", "connected") : t("niet verbonden", "not connected")}
                 </span>
@@ -172,12 +193,12 @@ const ClientNutrition = () => {
               <p className="text-xs text-muted-foreground mt-0.5">
                 {connected
                   ? t(
-                      "Klik op Log om nieuwe dagen te synchroniseren.",
-                      "Click Log to sync new days.",
+                      "Legacy optie: klik op Log om Cronometer rechtstreeks te synchroniseren.",
+                      "Legacy option: click Log to sync Cronometer directly.",
                     )
                   : t(
-                      "Verbind om je voedingsdata bij te houden.",
-                      "Connect to track your nutrition data.",
+                      "Gebruik bij voorkeur Apple Health Shortcut sync; direct sync blijft tijdelijk beschikbaar.",
+                      "Prefer Apple Health Shortcut sync; direct sync remains temporarily available.",
                     )}
               </p>
             </div>
@@ -296,7 +317,7 @@ const ClientNutrition = () => {
   );
 };
 
-const Stat = ({ label, value }: { label: string; value: any }) => (
+const Stat = ({ label, value }: { label: string; value: ReactNode }) => (
   <div className="rounded-md border p-3">
     <p className="text-xs text-muted-foreground">{label}</p>
     <p className="text-sm font-medium mt-0.5">{value || "—"}</p>
@@ -332,7 +353,7 @@ const MacroPie = ({
               {data.map((d) => (<Cell key={d.name} fill={d.color} />))}
             </Pie>
             <Tooltip
-              formatter={(val: any, name: any) => [`${val} g`, name]}
+              formatter={(val: unknown, name: unknown) => [`${val} g`, String(name)]}
               contentStyle={{
                 background: "hsl(var(--popover))",
                 border: "1px solid hsl(var(--border))",
@@ -343,11 +364,12 @@ const MacroPie = ({
             <Legend
               verticalAlign="bottom"
               iconType="circle"
-              formatter={(value: any) => {
-                const item = data.find((d) => d.name === value);
+              formatter={(value: unknown) => {
+                const label = String(value);
+                const item = data.find((d) => d.name === label);
                 return (
                   <span className="text-xs text-foreground">
-                    {value} ({item?.value} g)
+                    {label} ({item?.value} g)
                   </span>
                 );
               }}
