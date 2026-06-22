@@ -9,6 +9,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recha
 import { CronometerConnectDialog } from "@/components/CronometerConnectDialog";
 import { NutritionWeeklyOverview } from "@/components/NutritionWeeklyOverview";
 import { ClientNutritionDocuments } from "@/components/ClientNutritionDocuments";
+import { AppleHealthShortcutCard } from "@/components/AppleHealthShortcutCard";
 import { hasCronometerSession, syncCronometer, disconnectCronometer } from "@/lib/cronometer";
 import { toast } from "sonner";
 
@@ -149,13 +150,15 @@ const ClientNutrition = () => {
         </h1>
         <p className="text-sm text-muted-foreground">
           {t(
-            "Het voedingsschema dat je coach voor je heeft samengesteld.",
-            "The nutrition plan your coach has set up for you.",
+            "Bekijk je voedingsschema en synchroniseer je dagelijkse macro's.",
+            "Review your nutrition plan and sync your daily macros.",
           )}
         </p>
       </div>
 
-      {/* Cronometer connection card */}
+      <AppleHealthShortcutCard lang={lang} onTokenUsed={loadAll} />
+
+      {/* Legacy Cronometer connection card */}
       <Card className="p-4 sm:p-5">
         <div className="flex items-start sm:items-center justify-between gap-3 flex-col sm:flex-row">
           <div className="flex items-center gap-3 min-w-0">
@@ -164,7 +167,7 @@ const ClientNutrition = () => {
             </div>
             <div className="min-w-0">
               <p className="font-medium">
-                {t("Cronometer", "Cronometer")}{" "}
+                {t("Cronometer direct sync", "Cronometer direct sync")}{" "}
                 <span className={`ml-1 text-xs ${connected ? "text-emerald-600" : "text-muted-foreground"}`}>
                   {connected ? t("verbonden", "connected") : t("niet verbonden", "not connected")}
                 </span>
@@ -172,12 +175,12 @@ const ClientNutrition = () => {
               <p className="text-xs text-muted-foreground mt-0.5">
                 {connected
                   ? t(
-                      "Klik op Log om nieuwe dagen te synchroniseren.",
-                      "Click Log to sync new days.",
+                      "Legacy optie: klik op Log om Cronometer rechtstreeks te synchroniseren.",
+                      "Legacy option: click Log to sync Cronometer directly.",
                     )
                   : t(
-                      "Verbind om je voedingsdata bij te houden.",
-                      "Connect to track your nutrition data.",
+                      "Gebruik bij voorkeur Apple Health Shortcut sync; direct sync blijft tijdelijk beschikbaar.",
+                      "Prefer Apple Health Shortcut sync; direct sync remains temporarily available.",
                     )}
               </p>
             </div>

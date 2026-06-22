@@ -245,8 +245,10 @@ export type Database = {
           id: string
           log_date: string
           protein_g: number
+          raw_payload: Json | null
           sodium_mg: number
           source: string
+          source_detail: string | null
           sugar_g: number
           synced_at: string
           updated_at: string
@@ -262,8 +264,10 @@ export type Database = {
           id?: string
           log_date: string
           protein_g?: number
+          raw_payload?: Json | null
           sodium_mg?: number
           source?: string
+          source_detail?: string | null
           sugar_g?: number
           synced_at?: string
           updated_at?: string
@@ -279,10 +283,48 @@ export type Database = {
           id?: string
           log_date?: string
           protein_g?: number
+          raw_payload?: Json | null
           sodium_mg?: number
           source?: string
+          source_detail?: string | null
           sugar_g?: number
           synced_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      nutrition_ingest_tokens: {
+        Row: {
+          client_id: string
+          created_at: string
+          id: string
+          label: string
+          last_used_at: string | null
+          revoked_at: string | null
+          source: string
+          token_hash: string
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          id?: string
+          label?: string
+          last_used_at?: string | null
+          revoked_at?: string | null
+          source?: string
+          token_hash: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          id?: string
+          label?: string
+          last_used_at?: string | null
+          revoked_at?: string | null
+          source?: string
+          token_hash?: string
           updated_at?: string
         }
         Relationships: []
