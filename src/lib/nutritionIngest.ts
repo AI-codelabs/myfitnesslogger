@@ -16,14 +16,24 @@ export interface NutritionIngestTokenIssue {
   token_record: NutritionIngestToken;
 }
 
+type NutritionFunctionResponse = {
+  error?: string;
+  endpoint?: string;
+  tokens?: NutritionIngestToken[];
+} & Partial<NutritionIngestTokenIssue>;
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
+}
+
 function functionMessage(error: unknown): string {
   const context = (error as { context?: { body?: unknown } } | null)?.context;
   const body = context?.body;
   if (body) {
     try {
-      const parsed = typeof body === "string" ? JSON.parse(body) : body;
-      if (parsed?.message) return parsed.message;
-      if (parsed?.error) return parsed.error;
+      const parsed = asRecord(typeof body === "string" ? JSON.parse(body) : body);
+      if (typeof parsed?.message === "string") return parsed.message;
+      if (typeof parsed?.error === "string") return parsed.error;
     } catch {
       // Fall through to generic message below.
     }
@@ -36,8 +46,9 @@ export async function issueNutritionIngestToken(label = "Apple Health Shortcut")
     body: { action: "issue_token", label },
   });
   if (error) return { success: false as const, error: functionMessage(error) };
-  if ((data as any)?.error) return { success: false as const, error: (data as any).error as string };
-  return { success: true as const, data: data as NutritionIngestTokenIssue };
+  const response = data as NutritionFunctionResponse | null;
+  if (response?.error) return { success: false as const, error: response.error };
+  return { success: true as const, data: response as NutritionIngestTokenIssue };
 }
 
 export async function listNutritionIngestTokens() {
@@ -45,11 +56,12 @@ export async function listNutritionIngestTokens() {
     body: { action: "list_tokens" },
   });
   if (error) return { success: false as const, error: functionMessage(error), tokens: [] as NutritionIngestToken[] };
-  if ((data as any)?.error) return { success: false as const, error: (data as any).error as string, tokens: [] as NutritionIngestToken[] };
+  const response = data as NutritionFunctionResponse | null;
+  if (response?.error) return { success: false as const, error: response.error, tokens: [] as NutritionIngestToken[] };
   return {
     success: true as const,
-    endpoint: (data as any)?.endpoint as string | undefined,
-    tokens: (((data as any)?.tokens as NutritionIngestToken[] | undefined) ?? []),
+    endpoint: response?.endpoint,
+    tokens: response?.tokens ?? [],
   };
 }
 
@@ -58,6 +70,7 @@ export async function revokeNutritionIngestToken(tokenId: string) {
     body: { action: "revoke_token", token_id: tokenId },
   });
   if (error) return { success: false as const, error: functionMessage(error) };
-  if ((data as any)?.error) return { success: false as const, error: (data as any).error as string };
+  const response = data as NutritionFunctionResponse | null;
+  if (response?.error) return { success: false as const, error: response.error };
   return { success: true as const };
 }

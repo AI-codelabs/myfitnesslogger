@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
@@ -10,6 +10,7 @@ import { CronometerConnectDialog } from "@/components/CronometerConnectDialog";
 import { NutritionWeeklyOverview } from "@/components/NutritionWeeklyOverview";
 import { ClientNutritionDocuments } from "@/components/ClientNutritionDocuments";
 import { AppleHealthShortcutCard } from "@/components/AppleHealthShortcutCard";
+import type { NutritionEntry } from "@/components/NutritionDayDetailDialog";
 import { hasCronometerSession, syncCronometer, disconnectCronometer } from "@/lib/cronometer";
 import { toast } from "sonner";
 
@@ -25,14 +26,31 @@ interface NutritionLog {
   fat_g: number;
   fiber_g: number;
   synced_at: string;
-  entries: any[] | null;
+  entries: NutritionEntry[] | null;
+}
+
+interface NutritionPlanDetails {
+  calories?: number | null;
+  protein_g?: number | null;
+  carbs_g?: number | null;
+  fat_g?: number | null;
+}
+
+interface NutritionPlan {
+  completed_at?: string | null;
+  updated_at: string;
+  gender?: string | null;
+  age?: number | null;
+  height_cm?: number | null;
+  weight_kg?: number | null;
+  details?: NutritionPlanDetails | null;
 }
 
 const ClientNutrition = () => {
   const { user } = useAuth();
   const [lang] = useState<Lang>(() => (localStorage.getItem("onbLang") as Lang) || "nl");
   const [loading, setLoading] = useState(true);
-  const [nutrition, setNutrition] = useState<any>(null);
+  const [nutrition, setNutrition] = useState<NutritionPlan | null>(null);
   const [connected, setConnected] = useState(false);
   const [logs, setLogs] = useState<NutritionLog[]>([]);
   const [syncing, setSyncing] = useState(false);
@@ -57,7 +75,7 @@ const ClientNutrition = () => {
         .order("log_date", { ascending: false })
         .limit(14),
     ]);
-    setNutrition(planRes.data);
+    setNutrition((planRes.data as NutritionPlan | null) ?? null);
     setConnected(!!sessionRes.data);
     setLogs((logsRes.data as NutritionLog[]) || []);
     setLoading(false);
@@ -299,7 +317,7 @@ const ClientNutrition = () => {
   );
 };
 
-const Stat = ({ label, value }: { label: string; value: any }) => (
+const Stat = ({ label, value }: { label: string; value: ReactNode }) => (
   <div className="rounded-md border p-3">
     <p className="text-xs text-muted-foreground">{label}</p>
     <p className="text-sm font-medium mt-0.5">{value || "—"}</p>
@@ -335,7 +353,7 @@ const MacroPie = ({
               {data.map((d) => (<Cell key={d.name} fill={d.color} />))}
             </Pie>
             <Tooltip
-              formatter={(val: any, name: any) => [`${val} g`, name]}
+              formatter={(val: unknown, name: unknown) => [`${val} g`, String(name)]}
               contentStyle={{
                 background: "hsl(var(--popover))",
                 border: "1px solid hsl(var(--border))",
@@ -346,11 +364,12 @@ const MacroPie = ({
             <Legend
               verticalAlign="bottom"
               iconType="circle"
-              formatter={(value: any) => {
-                const item = data.find((d) => d.name === value);
+              formatter={(value: unknown) => {
+                const label = String(value);
+                const item = data.find((d) => d.name === label);
                 return (
                   <span className="text-xs text-foreground">
-                    {value} ({item?.value} g)
+                    {label} ({item?.value} g)
                   </span>
                 );
               }}

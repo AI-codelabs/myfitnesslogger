@@ -60,7 +60,7 @@ async function authedUserId(req: Request): Promise<string | null> {
   try {
     const jose = await import("https://deno.land/x/jose@v5.9.6/index.ts");
     const jwks = await getJwks();
-    const keystore = jose.createLocalJWKSet(jwks as any);
+    const keystore = jose.createLocalJWKSet(jwks as { keys: JsonWebKey[] });
     const { payload } = await jose.jwtVerify(token, keystore);
     return (payload.sub as string) || null;
   } catch (e) {
