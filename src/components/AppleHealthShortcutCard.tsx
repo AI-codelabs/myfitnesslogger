@@ -19,7 +19,10 @@ interface Props {
 }
 
 const SHORTCUT_NAME = "Coach Nutrition Sync";
-const SHORTCUT_TEMPLATE_URL = (import.meta.env.VITE_APPLE_HEALTH_SHORTCUT_URL as string | undefined) || "";
+const DEFAULT_SHORTCUT_TEMPLATE_URL = "https://www.icloud.com/shortcuts/08fb83fa1da44b81880d135344f4bd74";
+const SHORTCUT_TEMPLATE_URL =
+  (import.meta.env.VITE_APPLE_HEALTH_SHORTCUT_URL as string | undefined) ||
+  DEFAULT_SHORTCUT_TEMPLATE_URL;
 
 export function AppleHealthShortcutCard({ lang, onTokenUsed }: Props) {
   const [loading, setLoading] = useState(true);
