@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Lang } from "@/lib/onboardingSchema";
 import {
@@ -12,10 +11,12 @@ import {
 } from "@/lib/nutritionIngest";
 import { Check, Clipboard, ExternalLink, Loader2, RefreshCw, ShieldCheck, Smartphone, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 interface Props {
   lang: Lang;
   onTokenUsed?: () => void;
+  variant?: "card" | "panel";
 }
 
 const SHORTCUT_NAME = "Coach Nutrition Sync";
@@ -24,7 +25,7 @@ const SHORTCUT_TEMPLATE_URL =
   (import.meta.env.VITE_APPLE_HEALTH_SHORTCUT_URL as string | undefined) ||
   DEFAULT_SHORTCUT_TEMPLATE_URL;
 
-export function AppleHealthShortcutCard({ lang, onTokenUsed }: Props) {
+export function AppleHealthShortcutCard({ lang, onTokenUsed, variant = "card" }: Props) {
   const [loading, setLoading] = useState(true);
   const [issuing, setIssuing] = useState(false);
   const [revokingId, setRevokingId] = useState<string | null>(null);
@@ -114,7 +115,12 @@ export function AppleHealthShortcutCard({ lang, onTokenUsed }: Props) {
     : "";
 
   return (
-    <Card className="p-4 sm:p-5 space-y-4">
+    <div
+      className={cn(
+        "space-y-4",
+        variant === "card" && "rounded-lg border bg-card text-card-foreground shadow-sm p-4 sm:p-5",
+      )}
+    >
       <div className="flex items-start justify-between gap-3 flex-col sm:flex-row">
         <div className="flex items-start gap-3 min-w-0">
           <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-sky-500/10 text-sky-600">
@@ -246,7 +252,7 @@ export function AppleHealthShortcutCard({ lang, onTokenUsed }: Props) {
           {t("Ingest endpoint", "Ingest endpoint")}: <span className="font-mono">{endpoint}</span>
         </p>
       )}
-    </Card>
+    </div>
   );
 }
 

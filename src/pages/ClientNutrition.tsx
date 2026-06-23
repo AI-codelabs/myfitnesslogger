@@ -3,13 +3,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, RefreshCw, Plug, Unplug } from "lucide-react";
+import { Loader2, RefreshCw, Plug, Unplug, Smartphone } from "lucide-react";
 import { Lang } from "@/lib/onboardingSchema";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import { CronometerConnectDialog } from "@/components/CronometerConnectDialog";
 import { NutritionWeeklyOverview } from "@/components/NutritionWeeklyOverview";
 import { ClientNutritionDocuments } from "@/components/ClientNutritionDocuments";
-import { AppleHealthShortcutCard } from "@/components/AppleHealthShortcutCard";
+import { AppleHealthShortcutDialog } from "@/components/AppleHealthShortcutDialog";
 import type { NutritionEntry } from "@/components/NutritionDayDetailDialog";
 import { hasCronometerSession, syncCronometer, disconnectCronometer } from "@/lib/cronometer";
 import { toast } from "sonner";
@@ -55,6 +55,7 @@ const ClientNutrition = () => {
   const [logs, setLogs] = useState<NutritionLog[]>([]);
   const [syncing, setSyncing] = useState(false);
   const [connectDialogOpen, setConnectDialogOpen] = useState(false);
+  const [shortcutDialogOpen, setShortcutDialogOpen] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   const t = (nl: string, en: string) => (lang === "nl" ? nl : en);
 
@@ -174,9 +175,32 @@ const ClientNutrition = () => {
         </p>
       </div>
 
-      <AppleHealthShortcutCard lang={lang} onTokenUsed={loadAll} />
+      <Card className="p-4 sm:p-5 border-dashed">
+        <div className="flex items-start sm:items-center justify-between gap-3 flex-col sm:flex-row">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-sky-500/10 text-sky-600">
+              <Smartphone className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <p className="font-medium">
+                {t("Apple Health Shortcut testen", "Test Apple Health Shortcut")}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {t(
+                  "Nieuwe testflow: synchroniseer Apple Health-data naast de bestaande Cronometer-koppeling.",
+                  "New test flow: sync Apple Health data alongside the existing Cronometer connection.",
+                )}
+              </p>
+            </div>
+          </div>
+          <Button variant="outline" onClick={() => setShortcutDialogOpen(true)} className="w-full sm:w-auto">
+            <Smartphone className="h-4 w-4 mr-2" />
+            {t("Open Shortcut setup", "Open Shortcut setup")}
+          </Button>
+        </div>
+      </Card>
 
-      {/* Legacy Cronometer connection card */}
+      {/* Cronometer connection card */}
       <Card className="p-4 sm:p-5">
         <div className="flex items-start sm:items-center justify-between gap-3 flex-col sm:flex-row">
           <div className="flex items-center gap-3 min-w-0">
@@ -185,7 +209,7 @@ const ClientNutrition = () => {
             </div>
             <div className="min-w-0">
               <p className="font-medium">
-                {t("Cronometer direct sync", "Cronometer direct sync")}{" "}
+                {t("Cronometer", "Cronometer")}{" "}
                 <span className={`ml-1 text-xs ${connected ? "text-emerald-600" : "text-muted-foreground"}`}>
                   {connected ? t("verbonden", "connected") : t("niet verbonden", "not connected")}
                 </span>
@@ -193,12 +217,12 @@ const ClientNutrition = () => {
               <p className="text-xs text-muted-foreground mt-0.5">
                 {connected
                   ? t(
-                      "Legacy optie: klik op Log om Cronometer rechtstreeks te synchroniseren.",
-                      "Legacy option: click Log to sync Cronometer directly.",
+                      "Klik op Log om nieuwe dagen te synchroniseren.",
+                      "Click Log to sync new days.",
                     )
                   : t(
-                      "Gebruik bij voorkeur Apple Health Shortcut sync; direct sync blijft tijdelijk beschikbaar.",
-                      "Prefer Apple Health Shortcut sync; direct sync remains temporarily available.",
+                      "Verbind om je voedingsdata bij te houden.",
+                      "Connect to track your nutrition data.",
                     )}
               </p>
             </div>
@@ -312,6 +336,12 @@ const ClientNutrition = () => {
         onOpenChange={setConnectDialogOpen}
         lang={lang}
         onConnected={() => loadAll()}
+      />
+      <AppleHealthShortcutDialog
+        open={shortcutDialogOpen}
+        onOpenChange={setShortcutDialogOpen}
+        lang={lang}
+        onTokenUsed={loadAll}
       />
     </div>
   );
