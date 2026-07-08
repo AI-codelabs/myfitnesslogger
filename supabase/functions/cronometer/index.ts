@@ -395,6 +395,37 @@ Deno.serve(async (req) => {
       return json({ success: true, upstream_count: list.length, reconciled: summary.length, summary });
     }
 
+    // ───── Probe: try candidate meal endpoints (cron-secret or coach) ─────
+    if (action === "probe_meals" && requireCronSecret(req)) {
+      const admin = createClient(SUPABASE_URL, SERVICE_KEY);
+      const { cronometer_client_id, day } = body;
+      if (!cronometer_client_id) return json({ error: "cronometer_client_id required" }, 400);
+      const target_day = day ?? ymd(new Date());
+      const candidates = [
+        "/servings", "/diary", "/diary_details", "/diary_entries", "/food_entries",
+        "/entries", "/foods", "/meals", "/meal_entries", "/nutrition_entries",
+        "/data_export", "/export",
+      ];
+      const results: any[] = [];
+      for (const path of candidates) {
+        try {
+          const resp = await callCrono<any>(path, {
+            client_id: Number(cronometer_client_id),
+            day: target_day,
+            start: target_day,
+            end: target_day,
+          }, { action: "probe_meals", cronometer_client_id: Number(cronometer_client_id) });
+          results.push({ path, ok: true, preview: JSON.stringify(resp).slice(0, 400) });
+        } catch (e) {
+          results.push({ path, ok: false, error: (e instanceof Error ? e.message : String(e)).slice(0, 200) });
+        }
+      }
+      // Suppress unused var warning if admin not referenced further
+      void admin;
+      return json({ success: true, day: target_day, results });
+    }
+
+
     // Everything below requires a signed-in coach.
     const auth = await requireCoach(req);
     if ("error" in auth) return json({ error: auth.error }, auth.status);
