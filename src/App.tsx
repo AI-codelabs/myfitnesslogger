@@ -27,6 +27,7 @@ import Progression from "./pages/Progression.tsx";
 import { AppLayout } from "./components/AppLayout";
 import Settings from "./pages/Settings.tsx";
 import MyIntake from "./pages/MyIntake.tsx";
+import NutritionTemplates from "./pages/NutritionTemplates.tsx";
 
 const queryClient = new QueryClient();
 
@@ -73,6 +74,7 @@ const App = () => (
             <Route path="/clients/:clientId" element={<Protected><AppLayout><ClientProfile /></AppLayout></Protected>} />
             <Route path="/clients/:clientId/sessions/:sessionId" element={<Protected><AppLayout><ClientWorkoutSession /></AppLayout></Protected>} />
             <Route path="/workouts" element={<Protected><AppLayout><Workouts /></AppLayout></Protected>} />
+            <Route path="/nutrition-templates" element={<Protected><AppLayout><NutritionTemplates /></AppLayout></Protected>} />
             <Route path="/workouts/:planId" element={<Protected><AppLayout><WorkoutPlan /></AppLayout></Protected>} />
             <Route path="/nutrition" element={<Protected><AppLayout><ClientNutrition /></AppLayout></Protected>} />
             <Route path="/training" element={<Protected><AppLayout><ClientTraining /></AppLayout></Protected>} />

@@ -30,6 +30,7 @@ import { WeeklyReviewTab } from "@/components/WeeklyReviewTab";
 import { ClientProgressionTab } from "@/components/ClientProgressionTab";
 import { NutritionWeeklyOverview, DailyLog } from "@/components/NutritionWeeklyOverview";
 import { ClientNutritionDocuments } from "@/components/ClientNutritionDocuments";
+import { NutritionTemplateSuggestion } from "@/components/NutritionTemplateSuggestion";
 import { ClientGoalsTab } from "@/components/ClientGoalsTab";
 import { CronometerCoachCard } from "@/components/CronometerCoachCard";
 import { clientFullName } from "@/lib/clientName";
@@ -625,12 +626,15 @@ const ClientProfile = () => {
           )}
 
           {coachId && clientId && (
-            <ClientNutritionDocuments
-              clientId={clientId}
-              coachId={coachId}
-              canUpload
-              lang={lang}
-            />
+            <>
+              <NutritionTemplateSuggestion coachId={coachId} clientId={clientId} />
+              <ClientNutritionDocuments
+                clientId={clientId}
+                coachId={coachId}
+                canUpload
+                lang={lang}
+              />
+            </>
           )}
         </TabsContent>
 

@@ -1,4 +1,4 @@
-import { LayoutDashboard, User as UserIcon, LogOut, Users, Dumbbell, Apple, TrendingUp, ListTodo, Settings as SettingsIcon } from "lucide-react";
+import { LayoutDashboard, User as UserIcon, LogOut, Users, Dumbbell, Apple, TrendingUp, ListTodo, Settings as SettingsIcon, FileText } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   Sidebar,
@@ -67,6 +67,16 @@ export function AppSidebar() {
                     <NavLink to="/workouts" className={linkCls(isActive("/workouts") || location.pathname.startsWith("/workouts/"))}>
                       <Dumbbell className="h-5 w-5 shrink-0" />
                       {!collapsed && <span className="text-base">Workouts</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+              {role === "coach" && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={isActive("/nutrition-templates")} size="lg">
+                    <NavLink to="/nutrition-templates" className={linkCls(isActive("/nutrition-templates"))}>
+                      <FileText className="h-5 w-5 shrink-0" />
+                      {!collapsed && <span className="text-base">Nutrition templates</span>}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
