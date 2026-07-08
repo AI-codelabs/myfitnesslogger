@@ -311,7 +311,7 @@ Deno.serve(async (req) => {
       const list: any[] = Array.isArray(resp) ? resp : (resp?.clients ?? []);
       const { data: myRows } = await admin
         .from("cronometer_clients")
-        .select("id, coach_id, client_id, cronometer_client_id, email, status");
+        .select("id, coach_id, client_id, cronometer_client_id, email, status, last_synced_day");
 
       const byEmail = new Map<string, any>();
       const byId = new Map<number, any>();
