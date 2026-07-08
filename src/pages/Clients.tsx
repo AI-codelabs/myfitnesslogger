@@ -30,6 +30,7 @@ interface Invitation {
   accepted_user_id: string | null;
   created_at: string;
   accepted_at: string | null;
+  coaching_end_date: string | null;
   first_name?: string | null;
   last_name?: string | null;
   display_name?: string | null;
@@ -67,7 +68,7 @@ const Clients = () => {
     const [{ data: invs }, { data: la }] = await Promise.all([
       supabase
         .from("invitations")
-        .select("id, email, status, accepted_user_id, created_at, accepted_at")
+        .select("id, email, status, accepted_user_id, created_at, accepted_at, coaching_end_date")
         .eq("coach_id", user.id)
         .order("created_at", { ascending: false }),
       supabase.rpc("get_clients_last_active", { _coach_id: user.id }),
@@ -152,9 +153,13 @@ const Clients = () => {
     </AlertDialog>
   );
 
+  const isRenewalDue = (inv: Invitation) =>
+    !!inv.coaching_end_date && new Date(inv.coaching_end_date) < new Date();
+
   const renderRow = (inv: Invitation) => {
     const style = statusStyles[inv.status] ?? statusStyles.pending;
     const clickable = !!inv.accepted_user_id && inv.status !== "pending";
+    const renewal = isRenewalDue(inv);
 
     const content = (
       <Card className={`p-4 flex items-center gap-3 transition ${clickable ? "hover:bg-muted/40 cursor-pointer" : ""}`}>
@@ -169,6 +174,11 @@ const Clients = () => {
           </p>
         </div>
 
+        {renewal && (
+          <Badge className="flex-shrink-0 border-0 bg-orange-100 text-orange-900 dark:bg-orange-500/20 dark:text-orange-200">
+            Renewal due
+          </Badge>
+        )}
         <Badge className={`flex-shrink-0 border-0 ${style.className}`}>{style.label}</Badge>
         {inv.status === "pending" &&
           deleteInviteDialog(
@@ -198,6 +208,7 @@ const Clients = () => {
   const renderCard = (inv: Invitation) => {
     const style = statusStyles[inv.status] ?? statusStyles.pending;
     const clickable = !!inv.accepted_user_id && inv.status !== "pending";
+    const renewal = isRenewalDue(inv);
 
     const content = (
       <Card className={`p-5 flex flex-col gap-3 h-full transition ${clickable ? "hover:bg-muted/40 cursor-pointer" : ""}`}>
@@ -205,7 +216,14 @@ const Clients = () => {
           <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
             <Mail className="h-5 w-5 text-muted-foreground" />
           </div>
-          <Badge className={`border-0 ${style.className}`}>{style.label}</Badge>
+          <div className="flex items-center gap-1.5">
+            {renewal && (
+              <Badge className="border-0 bg-orange-100 text-orange-900 dark:bg-orange-500/20 dark:text-orange-200">
+                Renewal due
+              </Badge>
+            )}
+            <Badge className={`border-0 ${style.className}`}>{style.label}</Badge>
+          </div>
         </div>
         <div className="min-w-0">
           <p className="font-medium truncate">{inv.accepted_user_id ? clientFullName(inv) : inv.email}</p>

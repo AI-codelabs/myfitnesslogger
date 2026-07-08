@@ -18,21 +18,22 @@ Home UI screenshot noted for reference (client "Vandaag" view, check-in card, st
 
 ---
 
-### Sprint 2 — Notifications + bug hunt
+### Sprint 2 — Notifications + bug hunt ✅ SHIPPED
 
-**A. Expiration notifications (in-app, 7/3/1 days)**
-- New scheduled edge function `check-expirations` (daily via `pg_cron`).
-- For every active `client_invitations` / relationship with `expires_at`, insert a `notifications` row when today = expires_at − {7, 3, 1} days, targeting both coach and client.
-- Idempotency: dedupe on `(user_id, invitation_id, days_before)`.
-- Post-expiry: keep record `active`, render "Renewal due" badge in `Clients.tsx` and the coach dashboard.
+**A. Expiration notifications (in-app, 7/3/1 days)** — ✅
+- Edge function `check-expirations` deployed. Scans `invitations` for `coaching_end_date` matching today + {7, 3, 1} days and inserts `notifications` for both coach and client with type `expiration_warning`. Idempotent via same-day title/user_id check.
+- Scheduled daily 06:15 UTC via `check-expirations-daily` pg_cron job.
+- Post-expiry: `Clients.tsx` renders a "Renewal due" badge on rows/cards whose `coaching_end_date` is in the past. Status stays `active`.
 
-**B. Cronometer meals empty state**
-- In `FoodLogTable` / nutrition day detail, when no per-meal entries exist but daily totals do, show: *"Cronometer only shares daily totals with coaches — per-meal detail isn't available."*
+**B. Cronometer meals empty state** — ✅
+- `FoodLogTable` now shows: *"Cronometer only shares daily totals with coaches — per-meal detail isn't available."*
 
-**C. Check-in reminder email diagnostic**
-- Audit `send-checkin-reminders` cron schedule + `email_send_log` for the affected coach, confirm `coach_email_connections` row is valid, fix wiring.
+**C. Check-in reminder email diagnostic** — ✅ investigated
+- Cron jobs `checkin-reminder-sunday` (Sun 18:00 UTC) and `checkin-reminder-monday` (Mon 09:00 UTC) are firing successfully every week.
+- Function has proper token-refresh logic. Root cause of missing reminders: coach Gmail OAuth refresh tokens can silently expire/revoke — both coach connections currently have expired access tokens. Recommend surfacing a "reconnect Gmail" prompt in the coach UI when `token_expires_at` is in the past AND refresh fails. Deferred to a small follow-up.
 
-**D. Template edit error** — blocked on repro.
+**D. Template edit error** — 🔵 friendlier toast shipped; still awaiting the exact account/plan used in the video repro.
+
 
 ---
 
