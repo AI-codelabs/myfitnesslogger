@@ -233,6 +233,57 @@ export type Database = {
         }
         Relationships: []
       }
+      cronometer_clients: {
+        Row: {
+          client_id: string
+          coach_id: string
+          connected_at: string | null
+          created_at: string
+          cronometer_client_id: number | null
+          email: string
+          id: string
+          invited_at: string
+          last_error: string | null
+          last_synced_at: string | null
+          last_synced_day: string | null
+          name: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          coach_id: string
+          connected_at?: string | null
+          created_at?: string
+          cronometer_client_id?: number | null
+          email: string
+          id?: string
+          invited_at?: string
+          last_error?: string | null
+          last_synced_at?: string | null
+          last_synced_day?: string | null
+          name?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          coach_id?: string
+          connected_at?: string | null
+          created_at?: string
+          cronometer_client_id?: number | null
+          email?: string
+          id?: string
+          invited_at?: string
+          last_error?: string | null
+          last_synced_at?: string | null
+          last_synced_day?: string | null
+          name?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       cronometer_nutrition_logs: {
         Row: {
           calories: number
@@ -284,57 +335,6 @@ export type Database = {
           sugar_g?: number
           synced_at?: string
           updated_at?: string
-        }
-        Relationships: []
-      }
-      cronometer_sessions: {
-        Row: {
-          client_id: string
-          connected_at: string
-          cookies: Json
-          created_at: string
-          cronometer_username: string | null
-          gwt_header: string
-          gwt_permutation: string
-          id: string
-          last_error: string | null
-          last_synced_at: string | null
-          target_sync_enabled: boolean
-          tz: string
-          updated_at: string
-          user_id_external: string
-        }
-        Insert: {
-          client_id: string
-          connected_at?: string
-          cookies: Json
-          created_at?: string
-          cronometer_username?: string | null
-          gwt_header: string
-          gwt_permutation: string
-          id?: string
-          last_error?: string | null
-          last_synced_at?: string | null
-          target_sync_enabled?: boolean
-          tz?: string
-          updated_at?: string
-          user_id_external: string
-        }
-        Update: {
-          client_id?: string
-          connected_at?: string
-          cookies?: Json
-          created_at?: string
-          cronometer_username?: string | null
-          gwt_header?: string
-          gwt_permutation?: string
-          id?: string
-          last_error?: string | null
-          last_synced_at?: string | null
-          target_sync_enabled?: boolean
-          tz?: string
-          updated_at?: string
-          user_id_external?: string
         }
         Relationships: []
       }
