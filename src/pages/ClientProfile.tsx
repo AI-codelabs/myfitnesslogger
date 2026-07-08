@@ -526,6 +526,16 @@ const ClientProfile = () => {
         </TabsContent>
 
         <TabsContent value="nutrition" className="mt-4 space-y-4">
+          {coachId && clientId && (
+            <CronometerCoachCard
+              coachId={coachId}
+              clientId={clientId}
+              clientEmail={invite?.email}
+              clientName={clientFullName(invite) || invite?.email}
+              lang={lang}
+            />
+          )}
+
           {coachId && clientId && (nutrition && !editingNutrition && nutrition.completed_at ? (
             <Card className="p-5 space-y-3">
               <div className="flex items-center justify-between">
