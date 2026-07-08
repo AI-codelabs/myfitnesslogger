@@ -1,111 +1,90 @@
-# Cronometer Pro API Integration Plan
+## Client/Coach feedback — triage & rollout plan
 
-## 1. Recommended architecture
+Grouped from **quick wins** → **medium** → **larger builds**. Items marked ❓ need clarification before I start.
 
-Yes — the Pro invite flow is the right choice. It gives us one long-lived Pro bearer token (belonging to your coach account) and a stable `client_id` per connected client. All reads (`data_summary`, `diary_summary`, `macro_summary`, `targets`, `fasting_summary`) accept a `client_id` argument, so we never need per-user OAuth, per-user tokens, passwords, TOTP, or session cookies. Clients accept a Cronometer-sent invite email once and are then permanently linked.
+---
 
-```text
-Coach app  ──► Edge Function ──► Cronometer API
-                    │              (Bearer = Pro token,
-                    │               body.client_id = client)
-                    ▼
-             Lovable Cloud DB
-             (cronometer_clients, cronometer_nutrition_logs)
-```
+### Tier 1 — Quick wins (small, isolated changes)
 
-One edge function (`cronometer`) handles: `invite_client`, `remove_client`, `refresh_status`, `sync_client`, `sync_all`, `get_targets`. A daily cron calls `sync_all` for every linked, active client.
+1. **Onboarding summary: stop repeating client stats**
+   Tweak the AI prompt in `generate-coach-message` / onboarding summary flow to omit height/weight recital.
 
-## 2. Authentication & authorization
+2. **Body weight required in weekly check-in**
+   Mark weight field with `*`, add zod validation, block submit until filled. File: `src/pages/WeeklyCheckin.tsx` + `lib/weeklyCheckin.ts`.
 
-- **Cronometer side**: one Pro OAuth app registered under your Pro account. You do the OAuth dance once yourself (interactive, in a browser) to mint a bearer token for your Pro account. That token is stored as the `CRONOMETER_PRO_TOKEN` secret. All Pro/User-Data endpoints use `Authorization: Bearer <CRONOMETER_PRO_TOKEN>` + `body.client_id`.
-- **App side**: only authenticated coaches (checked via `getClaims` and `has_role('coach', ...)` or `is_coach_of`) can invite/remove/sync; clients can read their own `cronometer_nutrition_logs` rows via existing RLS.
-- **Secrets to add**: `CRONOMETER_PRO_TOKEN`, `CRONOMETER_CLIENT_ID`, `CRONOMETER_CLIENT_SECRET` (last two only needed to mint/rotate the token).
+3. **Show completed onboarding as read-only view**
+   Already have `ClientProfile.tsx` render via `onboardingSchema`. Add a "View my intake" entry point for the *client* themselves (Account/Settings page) and/or a modal from the dashboard after completion.
 
-## 3. Endpoints we use
+4. **Auto-mark voice memo complete on publish**
+   In `WeeklyReviewTab` / publish handler: when bullets published, also flip the voice-memo `completed` flag in the same update.
 
-| Purpose | Endpoint | Notes |
-|---|---|---|
-| Invite client | `POST /api_v1/client_invite` | `{email, name}` → returns `client_id`. Store immediately. |
-| Remove client | `POST /api_v1/client_remove` | On disconnect. |
-| Poll status | `POST /api_v1/client_status` | Empty body = full list. Use to reconcile `EXTERNAL_CLIENT_PENDING → EXTERNAL_CLIENT`. |
-| List available days | `POST /api_v1/data_summary` | `{start, end, client_id}` → array of dates the client actually logged. Drives which days to fetch. |
-| Fetch a day's diary | `POST /api_v1/diary_summary` | `{day, client_id}` → meals, macros, full micronutrients. Primary sync payload. |
-| Macro-only (fast) | `POST /api_v1/macro_summary` | Optional lightweight refresh. |
-| Targets | `POST /api_v1/targets` | Pull client's own Cronometer targets (read-only; no push endpoint exists in the API). |
-| Fasting | `POST /api_v1/fasting_summary` | Optional, phase 2. |
+5. **Voice memo: name the 2 non-progressing exercises**
+   Update `generate-weekly-review` prompt + data extraction to pass exercise names for the "no progress" set, not just counts.
 
-Endpoints we deliberately do NOT touch: `/oauth/*` (per-user flow), `/buy_gold`, `/sso/*`.
+---
 
-**Important API limitation**: there is no write endpoint. `push_targets` (currently in our scraper) has no API equivalent — we drop that feature and instead surface Cronometer's own targets in the coach UI. This is a real regression that the user should be aware of before we build.
+### Tier 2 — Medium (bug fixes + notification wiring)
 
-## 4. Data sync strategy
+6. **Error when editing a template** ❓
+   Need repro details — which template (workout plan? nutrition plan? email template?), what action triggers the error, and the exact error text/console output.
 
-**On invite**: create `cronometer_clients` row with `status = 'pending'`. Show pending badge in UI. Cronometer emails the client; nothing to sync yet.
+7. **Check-in reminder email not received** ❓
+   `send-checkin-reminders` exists. Need to check: is the cron job actually scheduled? Is the coach's email in `coach_email_connections`? I'll audit `email_send_log` and cron schedule. May just be a wiring bug.
 
-**Status reconciliation**: hourly (or on coach page load) call `client_status`; when status flips to `EXTERNAL_CLIENT`, mark row `active` and enqueue an initial backfill (last 90 days).
+8. **Expiration date notifications**
+   Design: add a scheduled job that runs daily; 7 days + 1 day before invitation `expires_at`, insert a `notifications` row for the coach (+ optionally email). After expiry: keep client active but flag with a "Renewal due" badge on `Clients.tsx` and dashboard. ❓ Confirm: (a) how many days before to warn (7/3/1?), (b) email + in-app or in-app only, (c) after expiry — auto-mark `inactive` or keep `active` with badge?
 
-**Initial backfill / re-sync**: `data_summary(start=today-90d, end=today)` → for each returned day, `diary_summary(day, client_id)` → upsert into `cronometer_nutrition_logs` on `(client_id, log_date)`. Wipe existing rows for that client first (per user's choice).
+9. **Yannick — Cronometer meals empty**
+   Already known: Cronometer Pro API only returns daily totals, no per-meal breakdown. Options were discussed. Need to decide: live with daily totals + surface a clearer empty-state message ("Cronometer shows totals only — per-meal detail unavailable"), or revisit SPA scrape. ❓
 
-**Incremental daily sync**: cron at 04:00 UTC runs `sync_all`. For each active client: `data_summary(start=last_logged_day-2d, end=today)`, re-fetch those days (covers late edits to yesterday/today), upsert.
+---
 
-**Rate limiting / batching**: process clients sequentially with a small delay; per-client, cap parallel `diary_summary` calls to 3. Any 4xx from Cronometer → log + mark client `error` with reason; continue with next client. 5xx → retry with exponential backoff (3 attempts), then defer to next cron.
+### Tier 3 — Larger builds (new features)
 
-**Edge cases**:
-- Client hasn't accepted invite yet → `client_status` still `PENDING`; skip sync.
-- Client removed themselves in Cronometer → `client_status` won't list them → mark `revoked` and stop syncing.
-- Empty day (no diary) → still upsert a zero-row so UI can distinguish "no data yet" from "logged nothing".
-- Bearer token expired/revoked → all calls 401; surface a single dashboard-level warning and stop cron until token is refreshed.
+10. **Nutrition plan templates + auto-match after onboarding**
+    New feature. Scope:
+    - New table `nutrition_plan_templates` (coach_id, name, goal_type `cut`/`bulk`/`maintain`, target_kcal, protein_g, carbs_g, fat_g, pdf storage path)
+    - Coach uploads PDFs + fills macro targets (new page: `NutritionTemplates.tsx`)
+    - After onboarding completes, compute the client's target macros (already partially in `cronometerTargets.ts`) and rank templates by Euclidean distance on macros, filtered by `goal_type`
+    - Suggest top match in coach dashboard "Action required" block; coach can accept → auto-attach PDF via existing `client_nutrition_documents` flow
+    ❓ Confirm: (a) coach fills macro targets manually per template, or should AI parse them from the PDF? (b) auto-attach on match or always require coach approval?
 
-## 5. API limitations to flag
+11. **Supplement + water formula in onboarding AI**
+    Replace ad-hoc AI guesses with deterministic formulas, then let AI phrase them:
+    - Water: `35 ml × body weight (kg)` (adjust +500 ml per training hour) — confirm formula ❓
+    - Supplements: rules-based recommendations (creatine 5g/day, whey based on protein gap, vitamin D if low sun exposure, omega-3, magnesium) — need your preferred rule set ❓
+    Implement in `generate-coach-message` (or wherever onboarding summary is generated): compute values in code, inject into the prompt as facts.
 
-1. **No write endpoints** — cannot push macro targets, foods, or diary entries. Drop `push_targets` UI/copy.
-2. **No webhooks** — sync is poll-only.
-3. **Invite requires client's email** — internal clients (no email) are possible but they can't log data themselves, so we won't expose that path.
-4. **Unofficial rate limits** — Cronometer's docs don't publish limits; we self-throttle.
-5. **Token lifetime unspecified** — treat as long-lived but build a manual "rotate token" admin action.
-6. **Targets are per-day** — must pass the day; we'll fetch today's on demand.
+12. **Strength-progress graph over time**
+    New chart in `ClientProgressionTab` / `Progression.tsx`: per-exercise line chart of top-set estimated 1RM (Epley: `weight × (1 + reps/30)`) or heaviest working set over the last N weeks. Data source: `workout_set_logs`. ❓ Confirm: per-exercise selector, or a summary "strength index" across compound lifts (squat/bench/DL/OHP)?
 
-## 6. Implementation roadmap
+13. **Step counter integration**
+    Large. Options:
+    - **Apple Health / Google Fit**: requires native wrapper (Capacitor). Currently the app is a web PWA — this is a multi-week build.
+    - **Manual daily step entry**: quick — add a field alongside `DailyWeightLogger`.
+    - **Fitbit/Garmin OAuth**: per-provider integration.
+    ❓ Which route? I'd recommend starting with manual entry + a Fitbit OAuth (similar pattern to Cronometer) if native isn't on the table.
 
-**Phase 0 — Prerequisites (user action)**
-1. In Cronometer Pro dashboard, register the OAuth application; capture `client_id`, `client_secret`, and the allowed redirect URL.
-2. Run the one-off OAuth flow in a browser (documented script) to mint the Pro bearer token for your own Pro account.
-3. Provide the three values so we can store `CRONOMETER_PRO_TOKEN`, `CRONOMETER_CLIENT_ID`, `CRONOMETER_CLIENT_SECRET`.
+---
 
-**Phase 1 — Schema migration**
-- New `cronometer_clients` table: `id, coach_id, client_id (our uuid), cronometer_client_id (bigint), email, name, status ('pending'|'active'|'revoked'|'error'), last_error, invited_at, connected_at, last_synced_at, last_synced_day`.
-- Keep `cronometer_nutrition_logs` as-is; add FK/index on `(client_id, log_date)`; add `source` column defaulting to `'api'`.
-- Drop tables: `cronometer_sessions`, `cronometer_target_pushes`, `nutrition_ingest_tokens` (+ their policies/grants).
-- Drop config toggles for target push / shortcut ingest.
+### Proposed execution order
 
-**Phase 2 — Edge function rewrite (`supabase/functions/cronometer/index.ts`)**
-- Replace all scraper code with a thin Cronometer REST client (`postCronometer(path, body)`).
-- Actions: `invite_client`, `remove_client`, `refresh_status`, `sync_client(client_id, {full?: boolean})`, `sync_all` (cron), `get_targets(client_id, day)`.
-- Auth: `getClaims` + coach role check for coach-invoked actions; `x-cron-secret` header for `sync_all`.
+**Sprint 1 (this week):** Items 1, 2, 3, 4, 5 — all small, no clarifications needed. Ship together.
+**Sprint 2:** Item 7 (diagnose reminder email), Item 6 (template edit bug — once repro provided), Item 8 (expiration notifications).
+**Sprint 3:** Item 10 (nutrition templates) + Item 11 (formulas).
+**Sprint 4:** Item 12 (strength graph).
+**Backlog:** Item 9 (Cronometer meals — awaiting decision), Item 13 (steps — awaiting scope decision).
 
-**Phase 3 — New cron function or reuse existing scheduler**
-- Daily cron (Supabase scheduled function or `pg_cron` calling the edge fn) → `sync_all`.
-- Hourly lightweight `refresh_status` cron to flip pending → active promptly.
+---
 
-**Phase 4 — Frontend rewrite**
-- Delete: `CronometerConnectDialog`, `CronometerLoginForm`, `AppleHealthShortcutCard`, `AppleHealthShortcutDialog`, `lib/nutritionIngest.ts`, `lib/cronometerTargets.ts`, current `lib/cronometer.ts` scraper wrappers.
-- New: `CronometerInviteDialog` (email + name), `CronometerClientStatusCard` (pending/active/revoked/error + "Resend invite" + "Disconnect"), `useCronometerClient(clientId)` hook.
-- Client `Nutrition` page keeps existing `FoodLogTable` / `NutritionWeeklyOverview` — data source unchanged, only ingestion changes.
+### Clarifications I need before starting the blocked items
 
-**Phase 5 — Backfill & cleanup**
-- On coach's first visit post-deploy: for each existing linked client, prompt to re-invite via API (old scraper links are gone). Wipe `cronometer_nutrition_logs` per client on re-connect.
+1. **Template edit error** — which section (workout / nutrition / email), reproduction steps, screenshot or error text?
+2. **Expiration notifications** — warning cadence (7/3/1 days?), email + in-app or just in-app, and post-expiry behavior (auto-inactivate or keep active + badge)?
+3. **Cronometer meals** — accept "daily totals only" as final and improve empty state, or revisit scraping?
+4. **Nutrition templates** — AI-parse macros from PDF, or coach enters them manually? Auto-attach best match or always coach-approve?
+5. **Water/supplement formulas** — confirm the formulas you want (I proposed `35 ml/kg + 500 ml/training hour`; supplement rule set is open).
+6. **Strength graph** — per-exercise picker vs. compound "strength index" summary?
+7. **Step counter** — native (Capacitor), manual entry, or third-party OAuth (Fitbit/Garmin)?
 
-**Phase 6 — QA**
-- Invite a test client, accept from a second Cronometer account, run `sync_client`, verify diary + macros land in DB and render in UI.
-- Simulate 401 (bad token) and confirm dashboard warning.
-- Confirm cron picks up new day and handles empty days.
-
-## 7. Assumptions & open questions
-
-- You already have a Cronometer Pro subscription with API access enabled (the docs page implies this is a per-Pro-account entitlement).
-- Coaches are OK re-inviting existing clients (old scraper connections are not migratable).
-- Losing "push macro targets to Cronometer" is acceptable — the API doesn't support it. If not, we'd have to keep a scraper path for that one action only; I recommend against.
-- Bearer token rotation cadence is unknown; we'll build a manual re-mint script and monitor 401s.
-- Whether cron should be Supabase Scheduled Functions or `pg_cron + net.http_post` — pick during Phase 3; both work.
-
-Ready to proceed to Phase 0 (you registering the OAuth app and providing the three secrets) once you approve this plan.
+Reply with answers to any subset and I'll start Sprint 1 immediately in parallel.
