@@ -54,7 +54,7 @@ const ClientNutrition = () => {
   const [logs, setLogs] = useState<NutritionLog[]>([]);
   const [syncing, setSyncing] = useState(false);
   const [connectDialogOpen, setConnectDialogOpen] = useState(false);
-  const [shortcutDialogOpen, setShortcutDialogOpen] = useState(false);
+  
   const [disconnecting, setDisconnecting] = useState(false);
   const t = (nl: string, en: string) => (lang === "nl" ? nl : en);
 
