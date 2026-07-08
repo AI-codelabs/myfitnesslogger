@@ -362,7 +362,7 @@ Deno.serve(async (req) => {
               id: local.id,
               client_id: local.client_id,
               cronometer_client_id: Number(local.cronometer_client_id ?? remoteId),
-              last_synced_day: null,
+              last_synced_day: local.last_synced_day ?? null,
             });
             summary.push({ client_id: local.client_id, action: "synced", ...r });
           } catch (e) {
