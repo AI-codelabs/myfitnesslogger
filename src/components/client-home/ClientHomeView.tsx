@@ -448,6 +448,7 @@ export function ClientHomeView({ lang }: { lang: Lang }) {
       <ClientStartMessageCard lang={lang} />
       <WeekStrip lang={lang} />
       <TodayTodos lang={lang} />
+      <NutritionTodayCard lang={lang} />
       <GoalsSection lang={lang} />
       <QuickActions lang={lang} />
       <ProgressionSummary lang={lang} />
