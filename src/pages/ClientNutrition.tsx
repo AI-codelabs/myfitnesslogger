@@ -175,30 +175,6 @@ const ClientNutrition = () => {
         </p>
       </div>
 
-      <Card className="p-4 sm:p-5 border-dashed">
-        <div className="flex items-start sm:items-center justify-between gap-3 flex-col sm:flex-row">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-sky-500/10 text-sky-600">
-              <Smartphone className="h-5 w-5" />
-            </div>
-            <div className="min-w-0">
-              <p className="font-medium">
-                {t("Apple Health Shortcut testen", "Test Apple Health Shortcut")}
-              </p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {t(
-                  "Nieuwe testflow: synchroniseer Apple Health-data naast de bestaande Cronometer-koppeling.",
-                  "New test flow: sync Apple Health data alongside the existing Cronometer connection.",
-                )}
-              </p>
-            </div>
-          </div>
-          <Button variant="outline" onClick={() => setShortcutDialogOpen(true)} className="w-full sm:w-auto">
-            <Smartphone className="h-4 w-4 mr-2" />
-            {t("Open Shortcut setup", "Open Shortcut setup")}
-          </Button>
-        </div>
-      </Card>
 
       {/* Cronometer connection card */}
       <Card className="p-4 sm:p-5">
@@ -343,6 +319,7 @@ const ClientNutrition = () => {
         lang={lang}
         onTokenUsed={loadAll}
       />
+
     </div>
   );
 };
