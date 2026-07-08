@@ -115,7 +115,20 @@ export function AddExerciseToDayDialog({
     }));
     const { error } = await supabase.from("workout_plan_exercises").insert(rows);
     setSaving(false);
-    if (error) return toast.error(formatWorkoutPlanMutationError(error), { duration: 8000 });
+    if (error) {
+      // Log full context so we can diagnose which plan/day triggered the RLS block.
+      console.error("[AddExerciseToDayDialog] insert failed", {
+        dayId,
+        dayName,
+        rowCount: rows.length,
+        error,
+      });
+      return toast.error(formatWorkoutPlanMutationError(error), {
+        duration: 10000,
+        description:
+          "Tip: open the plan menu → Duplicate to create your own editable copy, then add exercises there.",
+      });
+    }
     toast.success(`${rows.length} added to ${dayName}`);
     onOpenChange(false);
     onAdded();
