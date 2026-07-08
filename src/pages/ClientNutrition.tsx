@@ -313,12 +313,8 @@ const ClientNutrition = () => {
         lang={lang}
         onConnected={() => loadAll()}
       />
-      <AppleHealthShortcutDialog
-        open={shortcutDialogOpen}
-        onOpenChange={setShortcutDialogOpen}
-        lang={lang}
-        onTokenUsed={loadAll}
-      />
+
+
 
     </div>
   );
