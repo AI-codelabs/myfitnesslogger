@@ -17,6 +17,7 @@ import {
   ProgressPhotoTimeline,
   type PhotoRow,
 } from "@/components/ProgressPhotoTimeline";
+import { StrengthProgressChart } from "@/components/StrengthProgressChart";
 
 interface Props {
   clientId: string;
@@ -248,6 +249,8 @@ export function ClientProgressionTab({ clientId, lang }: Props) {
           </div>
         )}
       </Card>
+
+      <StrengthProgressChart clientId={clientId} lang={lang} />
 
       <div>
         <h3 className="font-semibold mb-2">

@@ -37,6 +37,7 @@ import {
 } from "@/components/ProgressPhotoTimeline";
 import { ProgressPhotoUploader } from "@/components/ProgressPhotoUploader";
 import { DailyWeightLogger, type WeightLog } from "@/components/DailyWeightLogger";
+import { StrengthProgressChart } from "@/components/StrengthProgressChart";
 
 type CheckinRow = {
   id: string;
@@ -522,6 +523,7 @@ export default function Progression() {
 
         {/* Training */}
         <TabsContent value="training" className="mt-4 space-y-4">
+          {user && <StrengthProgressChart clientId={user.id} lang="nl" />}
           <ChartCard
             title="Trainingsintensiteit (RPE)"
             subtitle="Hoe zwaar voelden je sessies?"
