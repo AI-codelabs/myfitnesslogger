@@ -65,9 +65,10 @@ const ClientNutrition = () => {
     const [planRes, sessionRes, logsRes] = await Promise.all([
       supabase.from("nutrition_plans").select("*").eq("client_id", user.id).maybeSingle(),
       supabase
-        .from("cronometer_sessions")
+        .from("cronometer_clients")
         .select("id")
         .eq("client_id", user.id)
+        .eq("status", "active")
         .maybeSingle(),
       supabase
         .from("cronometer_nutrition_logs")

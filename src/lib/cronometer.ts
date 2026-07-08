@@ -141,20 +141,21 @@ export async function syncCronometer(): Promise<SyncResult> {
   };
 }
 
-/** Check if this client already has a Cronometer session saved. */
+/** Check if this client already has a Cronometer link (via Pro API). */
 export async function hasCronometerSession(clientId: string): Promise<boolean> {
   const { data } = await supabase
-    .from("cronometer_sessions")
+    .from("cronometer_clients")
     .select("id")
     .eq("client_id", clientId)
+    .eq("status", "active")
     .maybeSingle();
   return !!data;
 }
 
-/** Disconnect: remove the saved Cronometer session for this client. */
+/** Disconnect: remove the Cronometer client link for this client. */
 export async function disconnectCronometer(clientId: string): Promise<{ success: boolean; error?: string }> {
   const { error } = await supabase
-    .from("cronometer_sessions")
+    .from("cronometer_clients")
     .delete()
     .eq("client_id", clientId);
   if (error) return { success: false, error: error.message };
