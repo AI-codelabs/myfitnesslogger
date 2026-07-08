@@ -71,7 +71,6 @@ function LangToggle({ lang, setLang }: { lang: Lang; setLang: (l: Lang) => void 
 
 const Index = () => {
   const { role, loading } = useAuth();
-  const navigate = useNavigate();
   const [lang, setLang] = useState<Lang>(
     () => (localStorage.getItem("onbLang") as Lang) || "nl",
   );
