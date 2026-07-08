@@ -233,6 +233,54 @@ export type Database = {
         }
         Relationships: []
       }
+      cronometer_api_logs: {
+        Row: {
+          action: string | null
+          client_id: string | null
+          coach_id: string | null
+          created_at: string
+          cronometer_client_id: number | null
+          duration_ms: number | null
+          endpoint: string
+          error: string | null
+          id: string
+          request_body: Json | null
+          response_body: Json | null
+          response_status: number | null
+          response_text: string | null
+        }
+        Insert: {
+          action?: string | null
+          client_id?: string | null
+          coach_id?: string | null
+          created_at?: string
+          cronometer_client_id?: number | null
+          duration_ms?: number | null
+          endpoint: string
+          error?: string | null
+          id?: string
+          request_body?: Json | null
+          response_body?: Json | null
+          response_status?: number | null
+          response_text?: string | null
+        }
+        Update: {
+          action?: string | null
+          client_id?: string | null
+          coach_id?: string | null
+          created_at?: string
+          cronometer_client_id?: number | null
+          duration_ms?: number | null
+          endpoint?: string
+          error?: string | null
+          id?: string
+          request_body?: Json | null
+          response_body?: Json | null
+          response_status?: number | null
+          response_text?: string | null
+        }
+        Relationships: []
+      }
       cronometer_clients: {
         Row: {
           client_id: string
