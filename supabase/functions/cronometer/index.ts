@@ -395,6 +395,8 @@ Deno.serve(async (req) => {
       return json({ success: true, upstream_count: list.length, reconciled: summary.length, summary });
     }
 
+
+
     // Everything below requires a signed-in coach.
     const auth = await requireCoach(req);
     if ("error" in auth) return json({ error: auth.error }, auth.status);
@@ -542,6 +544,7 @@ Deno.serve(async (req) => {
       });
       return json({ success: true, targets: resp });
     }
+
 
     // ───── Legacy no-ops for existing frontend calls ─────
     if (action === "sync") {
