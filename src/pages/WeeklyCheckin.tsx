@@ -239,9 +239,10 @@ export default function WeeklyCheckin() {
 
   const checkCrono = async (uid: string) => {
     const { data } = await supabase
-      .from("cronometer_sessions")
+      .from("cronometer_clients")
       .select("id")
       .eq("client_id", uid)
+      .eq("status", "active")
       .maybeSingle();
     setCronoConnected(!!data);
   };
