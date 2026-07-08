@@ -1,0 +1,1 @@
+DROP TABLE IF EXISTS public.cronometer_target_pushes CASCADE;

@@ -338,45 +338,6 @@ export type Database = {
         }
         Relationships: []
       }
-      cronometer_target_pushes: {
-        Row: {
-          calories: number | null
-          carbs_g: number | null
-          client_id: string
-          coach_id: string | null
-          error: string | null
-          fat_g: number | null
-          id: string
-          protein_g: number | null
-          pushed_at: string
-          success: boolean
-        }
-        Insert: {
-          calories?: number | null
-          carbs_g?: number | null
-          client_id: string
-          coach_id?: string | null
-          error?: string | null
-          fat_g?: number | null
-          id?: string
-          protein_g?: number | null
-          pushed_at?: string
-          success?: boolean
-        }
-        Update: {
-          calories?: number | null
-          carbs_g?: number | null
-          client_id?: string
-          coach_id?: string | null
-          error?: string | null
-          fat_g?: number | null
-          id?: string
-          protein_g?: number | null
-          pushed_at?: string
-          success?: boolean
-        }
-        Relationships: []
-      }
       email_templates: {
         Row: {
           body: string
