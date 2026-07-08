@@ -272,7 +272,14 @@ export function WeeklyReviewTab({ clientId, coachId, lang }: Props) {
       suggested_adjustments: adjustments,
       generated_at: selected.generated_at ?? new Date().toISOString(),
     };
-    if (publish) payload.published_at = new Date().toISOString();
+    if (publish) {
+      payload.published_at = new Date().toISOString();
+      // Auto-mark the voice memo as recorded on publish — coaches asked to skip
+      // the manual toggle when the bullets go live.
+      if (!selected.voice_memo_recorded_at) {
+        payload.voice_memo_recorded_at = new Date().toISOString();
+      }
+    }
     const { error } = await supabase
       .from("weekly_review_drafts")
       .update(payload)

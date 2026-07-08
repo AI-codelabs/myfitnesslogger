@@ -306,6 +306,12 @@ export default function WeeklyCheckin() {
 
   const submit = async () => {
     if (!user) return;
+    const weightNum = form.weight_kg ? Number(form.weight_kg) : NaN;
+    if (!form.weight_kg.trim() || !Number.isFinite(weightNum) || weightNum <= 0) {
+      toast.error("Vul je gewicht in — dit veld is verplicht.");
+      document.getElementById("checkin-weight-input")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
     setSaving(true);
     const payload = {
       client_id: user.id,
@@ -322,7 +328,7 @@ export default function WeeklyCheckin() {
       sleep_cycle_other: form.sleep_cycle_other || null,
       energy: form.energy,
       soreness: form.soreness,
-      weight_kg: form.weight_kg ? Number(form.weight_kg) : null,
+      weight_kg: weightNum,
       measurements: (() => {
         const parts = MEASUREMENT_FIELDS
           .map((f) => {
@@ -569,12 +575,18 @@ export default function WeeklyCheckin() {
         {/* LICHAAM */}
         <Section title="Lichaam">
           <div className="space-y-2">
-            <Label>Gemiddeld gewicht afgelopen week (kg)</Label>
+            <Label htmlFor="checkin-weight-input">
+              Gemiddeld gewicht afgelopen week (kg) <span className="text-destructive">*</span>
+            </Label>
             <Input
+              id="checkin-weight-input"
               inputMode="decimal"
+              required
+              aria-required="true"
               value={form.weight_kg}
               onChange={(e) => set("weight_kg", e.target.value)}
             />
+            <p className="text-xs text-muted-foreground">Verplicht.</p>
           </div>
           <div className="space-y-2">
             <Label>Metingen (cm)</Label>
