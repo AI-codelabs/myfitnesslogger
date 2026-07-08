@@ -543,6 +543,43 @@ Deno.serve(async (req) => {
       return json({ success: true, targets: resp });
     }
 
+    if (action === "probe_meals") {
+      // Try a bunch of candidate endpoints to discover the per-serving/meal endpoint.
+      // Results land in cronometer_api_logs for inspection.
+      const { client_id, day } = body;
+      if (!client_id) return json({ error: "client_id required" }, 400);
+      const { data: link } = await admin
+        .from("cronometer_clients")
+        .select("cronometer_client_id, client_id")
+        .eq("coach_id", userId)
+        .eq("client_id", client_id)
+        .maybeSingle();
+      if (!link?.cronometer_client_id) return json({ error: "not_linked" }, 404);
+      const target_day = day ?? ymd(new Date());
+      const candidates = [
+        "/servings", "/diary", "/diary_details", "/diary_entries", "/food_entries",
+        "/entries", "/foods", "/meals", "/meal_entries", "/nutrition_entries",
+        "/data_export", "/export",
+      ];
+      const results: any[] = [];
+      for (const path of candidates) {
+        try {
+          const resp = await callCrono<any>(path, {
+            client_id: link.cronometer_client_id,
+            day: target_day,
+            start: target_day,
+            end: target_day,
+          }, { action: "probe_meals", coach_id: userId, client_id: link.client_id, cronometer_client_id: link.cronometer_client_id });
+          const preview = JSON.stringify(resp).slice(0, 400);
+          results.push({ path, ok: true, preview });
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          results.push({ path, ok: false, error: msg.slice(0, 200) });
+        }
+      }
+      return json({ success: true, day: target_day, results });
+    }
+
     // ───── Legacy no-ops for existing frontend calls ─────
     if (action === "sync") {
       // Old client-invoked "sync my own data" button. Map to sync_client for self.
