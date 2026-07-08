@@ -1,7 +1,6 @@
 import { useAuth } from "@/hooks/useAuth";
 import { AppLayout } from "@/components/AppLayout";
-import { Card } from "@/components/ui/card";
-import { Loader2, Dumbbell, Apple, ArrowRight } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { ActionRequiredBlock } from "@/components/coach-dashboard/ActionRequiredBlock";
 import { RiskAttentionBlock } from "@/components/coach-dashboard/RiskAttentionBlock";
 import { RecentActivityBlock } from "@/components/coach-dashboard/RecentActivityBlock";
