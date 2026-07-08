@@ -1,7 +1,6 @@
 import { useAuth } from "@/hooks/useAuth";
 import { AppLayout } from "@/components/AppLayout";
-import { Card } from "@/components/ui/card";
-import { Loader2, Dumbbell, Apple, ArrowRight } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { ActionRequiredBlock } from "@/components/coach-dashboard/ActionRequiredBlock";
 import { RiskAttentionBlock } from "@/components/coach-dashboard/RiskAttentionBlock";
 import { RecentActivityBlock } from "@/components/coach-dashboard/RecentActivityBlock";
@@ -9,10 +8,7 @@ import { OverviewStatsBlock } from "@/components/coach-dashboard/OverviewStatsBl
 import { EndingSoonBlock } from "@/components/coach-dashboard/EndingSoonBlock";
 import { DashboardNotifications } from "@/components/DashboardNotifications";
 import { useCoachDashboardData } from "@/lib/coachDashboard";
-import { ClientStartMessageCard } from "@/components/ClientStartMessageCard";
-import { WeeklyCheckinCard } from "@/components/WeeklyCheckinCard";
-import { ProgressionSummary } from "@/components/ProgressionSummary";
-import { useNavigate } from "react-router-dom";
+import { ClientHomeView } from "@/components/client-home/ClientHomeView";
 import { useState } from "react";
 import { Lang } from "@/lib/onboardingSchema";
 
@@ -74,7 +70,6 @@ function LangToggle({ lang, setLang }: { lang: Lang; setLang: (l: Lang) => void 
 
 const Index = () => {
   const { role, loading } = useAuth();
-  const navigate = useNavigate();
   const [lang, setLang] = useState<Lang>(
     () => (localStorage.getItem("onbLang") as Lang) || "nl",
   );
@@ -92,54 +87,14 @@ const Index = () => {
     return <CoachDashboard lang={lang} setLang={setLang} tx={tx} />;
   }
 
-  // Client dashboard with quick-action cards
+  // Client dashboard — new home experience
   return (
     <AppLayout>
-      <div className="px-4 py-6 sm:px-8 sm:py-8 max-w-5xl mx-auto w-full">
-        <div className="mb-6 flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-              {tx(copy.dashboard)}
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1">{tx(copy.clientSubtitle)}</p>
-          </div>
+      <div className="px-4 py-6 sm:px-8 sm:py-8 max-w-3xl mx-auto w-full">
+        <div className="mb-4 flex justify-end">
           <LangToggle lang={lang} setLang={setLang} />
         </div>
-
-        <WeeklyCheckinCard lang={lang} />
-        <ClientStartMessageCard lang={lang} />
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-          <Card
-            className="p-6 flex items-center gap-4 cursor-pointer hover:bg-muted/50 transition-colors group"
-            onClick={() => navigate("/training")}
-          >
-            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-              <Dumbbell className="h-6 w-6 text-primary" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold">{tx(copy.training)}</p>
-              <p className="text-sm text-muted-foreground">{tx(copy.trainingDesc)}</p>
-            </div>
-            <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
-          </Card>
-
-          <Card
-            className="p-6 flex items-center gap-4 cursor-pointer hover:bg-muted/50 transition-colors group"
-            onClick={() => navigate("/nutrition")}
-          >
-            <div className="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center shrink-0">
-              <Apple className="h-6 w-6 text-emerald-500" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold">{tx(copy.nutrition)}</p>
-              <p className="text-sm text-muted-foreground">{tx(copy.nutritionDesc)}</p>
-            </div>
-            <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-emerald-500 transition-colors shrink-0" />
-          </Card>
-        </div>
-
-        <ProgressionSummary lang={lang} />
+        <ClientHomeView lang={lang} />
       </div>
     </AppLayout>
   );
