@@ -532,8 +532,13 @@ Deno.serve(async (req) => {
       `Geplande sessies per week: ${insights.workouts.sessions_planned}. Adherence (volledig + gedeeltelijk): ${insights.workouts.adherence_pct}%.`,
     );
     parts.push(
-      `Progressie: ${improved} oefeningen verbeterd, ${regressed} achteruit. Top: ${notableTop.map((n) => `${n.name} (${n.change})`).join("; ") || "geen significant"}`,
+      `Progressie: ${improved} oefeningen verbeterd, ${regressed} achteruit, ${notProgressing.length} zonder progressie. Top: ${notableTop.map((n) => `${n.name} (${n.change})`).join("; ") || "geen significant"}`,
     );
+    if (notProgressing.length > 0) {
+      parts.push(
+        `Oefeningen zonder progressie (wel gelogd beide weken, maar volume binnen ±5%): ${notProgressing.join(", ")}. BENOEM DEZE OEFENINGEN MET NAAM in de spraakmemo als je zegt hoeveel oefeningen geen progressie toonden.`,
+      );
+    }
 
     parts.push("\n=== OBJECTIEVE VOEDINGSDATA ===");
     if (recentLogs.length === 0) {
