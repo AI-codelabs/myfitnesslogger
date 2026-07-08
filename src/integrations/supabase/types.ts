@@ -575,6 +575,54 @@ export type Database = {
         }
         Relationships: []
       }
+      nutrition_plan_templates: {
+        Row: {
+          carbs_g: number
+          coach_id: string
+          created_at: string
+          fat_g: number
+          goal_type: string
+          id: string
+          name: string
+          notes: string | null
+          pdf_name: string | null
+          pdf_path: string | null
+          protein_g: number
+          target_kcal: number
+          updated_at: string
+        }
+        Insert: {
+          carbs_g: number
+          coach_id: string
+          created_at?: string
+          fat_g: number
+          goal_type: string
+          id?: string
+          name: string
+          notes?: string | null
+          pdf_name?: string | null
+          pdf_path?: string | null
+          protein_g: number
+          target_kcal: number
+          updated_at?: string
+        }
+        Update: {
+          carbs_g?: number
+          coach_id?: string
+          created_at?: string
+          fat_g?: number
+          goal_type?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          pdf_name?: string | null
+          pdf_path?: string | null
+          protein_g?: number
+          target_kcal?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       nutrition_plans: {
         Row: {
           age: number | null
