@@ -49,24 +49,90 @@ class CronoApiError extends Error {
   }
 }
 
-async function callCrono<T = any>(path: string, body: Record<string, unknown>): Promise<T> {
-  if (!PRO_TOKEN) throw new Error("CRONOMETER_PRO_TOKEN not configured");
-  const res = await fetch(`${CRONO_BASE}${path}`, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${PRO_TOKEN}`,
-      "Content-Type": "application/json",
-      "Accept": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
-  const text = await res.text();
-  if (!res.ok) throw new CronoApiError(res.status, text);
-  if (!text) return {} as T;
+let _logAdmin: SupabaseClient | null = null;
+function getLogAdmin(): SupabaseClient {
+  if (!_logAdmin) _logAdmin = createClient(SUPABASE_URL, SERVICE_KEY);
+  return _logAdmin;
+}
+
+type LogCtx = {
+  action?: string;
+  coach_id?: string | null;
+  client_id?: string | null;
+  cronometer_client_id?: number | null;
+};
+
+async function logApiCall(entry: {
+  ctx: LogCtx;
+  endpoint: string;
+  request_body: unknown;
+  response_status: number | null;
+  response_text: string;
+  error?: string | null;
+  duration_ms: number;
+}) {
   try {
-    return JSON.parse(text) as T;
-  } catch {
-    return text as unknown as T;
+    let response_body: unknown = null;
+    if (entry.response_text) {
+      try { response_body = JSON.parse(entry.response_text); } catch { /* keep as text */ }
+    }
+    await getLogAdmin().from("cronometer_api_logs").insert({
+      action: entry.ctx.action ?? null,
+      endpoint: entry.endpoint,
+      request_body: entry.request_body ?? null,
+      response_status: entry.response_status,
+      response_body: response_body ?? null,
+      response_text: response_body ? null : (entry.response_text || null),
+      error: entry.error ?? null,
+      duration_ms: entry.duration_ms,
+      coach_id: entry.ctx.coach_id ?? null,
+      client_id: entry.ctx.client_id ?? null,
+      cronometer_client_id: entry.ctx.cronometer_client_id ?? null,
+    });
+  } catch (e) {
+    console.warn("api log insert failed:", e);
+  }
+}
+
+async function callCrono<T = any>(
+  path: string,
+  body: Record<string, unknown>,
+  ctx: LogCtx = {},
+): Promise<T> {
+  if (!PRO_TOKEN) throw new Error("CRONOMETER_PRO_TOKEN not configured");
+  const started = Date.now();
+  let status: number | null = null;
+  let text = "";
+  let errMsg: string | null = null;
+  try {
+    const res = await fetch(`${CRONO_BASE}${path}`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${PRO_TOKEN}`,
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+    status = res.status;
+    text = await res.text();
+    if (!res.ok) { errMsg = `HTTP ${res.status}`; throw new CronoApiError(res.status, text); }
+    if (!text) return {} as T;
+    try { return JSON.parse(text) as T; }
+    catch { return text as unknown as T; }
+  } catch (e) {
+    if (!errMsg) errMsg = e instanceof Error ? e.message : String(e);
+    throw e;
+  } finally {
+    logApiCall({
+      ctx,
+      endpoint: path,
+      request_body: body,
+      response_status: status,
+      response_text: text,
+      error: errMsg,
+      duration_ms: Date.now() - started,
+    });
   }
 }
 
