@@ -37,24 +37,22 @@ Home UI screenshot noted for reference (client "Vandaag" view, check-in card, st
 
 ---
 
-### Sprint 3 — Nutrition plan templates + onboarding formulas
+### Sprint 3 — Nutrition plan templates + onboarding formulas ✅ SHIPPED
 
-**A. `nutrition_plan_templates` table**
-Columns: `id, coach_id, name, goal_type ('cut'|'bulk'|'maintain'), target_kcal, protein_g, carbs_g, fat_g, pdf_path, created_at`. RLS: coach owns rows. Storage bucket `nutrition-templates` (private, signed URLs).
+**A. `nutrition_plan_templates` table** — ✅
+Columns: `coach_id, name, goal_type ('cut'|'bulk'|'maintain'), target_kcal, protein_g, carbs_g, fat_g, pdf_path, pdf_name, notes`. RLS scopes rows to `coach_id = auth.uid()`. Private storage bucket `nutrition-templates` with per-coach folder policies.
 
-**B. Coach page `NutritionTemplates.tsx`**
-List / upload / edit / delete templates. Upload PDF + fill macro targets manually.
+**B. Coach page `NutritionTemplates.tsx`** — ✅
+Route `/nutrition-templates` + sidebar link. List / create / edit / delete templates with PDF upload and manual macro targets.
 
-**C. Auto-match after onboarding**
-- Compute client target macros (extend `cronometerTargets.ts` logic).
-- Rank coach's templates filtered by `goal_type` using Euclidean distance across `(kcal, protein, carbs, fat)` normalized.
-- Surface top match in coach dashboard "Action required" block → coach approves → attach via existing `client_nutrition_documents` flow. Never auto-attach.
+**C. Auto-match after onboarding** — ✅
+New `NutritionTemplateSuggestion` component embedded in `ClientProfile` nutrition tab. Reads client's target macros from `nutrition_plans.details` + active goal, ranks coach's templates by normalized Euclidean distance (goal-filtered when possible), shows top 3. "Attach" copies the PDF into the client's `nutrition-documents` bucket and inserts a `client_nutrition_documents` row — never auto-attaches.
 
-**D. Water + supplement facts in onboarding AI**
-In `generate-coach-message`, compute deterministically and inject as facts:
-- `water_ml = round(35 * weight_kg + 500 * weekly_training_hours / 7)`
-- Supplements: creatine 5 g/day; whey if `(target_protein − dietary_protein_estimate) > 30 g`; vitamin D if low sun exposure flag; omega-3 default; magnesium default.
-Prompt the model to phrase them, not invent them.
+**D. Water + supplement facts in onboarding AI** — ✅
+`generate-coach-message` now computes and injects into the prompt as authoritative facts:
+- `water_ml = round(35 × weight_kg + 500 × weekly_training_hours / 7)`
+- Supplement suggestions filtered against the client's current `supplements` field: creatine 5 g/day, whey if protein gap > 30 g, vitamin D3 2000 IU, omega-3 1–2 g, magnesium 200–400 mg.
+The model is instructed to phrase them, not invent doses.
 
 ---
 
