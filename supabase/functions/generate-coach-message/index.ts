@@ -176,8 +176,41 @@ function buildUserPrompt(ctx: ClientContext): string {
     }
   }
 
+  // Deterministic facts — inject so the AI phrases them, doesn't invent them.
+  const weightKg = Number(ctx.intake?.weight_kg) || Number((ctx.activeGoal as any)?.starting_weight_kg) || 0;
+  const trainingHoursWeekly = Number(ctx.intake?.weekly_training_hours) || 0;
+  const waterMl = weightKg > 0
+    ? Math.round(35 * weightKg + (500 * trainingHoursWeekly) / 7)
+    : null;
+
+  const nd = (ctx.nutrition?.details ?? {}) as Record<string, unknown>;
+  const targetProtein = Number(nd.protein_g) || 0;
+  const dietaryProteinEstimate = weightKg * 1.2; // rough baseline from typical diet
+  const proteinGap = Math.max(0, targetProtein - dietaryProteinEstimate);
+
+  const currentSupps = String(ctx.intake?.supplements ?? "").toLowerCase();
+  const suppsSuggested: string[] = [];
+  if (!currentSupps.includes("creatine")) suppsSuggested.push("Creatine monohydraat 5 g per dag");
+  if (proteinGap > 30 && !currentSupps.includes("whey"))
+    suppsSuggested.push(`Whey proteïne (~${Math.round(proteinGap)} g eiwit-gap per dag)`);
+  if (!currentSupps.includes("vitamine d") && !currentSupps.includes("vitamin d"))
+    suppsSuggested.push("Vitamine D3 2000 IE/dag (vooral oktober–maart of bij weinig zon)");
+  if (!currentSupps.includes("omega")) suppsSuggested.push("Omega-3 (EPA+DHA) 1–2 g/dag");
+  if (!currentSupps.includes("magnesium")) suppsSuggested.push("Magnesium 200–400 mg (bisglycinaat) voor het slapen");
+
+  parts.push("\n=== BEREKENDE FEITEN (gebruik deze exact — niet zelf berekenen) ===");
+  if (waterMl != null) {
+    parts.push(
+      `Water: ${waterMl} ml per dag (formule: 35 ml × ${weightKg} kg lichaamsgewicht + 500 ml per trainingsuur, ~${trainingHoursWeekly} u/week).`,
+    );
+  }
+  if (suppsSuggested.length) {
+    parts.push("Supplement-advies (alleen wat de klant nog niet gebruikt):");
+    suppsSuggested.forEach((s) => parts.push(`  - ${s}`));
+  }
+
   parts.push(
-    "\nGenereer nu de spraakmemo en klant bulletpoints op basis van bovenstaande data. Gebruik de tool `coach_start_message` om je antwoord te structureren.",
+    "\nGenereer nu de spraakmemo en klant bulletpoints op basis van bovenstaande data. Verwerk het water-getal en de supplement-suggesties concreet in het bericht — verzin geen andere doseringen. Gebruik de tool `coach_start_message` om je antwoord te structureren.",
   );
 
   return parts.join("\n");
