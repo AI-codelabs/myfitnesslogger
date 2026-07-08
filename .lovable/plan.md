@@ -56,13 +56,13 @@ The model is instructed to phrase them, not invent doses.
 
 ---
 
-### Sprint 4 — Strength progression graph
+### Sprint 4 — Strength progression graph ✅ SHIPPED
 
-- New `StrengthProgressChart` in `ClientProgressionTab` / `Progression.tsx`.
-- Exercise picker (searchable, defaults to most-logged compound).
-- Line chart of estimated 1RM per session using Epley: `weight × (1 + reps / 30)`, taking the top set per session.
-- Data source: `workout_set_logs` joined to exercises.
-- X-axis: session date; range selector 4w / 12w / all.
+- New `StrengthProgressChart` component embedded in client `Progression.tsx` (Training tab) and coach `ClientProgressionTab`.
+- Exercise picker sorted by log count (default = most-logged).
+- Epley e1RM per session (`weight × (1 + reps / 30)`), taking the top set per session.
+- Range selector 4w / 12w / all, delta vs. period start shown in header.
+- Data source: `workout_set_logs` → `workout_sessions` (client scope) + `workout_plan_exercises.exercises` (name).
 
 ---
 
