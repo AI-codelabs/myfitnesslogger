@@ -172,21 +172,36 @@ function requireCronSecret(req: Request): boolean {
 const ymd = (d: Date) => d.toISOString().slice(0, 10);
 
 function normalizeDiary(day: string, payload: any) {
-  // Cronometer's diary_summary returns totals + a list of servings/entries.
-  // Field names are best-effort; we tolerate multiple shapes.
-  const totals = payload?.totals ?? payload?.nutrients ?? payload ?? {};
-  const num = (k: string, alt?: string) =>
-    Number(totals[k] ?? (alt ? totals[alt] : 0) ?? 0) || 0;
+  // Cronometer's diary_summary currently returns macro totals under `macros`
+  // (kcal, protein, total_carbs, fat), while older/export shapes may use
+  // totals/nutrients with different casing. Keep this tolerant so raw API
+  // shape changes do not silently zero out nutrition summaries.
+  const totals = payload?.macros ?? payload?.totals ?? payload?.summary ?? payload ?? {};
+  const nutrients = payload?.nutrients ?? {};
+  const lowerTotals = Object.fromEntries(
+    Object.entries(totals).map(([key, value]) => [key.toLowerCase(), value]),
+  );
+  const lowerNutrients = Object.fromEntries(
+    Object.entries(nutrients).map(([key, value]) => [key.toLowerCase(), value]),
+  );
+  const num = (...keys: string[]) => {
+    for (const key of keys) {
+      const normalized = key.toLowerCase();
+      const value = totals[key] ?? nutrients[key] ?? lowerTotals[normalized] ?? lowerNutrients[normalized];
+      if (value !== undefined && value !== null && value !== "") return Number(value) || 0;
+    }
+    return 0;
+  };
   return {
     log_date: day,
-    calories: num("calories", "energy_kcal"),
+    calories: num("kcal", "calories", "energy", "energy_kcal"),
     protein_g: num("protein", "protein_g"),
-    carbs_g: num("carbs", "carbohydrates"),
+    carbs_g: num("total_carbs", "carbs", "carbohydrates", "carbohydrates_g"),
     fat_g: num("fat", "fat_g"),
     fiber_g: num("fiber", "fiber_g"),
-    sugar_g: num("sugar", "sugar_g"),
+    sugar_g: num("sugars", "sugar", "sugar_g"),
     sodium_mg: num("sodium", "sodium_mg"),
-    entries: payload?.entries ?? payload?.servings ?? [],
+    entries: payload?.entries ?? payload?.servings ?? payload?.foods ?? payload?.diary ?? [],
     source: "api",
     synced_at: new Date().toISOString(),
   };
@@ -194,7 +209,7 @@ function normalizeDiary(day: string, payload: any) {
 
 async function syncOneClient(
   admin: SupabaseClient,
-  row: { id: string; client_id: string; cronometer_client_id: number | null; last_synced_day: string | null },
+  row: { id: string; coach_id?: string | null; client_id: string; cronometer_client_id: number | null; last_synced_day: string | null },
   opts: { full?: boolean } = {},
 ): Promise<{ days_synced: number; from: string; to: string }> {
   if (!row.cronometer_client_id) throw new Error("Missing cronometer_client_id");
@@ -217,7 +232,7 @@ async function syncOneClient(
     client_id: row.cronometer_client_id,
     start: from,
     end: to,
-  });
+  }, { action: "sync_client", coach_id: row.coach_id ?? null, client_id: row.client_id, cronometer_client_id: row.cronometer_client_id });
   const days: string[] = Array.isArray(summary?.days)
     ? summary.days
     : Array.isArray(summary)
@@ -233,7 +248,12 @@ async function syncOneClient(
     const batch = days.slice(i, i + CONCURRENCY);
     const results = await Promise.all(
       batch.map((day) =>
-        callCrono("/diary_summary", { client_id: row.cronometer_client_id, day })
+        callCrono("/diary_summary", { client_id: row.cronometer_client_id, day }, {
+          action: "sync_client",
+          coach_id: row.coach_id ?? null,
+          client_id: row.client_id,
+          cronometer_client_id: row.cronometer_client_id,
+        })
           .then((p) => ({ day, payload: p }))
           .catch((e) => ({ day, error: e instanceof Error ? e.message : String(e) }))
       ),
