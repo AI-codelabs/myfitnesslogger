@@ -67,6 +67,7 @@ interface Insights {
     exercises_improved: number;
     exercises_regressed: number;
     notable: Array<{ name: string; change: string }>;
+    not_progressing: string[];
   };
   nutrition: {
     days_logged: number;
@@ -313,6 +314,7 @@ Deno.serve(async (req) => {
     let improved = 0;
     let regressed = 0;
     const notable: Array<{ name: string; change: string }> = [];
+    const notProgressing: string[] = [];
     for (const [exId, sets] of Object.entries(setsByEx)) {
       const recent = sets.filter((s) => s.when >= sevenDaysAgo);
       const prior = sets.filter((s) => s.when < sevenDaysAgo);
@@ -321,18 +323,16 @@ Deno.serve(async (req) => {
       const priorBest = Math.max(...prior.map((s) => s.weight * s.reps));
       if (priorBest === 0) continue;
       const delta = ((recentBest - priorBest) / priorBest) * 100;
+      const name = exNameById[exId] ?? "Onbekend";
       if (delta >= 5) {
         improved++;
-        notable.push({
-          name: exNameById[exId] ?? "Onbekend",
-          change: `+${delta.toFixed(0)}% volume`,
-        });
+        notable.push({ name, change: `+${delta.toFixed(0)}% volume` });
       } else if (delta <= -5) {
         regressed++;
-        notable.push({
-          name: exNameById[exId] ?? "Onbekend",
-          change: `${delta.toFixed(0)}% volume`,
-        });
+        notable.push({ name, change: `${delta.toFixed(0)}% volume` });
+      } else {
+        // Between -5% and +5% — logged both weeks but no meaningful progression.
+        notProgressing.push(name);
       }
     }
     notable.sort((a, b) => Math.abs(parseFloat(b.change)) - Math.abs(parseFloat(a.change)));
@@ -361,6 +361,7 @@ Deno.serve(async (req) => {
         exercises_improved: improved,
         exercises_regressed: regressed,
         notable: notableTop,
+        not_progressing: notProgressing,
       },
       nutrition: {
         days_logged: recentLogs.length,
@@ -531,8 +532,13 @@ Deno.serve(async (req) => {
       `Geplande sessies per week: ${insights.workouts.sessions_planned}. Adherence (volledig + gedeeltelijk): ${insights.workouts.adherence_pct}%.`,
     );
     parts.push(
-      `Progressie: ${improved} oefeningen verbeterd, ${regressed} achteruit. Top: ${notableTop.map((n) => `${n.name} (${n.change})`).join("; ") || "geen significant"}`,
+      `Progressie: ${improved} oefeningen verbeterd, ${regressed} achteruit, ${notProgressing.length} zonder progressie. Top: ${notableTop.map((n) => `${n.name} (${n.change})`).join("; ") || "geen significant"}`,
     );
+    if (notProgressing.length > 0) {
+      parts.push(
+        `Oefeningen zonder progressie (wel gelogd beide weken, maar volume binnen ±5%): ${notProgressing.join(", ")}. BENOEM DEZE OEFENINGEN MET NAAM in de spraakmemo als je zegt hoeveel oefeningen geen progressie toonden.`,
+      );
+    }
 
     parts.push("\n=== OBJECTIEVE VOEDINGSDATA ===");
     if (recentLogs.length === 0) {

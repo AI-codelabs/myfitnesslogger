@@ -26,6 +26,7 @@ import WeeklyCheckin from "./pages/WeeklyCheckin.tsx";
 import Progression from "./pages/Progression.tsx";
 import { AppLayout } from "./components/AppLayout";
 import Settings from "./pages/Settings.tsx";
+import MyIntake from "./pages/MyIntake.tsx";
 
 const queryClient = new QueryClient();
 
@@ -65,6 +66,7 @@ const App = () => (
             <Route path="/clients" element={<Protected><AppLayout><Clients /></AppLayout></Protected>} />
             <Route path="/tasks" element={<Protected><AppLayout><CoachTasks /></AppLayout></Protected>} />
             <Route path="/account" element={<Protected><AppLayout><Account /></AppLayout></Protected>} />
+            <Route path="/account/intake" element={<Protected><AppLayout><MyIntake /></AppLayout></Protected>} />
             <Route path="/change-password" element={<Protected><AppLayout><ChangePassword /></AppLayout></Protected>} />
             <Route path="/settings" element={<Protected><AppLayout><Settings /></AppLayout></Protected>} />
             <Route path="/onboarding" element={<Protected requireOnboarding={false}><Onboarding /></Protected>} />

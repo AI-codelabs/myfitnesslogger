@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { LogOut, User as UserIcon, Mail, Shield, KeyRound } from "lucide-react";
+import { LogOut, User as UserIcon, Mail, Shield, KeyRound, FileText } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -78,11 +78,19 @@ const Account = () => {
 
       {isClient && (
         <Card className="p-4 sm:p-6 space-y-4">
-          <div>
-            <h2 className="font-semibold">Personal info</h2>
-            <p className="text-xs text-muted-foreground">
-              Visible to your coach.
-            </p>
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div>
+              <h2 className="font-semibold">Personal info</h2>
+              <p className="text-xs text-muted-foreground">
+                Visible to your coach.
+              </p>
+            </div>
+            <Button variant="outline" size="sm" asChild className="gap-2">
+              <Link to="/account/intake">
+                <FileText className="h-4 w-4" />
+                View full intake
+              </Link>
+            </Button>
           </div>
           {loadingInfo ? (
             <p className="text-sm text-muted-foreground">Loading…</p>
