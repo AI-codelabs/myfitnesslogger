@@ -302,6 +302,79 @@ Deno.serve(async (req) => {
       return json({ success: true, synced: results.length, results });
     }
 
+    // ───── Hourly reconcile (cron) ─────
+    // Refreshes upstream client status for all rows and syncs newly-active clients.
+    if (action === "hourly_reconcile") {
+      if (!requireCronSecret(req)) return json({ error: "Forbidden" }, 403);
+      const admin = createClient(SUPABASE_URL, SERVICE_KEY);
+      const resp = await callCrono<any>("/client_status", {}, { action: "hourly_reconcile" });
+      const list: any[] = Array.isArray(resp) ? resp : (resp?.clients ?? []);
+      const { data: myRows } = await admin
+        .from("cronometer_clients")
+        .select("id, coach_id, client_id, cronometer_client_id, email, status");
+
+      const byEmail = new Map<string, any>();
+      const byId = new Map<number, any>();
+      for (const r of list) {
+        if (r.email) byEmail.set(String(r.email).toLowerCase(), r);
+        const cid = r.client_id ?? r.id;
+        if (cid) byId.set(Number(cid), r);
+      }
+
+      const summary: any[] = [];
+      for (const local of myRows ?? []) {
+        const match = (local.cronometer_client_id && byId.get(Number(local.cronometer_client_id)))
+          || (local.email && byEmail.get(String(local.email).toLowerCase()));
+        if (!match) {
+          if (local.status === "active") {
+            await admin.from("cronometer_clients").update({ status: "revoked" }).eq("id", local.id);
+            summary.push({ client_id: local.client_id, action: "revoked" });
+          }
+          continue;
+        }
+        const upstreamStatus = String(match.status ?? "").toUpperCase();
+        const nextStatus = upstreamStatus.includes("PENDING") ? "pending" : "active";
+        const remoteId = match.client_id ?? match.id;
+        const patch: Record<string, unknown> = { status: nextStatus, last_error: null };
+        if (remoteId && !local.cronometer_client_id) patch.cronometer_client_id = Number(remoteId);
+        if (nextStatus === "active" && local.status !== "active") {
+          patch.connected_at = new Date().toISOString();
+        }
+        await admin.from("cronometer_clients").update(patch).eq("id", local.id);
+
+        if (nextStatus === "active" && local.status === "pending") {
+          try {
+            await syncOneClient(admin, {
+              id: local.id,
+              client_id: local.client_id,
+              cronometer_client_id: Number(remoteId ?? local.cronometer_client_id),
+              last_synced_day: null,
+            }, { full: true });
+            summary.push({ client_id: local.client_id, action: "promoted_and_backfilled" });
+          } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            await admin.from("cronometer_clients").update({ status: "error", last_error: msg }).eq("id", local.id);
+            summary.push({ client_id: local.client_id, action: "promote_failed", error: msg });
+          }
+        } else if (nextStatus === "active") {
+          try {
+            const r = await syncOneClient(admin, {
+              id: local.id,
+              client_id: local.client_id,
+              cronometer_client_id: Number(local.cronometer_client_id ?? remoteId),
+              last_synced_day: null,
+            });
+            summary.push({ client_id: local.client_id, action: "synced", ...r });
+          } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            await admin.from("cronometer_clients").update({ status: "error", last_error: msg }).eq("id", local.id);
+            summary.push({ client_id: local.client_id, action: "sync_failed", error: msg });
+          }
+        }
+      }
+      return json({ success: true, upstream_count: list.length, reconciled: summary.length, summary });
+    }
+
     // Everything below requires a signed-in coach.
     const auth = await requireCoach(req);
     if ("error" in auth) return json({ error: auth.error }, auth.status);
