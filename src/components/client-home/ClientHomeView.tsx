@@ -134,6 +134,7 @@ function HeroCheckinCard({ lang }: { lang: Lang }) {
 
 /* ---------------- Week strip ---------------- */
 function WeekStrip({ lang }: { lang: Lang }) {
+  const navigate = useNavigate();
   const today = new Date();
   const start = startOfWeekMon(today);
   const days = Array.from({ length: 7 }, (_, i) => {
