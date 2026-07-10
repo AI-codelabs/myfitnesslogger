@@ -41,6 +41,20 @@ function DateHeading({ lang }: { lang: Lang }) {
   );
 }
 
+function toKey(d: Date) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+function startOfWeekMon(d: Date) {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  const dow = (x.getDay() + 6) % 7; // Mon=0
+  x.setDate(x.getDate() - dow);
+  return x;
+}
+
 /* ---------------- Hero check-in ---------------- */
 function HeroCheckinCard({ lang }: { lang: Lang }) {
   const { user } = useAuth();
