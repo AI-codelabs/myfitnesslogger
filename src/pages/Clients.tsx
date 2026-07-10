@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 import { clientFullName } from "@/lib/clientName";
+import { fetchLoggedLast7Batch } from "@/lib/nutritionCompliance";
 
 interface Invitation {
   id: string;
