@@ -249,6 +249,7 @@ const Clients = () => {
                 Renewal due
               </Badge>
             )}
+            {loggedBadge(inv)}
             <Badge className={`border-0 ${style.className}`}>{style.label}</Badge>
           </div>
         </div>
