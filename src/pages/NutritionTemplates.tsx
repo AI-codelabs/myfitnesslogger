@@ -491,6 +491,30 @@ export default function NutritionTemplates() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={mealsOpen} onOpenChange={setMealsOpen}>
+        <DialogContent className="max-w-5xl max-h-[92vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              Meals — {mealsTarget?.name ?? "template"}
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-muted-foreground -mt-2">
+            Editing the template itself. To customize per client without touching this
+            template, use "Assign meal plan" from the client's profile.
+          </p>
+          <MealPlanEditor value={mealsDraft} onChange={setMealsDraft} />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMealsOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={saveMeals} disabled={mealsSaving}>
+              {mealsSaving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              Save meals
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
