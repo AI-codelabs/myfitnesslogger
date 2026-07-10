@@ -205,6 +205,7 @@ const Clients = () => {
             Renewal due
           </Badge>
         )}
+        {loggedBadge(inv)}
         <Badge className={`flex-shrink-0 border-0 ${style.className}`}>{style.label}</Badge>
         {inv.status === "pending" &&
           deleteInviteDialog(
