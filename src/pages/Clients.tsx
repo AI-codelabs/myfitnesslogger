@@ -101,6 +101,12 @@ const Clients = () => {
       map[r.user_id] = r.last_sign_in_at;
     });
     setLastActive(map);
+    const acceptedForLogs = merged
+      .filter((i) => i.accepted_user_id && (i.status === "active" || i.status === "accepted"))
+      .map((i) => i.accepted_user_id as string);
+    if (acceptedForLogs.length) {
+      fetchLoggedLast7Batch(acceptedForLogs).then(setLogged7);
+    }
     setLoading(false);
   };
 
