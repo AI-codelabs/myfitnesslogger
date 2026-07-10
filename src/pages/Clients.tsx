@@ -52,6 +52,7 @@ const Clients = () => {
   const { user } = useAuth();
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [lastActive, setLastActive] = useState<Record<string, string | null>>({});
+  const [logged7, setLogged7] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [view, setView] = useState<ViewMode>(
