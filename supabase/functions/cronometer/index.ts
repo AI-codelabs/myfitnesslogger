@@ -397,10 +397,39 @@ Deno.serve(async (req) => {
 
 
 
+    // ───── Client-invoked self sync (no coach role required) ─────
+    if (action === "sync") {
+      const authHeader = req.headers.get("Authorization");
+      if (!authHeader?.startsWith("Bearer ")) return json({ error: "Unauthorized" }, 401);
+      const userClient = createClient(SUPABASE_URL, ANON_KEY, {
+        global: { headers: { Authorization: authHeader } },
+      });
+      const token = authHeader.replace("Bearer ", "");
+      const { data: claims, error: claimsErr } = await userClient.auth.getClaims(token);
+      if (claimsErr || !claims?.claims) return json({ error: "Unauthorized" }, 401);
+      const selfId = claims.claims.sub as string;
+      const admin = createClient(SUPABASE_URL, SERVICE_KEY);
+      const { data: link } = await admin
+        .from("cronometer_clients")
+        .select("id, client_id, cronometer_client_id, last_synced_day, status")
+        .eq("client_id", selfId)
+        .maybeSingle();
+      if (!link) return json({ error: "no_session", message: "Cronometer not connected" }, 400);
+      if (link.status !== "active") return json({ error: "no_session", message: "Cronometer link not active" }, 400);
+      try {
+        const r = await syncOneClient(admin, link);
+        return json({ success: true, days_synced: r.days_synced, up_to_date: r.days_synced === 0, from: r.from, to: r.to });
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return json({ error: "sync_failed", message: msg }, 502);
+      }
+    }
+
     // Everything below requires a signed-in coach.
     const auth = await requireCoach(req);
     if ("error" in auth) return json({ error: auth.error }, auth.status);
     const { userId, admin } = auth;
+
 
     if (action === "invite_client") {
       const { client_id, email, name } = body;
