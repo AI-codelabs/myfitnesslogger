@@ -197,16 +197,18 @@ export function CoachClientMealPlanCard({ coachId, clientId }: Props) {
       toast.error("Enter a template name");
       return;
     }
-    const { error } = await supabase.from("nutrition_plan_templates").insert({
-      coach_id: coachId,
-      name,
-      goal_type: draft.goal_type,
-      target_kcal: Math.round(draft.target_kcal) || 0,
-      protein_g: Math.round(draft.protein_g) || 0,
-      carbs_g: Math.round(draft.carbs_g) || 0,
-      fat_g: Math.round(draft.fat_g) || 0,
-      structure: draft.structure as unknown as object,
-    });
+    const { error } = await supabase.from("nutrition_plan_templates").insert([
+      {
+        coach_id: coachId,
+        name,
+        goal_type: draft.goal_type,
+        target_kcal: Math.round(draft.target_kcal) || 0,
+        protein_g: Math.round(draft.protein_g) || 0,
+        carbs_g: Math.round(draft.carbs_g) || 0,
+        fat_g: Math.round(draft.fat_g) || 0,
+        structure: draft.structure as unknown as never,
+      },
+    ]);
     if (error) return toast.error(error.message);
     toast.success("Saved as new template");
     setSaveTplOpen(false);
