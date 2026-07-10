@@ -96,6 +96,32 @@ export default function NutritionTemplates() {
   const [form, setForm] = useState<FormState>(emptyForm);
   const [saving, setSaving] = useState(false);
 
+  // Meals editor state (per template)
+  const [mealsOpen, setMealsOpen] = useState(false);
+  const [mealsTarget, setMealsTarget] = useState<Template | null>(null);
+  const [mealsDraft, setMealsDraft] = useState<MealPlanStructure>(EMPTY_STRUCTURE);
+  const [mealsSaving, setMealsSaving] = useState(false);
+
+  function openMeals(t: Template) {
+    setMealsTarget(t);
+    setMealsDraft(coerceStructure(t.structure));
+    setMealsOpen(true);
+  }
+
+  async function saveMeals() {
+    if (!mealsTarget) return;
+    setMealsSaving(true);
+    const { error } = await supabase
+      .from("nutrition_plan_templates")
+      .update({ structure: mealsDraft as unknown as never })
+      .eq("id", mealsTarget.id);
+    setMealsSaving(false);
+    if (error) return toast.error(error.message);
+    toast.success("Meals updated");
+    setMealsOpen(false);
+    load();
+  }
+
   async function load() {
     if (!user) return;
     setLoading(true);
