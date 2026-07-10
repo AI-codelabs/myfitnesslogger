@@ -643,7 +643,16 @@ Deno.serve(async (req) => {
   } catch (e) {
     if (e instanceof CronoApiError) {
       const status = e.status === 401 ? 401 : e.status >= 500 ? 502 : 400;
-      return json({ error: "cronometer_api", status: e.status, message: e.body.slice(0, 500) }, status);
+      let cronoMessage = e.body.slice(0, 500);
+      try {
+        const parsed = JSON.parse(e.body);
+        if (parsed?.error) cronoMessage = String(parsed.error);
+      } catch { /* not JSON */ }
+      return json({
+        error: "cronometer_api",
+        status: e.status,
+        message: `Cronometer HTTP ${e.status}: ${cronoMessage}`,
+      }, status);
     }
     console.error("cronometer function error:", e);
     return json({ error: e instanceof Error ? e.message : "Unknown error" }, 500);
