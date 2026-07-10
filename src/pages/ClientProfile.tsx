@@ -628,6 +628,7 @@ const ClientProfile = () => {
 
           {coachId && clientId && (
             <>
+              <CoachClientMealPlanCard coachId={coachId} clientId={clientId} />
               <NutritionTemplateSuggestion coachId={coachId} clientId={clientId} />
               <ClientNutritionDocuments
                 clientId={clientId}
