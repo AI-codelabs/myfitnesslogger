@@ -164,6 +164,24 @@ const Clients = () => {
   const isRenewalDue = (inv: Invitation) =>
     !!inv.coaching_end_date && new Date(inv.coaching_end_date) < new Date();
 
+  const loggedBadge = (inv: Invitation) => {
+    if (!inv.accepted_user_id) return null;
+    if (inv.status !== "active" && inv.status !== "accepted") return null;
+    const n = logged7[inv.accepted_user_id];
+    if (n === undefined) return null;
+    const cls =
+      n >= 5
+        ? "bg-emerald-100 text-emerald-900 dark:bg-emerald-500/20 dark:text-emerald-200"
+        : n >= 3
+        ? "bg-amber-100 text-amber-900 dark:bg-amber-500/20 dark:text-amber-200"
+        : "bg-red-100 text-red-900 dark:bg-red-500/20 dark:text-red-200";
+    return (
+      <Badge className={`flex-shrink-0 border-0 ${cls}`} title="Days logged in Cronometer (last 7)">
+        {n}/7 logged
+      </Badge>
+    );
+  };
+
   const renderRow = (inv: Invitation) => {
     const style = statusStyles[inv.status] ?? statusStyles.pending;
     const clickable = !!inv.accepted_user_id && inv.status !== "pending";
