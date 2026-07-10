@@ -31,6 +31,7 @@ import { ClientProgressionTab } from "@/components/ClientProgressionTab";
 import { NutritionWeeklyOverview, DailyLog } from "@/components/NutritionWeeklyOverview";
 import { ClientNutritionDocuments } from "@/components/ClientNutritionDocuments";
 import { NutritionTemplateSuggestion } from "@/components/NutritionTemplateSuggestion";
+import { CoachClientMealPlanCard } from "@/components/CoachClientMealPlanCard";
 import { ClientGoalsTab } from "@/components/ClientGoalsTab";
 import { CronometerCoachCard } from "@/components/CronometerCoachCard";
 import { clientFullName } from "@/lib/clientName";
