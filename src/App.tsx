@@ -19,6 +19,7 @@ import Workouts from "./pages/Workouts.tsx";
 import CoachTasks from "./pages/CoachTasks.tsx";
 import WorkoutPlan from "./pages/WorkoutPlan.tsx";
 import ClientNutrition from "./pages/ClientNutrition.tsx";
+import ClientMealPlanView from "./pages/ClientMealPlanView.tsx";
 import ClientTraining from "./pages/ClientTraining.tsx";
 import LogWorkout from "./pages/LogWorkout.tsx";
 import ClientWorkoutSession from "./pages/ClientWorkoutSession.tsx";
