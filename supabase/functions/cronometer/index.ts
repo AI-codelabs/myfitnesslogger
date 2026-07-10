@@ -635,23 +635,7 @@ Deno.serve(async (req) => {
 
 
     // ───── Legacy no-ops for existing frontend calls ─────
-    if (action === "sync") {
-      // Old client-invoked "sync my own data" button. Map to sync_client for self.
-      const { data: link } = await admin
-        .from("cronometer_clients")
-        .select("id, client_id, cronometer_client_id, last_synced_day, status")
-        .eq("client_id", userId)
-        .maybeSingle();
-      if (!link) return json({ error: "no_session", message: "Cronometer not connected" }, 400);
-      if (link.status !== "active") return json({ error: "no_session", message: "Cronometer link not active" }, 400);
-      try {
-        const r = await syncOneClient(admin, link);
-        return json({ success: true, days_synced: r.days_synced, up_to_date: r.days_synced === 0, from: r.from, to: r.to });
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : String(e);
-        return json({ error: "sync_failed", message: msg }, 502);
-      }
-    }
+
 
     if (action === "connect_and_save" || action === "connect" || action === "login_and_export" || action === "export") {
       return json({
