@@ -25,6 +25,7 @@ import { cn } from "@/lib/utils";
 import { Lang } from "@/lib/onboardingSchema";
 import { fetchActiveGoal, ClientGoal, GOAL_TYPE_LABELS } from "@/lib/clientGoal";
 import { NutritionTodayCard } from "@/components/client-home/NutritionTodayCard";
+import { ComplianceCard } from "@/components/client-home/ComplianceCard";
 
 const tx = (lang: Lang, nl: string, en: string) => (lang === "nl" ? nl : en);
 
