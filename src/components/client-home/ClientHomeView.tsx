@@ -19,7 +19,6 @@ import {
 } from "@/lib/weeklyCheckin";
 import { ProgressionSummary } from "@/components/ProgressionSummary";
 import { ClientStartMessageCard } from "@/components/ClientStartMessageCard";
-import heroImage from "@/assets/checkin-hero.jpg";
 import { cn } from "@/lib/utils";
 import { Lang } from "@/lib/onboardingSchema";
 import { fetchActiveGoal, ClientGoal, GOAL_TYPE_LABELS } from "@/lib/clientGoal";
