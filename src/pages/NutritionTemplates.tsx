@@ -30,7 +30,14 @@ import {
   Trash2,
   Upload,
   Download,
+  ChefHat,
 } from "lucide-react";
+import { MealPlanEditor } from "@/components/MealPlanEditor";
+import {
+  MealPlanStructure,
+  coerceStructure,
+  EMPTY_STRUCTURE,
+} from "@/lib/mealPlan";
 
 const BUCKET = "nutrition-templates";
 
@@ -46,6 +53,7 @@ interface Template {
   pdf_path: string | null;
   pdf_name: string | null;
   notes: string | null;
+  structure: unknown;
   created_at: string;
 }
 
