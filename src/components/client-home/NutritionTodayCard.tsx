@@ -130,13 +130,22 @@ export function NutritionTodayCard({ lang }: { lang: Lang }) {
         <h3 className="text-lg font-bold">
           {tx(lang, "Voeding vandaag", "Nutrition today")}
         </h3>
-        <Link
-          to="/nutrition"
-          className="text-xs font-medium text-muted-foreground hover:text-foreground flex items-center gap-1"
-        >
-          {tx(lang, "Details", "Details")}
-          <ArrowRight className="h-3 w-3" />
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link
+            to="/meal-plan"
+            className="text-xs font-medium text-primary hover:underline flex items-center gap-1"
+          >
+            {tx(lang, "Maaltijdplan", "Meal plan")}
+            <ArrowRight className="h-3 w-3" />
+          </Link>
+          <Link
+            to="/nutrition"
+            className="text-xs font-medium text-muted-foreground hover:text-foreground flex items-center gap-1"
+          >
+            {tx(lang, "Details", "Details")}
+            <ArrowRight className="h-3 w-3" />
+          </Link>
+        </div>
       </div>
 
       <Card className="p-5">

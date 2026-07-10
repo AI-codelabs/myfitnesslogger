@@ -30,7 +30,14 @@ import {
   Trash2,
   Upload,
   Download,
+  ChefHat,
 } from "lucide-react";
+import { MealPlanEditor } from "@/components/MealPlanEditor";
+import {
+  MealPlanStructure,
+  coerceStructure,
+  EMPTY_STRUCTURE,
+} from "@/lib/mealPlan";
 
 const BUCKET = "nutrition-templates";
 
@@ -46,6 +53,7 @@ interface Template {
   pdf_path: string | null;
   pdf_name: string | null;
   notes: string | null;
+  structure: unknown;
   created_at: string;
 }
 
@@ -87,6 +95,32 @@ export default function NutritionTemplates() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [saving, setSaving] = useState(false);
+
+  // Meals editor state (per template)
+  const [mealsOpen, setMealsOpen] = useState(false);
+  const [mealsTarget, setMealsTarget] = useState<Template | null>(null);
+  const [mealsDraft, setMealsDraft] = useState<MealPlanStructure>(EMPTY_STRUCTURE);
+  const [mealsSaving, setMealsSaving] = useState(false);
+
+  function openMeals(t: Template) {
+    setMealsTarget(t);
+    setMealsDraft(coerceStructure(t.structure));
+    setMealsOpen(true);
+  }
+
+  async function saveMeals() {
+    if (!mealsTarget) return;
+    setMealsSaving(true);
+    const { error } = await supabase
+      .from("nutrition_plan_templates")
+      .update({ structure: mealsDraft as unknown as never })
+      .eq("id", mealsTarget.id);
+    setMealsSaving(false);
+    if (error) return toast.error(error.message);
+    toast.success("Meals updated");
+    setMealsOpen(false);
+    load();
+  }
 
   async function load() {
     if (!user) return;
@@ -298,7 +332,28 @@ export default function NutritionTemplates() {
                 </p>
               )}
 
-              <div className="flex gap-2">
+              {(() => {
+                const s = coerceStructure(t.structure);
+                const mealCount = s.categories.length;
+                return (
+                  <div className="text-[11px] text-muted-foreground">
+                    {mealCount > 0
+                      ? `${mealCount} meal${mealCount === 1 ? "" : "s"} configured`
+                      : "No meals yet — add editable meals"}
+                  </div>
+                );
+              })()}
+
+              <div className="flex gap-2 flex-wrap">
+                <Button
+                  size="sm"
+                  variant="default"
+                  onClick={() => openMeals(t)}
+                  className="gap-1.5"
+                >
+                  <ChefHat className="h-3.5 w-3.5" />
+                  Meals
+                </Button>
                 <Button
                   size="sm"
                   variant="outline"
@@ -432,6 +487,30 @@ export default function NutritionTemplates() {
             <Button onClick={save} disabled={saving}>
               {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
               Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={mealsOpen} onOpenChange={setMealsOpen}>
+        <DialogContent className="max-w-5xl max-h-[92vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              Meals — {mealsTarget?.name ?? "template"}
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-muted-foreground -mt-2">
+            Editing the template itself. To customize per client without touching this
+            template, use "Assign meal plan" from the client's profile.
+          </p>
+          <MealPlanEditor value={mealsDraft} onChange={setMealsDraft} />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMealsOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={saveMeals} disabled={mealsSaving}>
+              {mealsSaving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              Save meals
             </Button>
           </DialogFooter>
         </DialogContent>

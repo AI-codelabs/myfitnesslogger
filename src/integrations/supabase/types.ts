@@ -68,6 +68,109 @@ export type Database = {
         }
         Relationships: []
       }
+      client_meal_plans: {
+        Row: {
+          carbs_g: number
+          client_id: string
+          coach_id: string
+          created_at: string
+          fat_g: number
+          goal_type: string
+          id: string
+          is_active: boolean
+          name: string
+          notes: string | null
+          protein_g: number
+          structure: Json
+          target_kcal: number
+          template_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          carbs_g?: number
+          client_id: string
+          coach_id: string
+          created_at?: string
+          fat_g?: number
+          goal_type?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          notes?: string | null
+          protein_g?: number
+          structure?: Json
+          target_kcal?: number
+          template_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          carbs_g?: number
+          client_id?: string
+          coach_id?: string
+          created_at?: string
+          fat_g?: number
+          goal_type?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          notes?: string | null
+          protein_g?: number
+          structure?: Json
+          target_kcal?: number
+          template_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_meal_plans_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "nutrition_plan_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_meal_selections: {
+        Row: {
+          category_id: string
+          client_id: string
+          created_at: string
+          entry_date: string
+          id: string
+          option_id: string
+          plan_id: string
+          updated_at: string
+        }
+        Insert: {
+          category_id: string
+          client_id: string
+          created_at?: string
+          entry_date: string
+          id?: string
+          option_id: string
+          plan_id: string
+          updated_at?: string
+        }
+        Update: {
+          category_id?: string
+          client_id?: string
+          created_at?: string
+          entry_date?: string
+          id?: string
+          option_id?: string
+          plan_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_meal_selections_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "client_meal_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_nutrition_documents: {
         Row: {
           client_id: string
@@ -588,6 +691,7 @@ export type Database = {
           pdf_name: string | null
           pdf_path: string | null
           protein_g: number
+          structure: Json | null
           target_kcal: number
           updated_at: string
         }
@@ -603,6 +707,7 @@ export type Database = {
           pdf_name?: string | null
           pdf_path?: string | null
           protein_g: number
+          structure?: Json | null
           target_kcal: number
           updated_at?: string
         }
@@ -618,6 +723,7 @@ export type Database = {
           pdf_name?: string | null
           pdf_path?: string | null
           protein_g?: number
+          structure?: Json | null
           target_kcal?: number
           updated_at?: string
         }

@@ -19,6 +19,7 @@ import Workouts from "./pages/Workouts.tsx";
 import CoachTasks from "./pages/CoachTasks.tsx";
 import WorkoutPlan from "./pages/WorkoutPlan.tsx";
 import ClientNutrition from "./pages/ClientNutrition.tsx";
+import ClientMealPlanView from "./pages/ClientMealPlanView.tsx";
 import ClientTraining from "./pages/ClientTraining.tsx";
 import LogWorkout from "./pages/LogWorkout.tsx";
 import ClientWorkoutSession from "./pages/ClientWorkoutSession.tsx";
@@ -77,6 +78,7 @@ const App = () => (
             <Route path="/nutrition-templates" element={<Protected><AppLayout><NutritionTemplates /></AppLayout></Protected>} />
             <Route path="/workouts/:planId" element={<Protected><AppLayout><WorkoutPlan /></AppLayout></Protected>} />
             <Route path="/nutrition" element={<Protected><AppLayout><ClientNutrition /></AppLayout></Protected>} />
+            <Route path="/meal-plan" element={<Protected><AppLayout><ClientMealPlanView /></AppLayout></Protected>} />
             <Route path="/training" element={<Protected><AppLayout><ClientTraining /></AppLayout></Protected>} />
             <Route path="/training/log/new" element={<Protected><AppLayout><LogWorkout /></AppLayout></Protected>} />
             <Route path="/training/log/:sessionId" element={<Protected><AppLayout><LogWorkout /></AppLayout></Protected>} />
