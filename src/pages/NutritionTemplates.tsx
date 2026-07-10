@@ -332,7 +332,28 @@ export default function NutritionTemplates() {
                 </p>
               )}
 
-              <div className="flex gap-2">
+              {(() => {
+                const s = coerceStructure(t.structure);
+                const mealCount = s.categories.length;
+                return (
+                  <div className="text-[11px] text-muted-foreground">
+                    {mealCount > 0
+                      ? `${mealCount} meal${mealCount === 1 ? "" : "s"} configured`
+                      : "No meals yet — add editable meals"}
+                  </div>
+                );
+              })()}
+
+              <div className="flex gap-2 flex-wrap">
+                <Button
+                  size="sm"
+                  variant="default"
+                  onClick={() => openMeals(t)}
+                  className="gap-1.5"
+                >
+                  <ChefHat className="h-3.5 w-3.5" />
+                  Meals
+                </Button>
                 <Button
                   size="sm"
                   variant="outline"
