@@ -172,13 +172,13 @@ export function CoachClientMealPlanCard({ coachId, clientId }: Props) {
       protein_g: Math.round(draft.protein_g) || 0,
       carbs_g: Math.round(draft.carbs_g) || 0,
       fat_g: Math.round(draft.fat_g) || 0,
-      structure: draft.structure as unknown as object,
+      structure: draft.structure as unknown as never,
       is_active: true,
     };
 
     const { error } = plan
       ? await supabase.from("client_meal_plans").update(payload).eq("id", plan.id)
-      : await supabase.from("client_meal_plans").insert(payload);
+      : await supabase.from("client_meal_plans").insert([payload]);
 
     setSaving(false);
     if (error) {
