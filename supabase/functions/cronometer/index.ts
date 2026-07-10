@@ -408,7 +408,66 @@ Deno.serve(async (req) => {
       if (!(await admin.rpc("is_coach_of", { _coach_id: userId, _client_id: client_id })).data) {
         return json({ error: "Not your client" }, 403);
       }
-      const resp = await callCrono<any>("/client_invite", { email, name: name ?? email });
+
+      const ctx: LogCtx = { action: "invite_client", coach_id: userId, client_id };
+      const inviteBody = { email, name: name ?? email };
+
+      const tryInvite = () => callCrono<any>("/client_invite", inviteBody, ctx);
+
+      let resp: any;
+      try {
+        resp = await tryInvite();
+      } catch (e) {
+        // Cronometer refuses because the pro account already has this email.
+        // Auto-heal: look up the upstream client_id by email, remove it, retry once.
+        const isAlreadyClient = e instanceof CronoApiError
+          && e.status === 400
+          && /already a client of this pro/i.test(e.body);
+        if (!isAlreadyClient) throw e;
+
+        console.warn(`invite_client: ${email} already exists upstream — removing and retrying`);
+        try {
+          const statusResp = await callCrono<any>("/client_status", {}, {
+            ...ctx,
+            action: "invite_client:lookup",
+          });
+          const list: any[] = Array.isArray(statusResp) ? statusResp : (statusResp?.clients ?? []);
+          const match = list.find((r) =>
+            String(r?.email ?? "").toLowerCase() === email.toLowerCase()
+          );
+          const upstreamId = match?.client_id ?? match?.id ?? null;
+          if (upstreamId) {
+            await callCrono("/client_remove", { client_id: Number(upstreamId) }, {
+              ...ctx,
+              action: "invite_client:cleanup",
+              cronometer_client_id: Number(upstreamId),
+            });
+          } else {
+            return json({
+              error: "already_client",
+              message:
+                `Cronometer says ${email} is already linked to this Pro account, but it isn't visible in /client_status. Remove them manually in Cronometer, then retry.`,
+            }, 409);
+          }
+        } catch (cleanupErr) {
+          const msg = cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr);
+          return json({
+            error: "already_client_cleanup_failed",
+            message: `Cronometer already has ${email}, and auto-cleanup failed: ${msg}`,
+          }, 502);
+        }
+
+        // Also nuke any local rows for this email under this coach so we don't
+        // trip a stale unique constraint.
+        await admin
+          .from("cronometer_clients")
+          .delete()
+          .eq("coach_id", userId)
+          .eq("email", email);
+
+        resp = await tryInvite();
+      }
+
       const cronoId = resp?.client_id ?? resp?.id ?? null;
       const { data: row, error } = await admin
         .from("cronometer_clients")
