@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import {
   ArrowRight,
   CheckCircle2,
@@ -19,6 +20,7 @@ import {
 } from "@/lib/weeklyCheckin";
 import { ProgressionSummary } from "@/components/ProgressionSummary";
 import { ClientStartMessageCard } from "@/components/ClientStartMessageCard";
+import heroImage from "@/assets/checkin-hero.jpg";
 import { cn } from "@/lib/utils";
 import { Lang } from "@/lib/onboardingSchema";
 import { fetchActiveGoal, ClientGoal, GOAL_TYPE_LABELS } from "@/lib/clientGoal";
@@ -38,22 +40,85 @@ function DateHeading({ lang }: { lang: Lang }) {
     <p className="text-sm text-muted-foreground mb-5 capitalize">{heading}</p>
   );
 }
-function toKey(d: Date) {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-function startOfWeekMon(d: Date) {
-  const x = new Date(d);
-  x.setHours(0, 0, 0, 0);
-  const dow = (x.getDay() + 6) % 7; // Mon=0
-  x.setDate(x.getDate() - dow);
-  return x;
+
+/* ---------------- Hero check-in ---------------- */
+function HeroCheckinCard({ lang }: { lang: Lang }) {
+  const { user } = useAuth();
+  const [submittedAt, setSubmittedAt] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const weekStart = getExpectedCheckinWeekStart();
+
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      const { data } = await supabase
+        .from("weekly_checkins")
+        .select("submitted_at")
+        .eq("client_id", user.id)
+        .eq("week_start", weekStart)
+        .maybeSingle();
+      setSubmittedAt(data?.submitted_at ?? null);
+      setLoaded(true);
+    })();
+  }, [user, weekStart]);
+
+  if (!loaded) return null;
+
+  const done = !!submittedAt;
+  const title = done
+    ? tx(lang, "Check-in ingevuld ✨", "Check-in complete ✨")
+    : tx(lang, "New check-in time! 🌟", "New check-in time! 🌟");
+  const body = done
+    ? tx(
+        lang,
+        "Bedankt! Je coach bekijkt je antwoorden binnenkort.",
+        "Thanks! Your coach will review your answers soon.",
+      )
+    : tx(
+        lang,
+        "Laat me weten hoe het gaat. Wekelijkse metingen zijn key voor progressie — zo blijven we on track 📈",
+        "Let me know how it's going. Weekly check-ins are key for progress — so we stay on track 📈",
+      );
+  const cta = done
+    ? tx(lang, "Bijwerken", "Update")
+    : tx(lang, "Start check-in", "Start check-in");
+
+  return (
+    <div className="relative mb-6 overflow-hidden rounded-3xl shadow-sm">
+      <img
+        src={heroImage}
+        alt=""
+        width={1200}
+        height={720}
+        className="absolute inset-0 h-full w-full object-cover"
+      />
+      <div className="absolute inset-0 bg-gradient-to-r from-foreground/70 via-foreground/40 to-transparent" />
+      <div className="relative p-6 sm:p-8 min-h-[220px] flex flex-col justify-between max-w-[70%]">
+        <div>
+          <h2 className="text-xl sm:text-2xl font-bold text-background leading-tight">
+            {title}
+          </h2>
+          <p className="mt-2 text-sm sm:text-base text-background/90 leading-snug">
+            {body}
+          </p>
+        </div>
+        <Button
+          asChild
+          size="lg"
+          variant="secondary"
+          className="mt-5 w-fit rounded-full font-semibold shadow-md"
+        >
+          <Link to="/check-in">
+            {cta}
+            <ArrowRight className="h-4 w-4 ml-1.5" />
+          </Link>
+        </Button>
+      </div>
+    </div>
+  );
 }
 
-function WeekStrip({ lang }: { lang: Lang }) {
-  const navigate = useNavigate();
+/* ---------------- Week strip ---------------- */
   const today = new Date();
   const start = startOfWeekMon(today);
   const days = Array.from({ length: 7 }, (_, i) => {
