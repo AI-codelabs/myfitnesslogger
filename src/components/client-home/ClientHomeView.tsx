@@ -440,6 +440,7 @@ export function ClientHomeView({ lang }: { lang: Lang }) {
       <WeekStrip lang={lang} />
       <TodayTodos lang={lang} />
       <NutritionTodayCard lang={lang} />
+      <ComplianceCard lang={lang} />
       <GoalsSection lang={lang} />
       <QuickActions lang={lang} />
       <ProgressionSummary lang={lang} />
