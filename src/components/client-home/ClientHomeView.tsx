@@ -189,31 +189,12 @@ type Todo = { id: string; title: string; subtitle: string; to: string; done: boo
 function TodayTodos({ lang }: { lang: Lang }) {
   const { user } = useAuth();
   const [todos, setTodos] = useState<Todo[] | null>(null);
+  const showCheckin = isCheckinWindowOpen();
 
   useEffect(() => {
     if (!user) return;
     (async () => {
       const list: Todo[] = [];
-      const weekStart = getExpectedCheckinWeekStart();
-
-      const { data: checkin } = await supabase
-        .from("weekly_checkins")
-        .select("submitted_at")
-        .eq("client_id", user.id)
-        .eq("week_start", weekStart)
-        .maybeSingle();
-
-      if (isCheckinWindowOpen()) {
-        list.push({
-          id: "checkin",
-          title: tx(lang, "Wekelijkse check-in", "Weekly check-in"),
-          subtitle: checkin?.submitted_at
-            ? tx(lang, "Ingevuld — bijwerken kan nog", "Submitted — you can still update")
-            : tx(lang, "Nog niet ingevuld", "Not filled in yet"),
-          to: "/check-in",
-          done: !!checkin?.submitted_at,
-        });
-      }
 
       const todayKey = toKey(new Date());
       const { data: todaySessions } = await supabase
@@ -240,11 +221,12 @@ function TodayTodos({ lang }: { lang: Lang }) {
   }, [user, lang]);
 
   if (!todos) return null;
+  const isEmpty = todos.length === 0 && !showCheckin;
 
   return (
     <section className="mb-6">
       <h3 className="text-lg font-bold mb-3">{tx(lang, "To-do's", "To-do's")}</h3>
-      {todos.length === 0 ? (
+      {isEmpty ? (
         <Card className="p-4 flex items-center gap-3">
           <div className="w-11 h-11 rounded-xl bg-muted flex items-center justify-center shrink-0">
             <Plus className="h-5 w-5 text-muted-foreground" />
@@ -264,6 +246,7 @@ function TodayTodos({ lang }: { lang: Lang }) {
         </Card>
       ) : (
         <div className="space-y-2">
+          {showCheckin && <HeroCheckinCard lang={lang} />}
           {todos.map((t) => (
             <Link
               key={t.id}
@@ -298,6 +281,7 @@ function TodayTodos({ lang }: { lang: Lang }) {
     </section>
   );
 }
+
 
 /* ---------------- Goals ---------------- */
 function GoalsSection({ lang }: { lang: Lang }) {
