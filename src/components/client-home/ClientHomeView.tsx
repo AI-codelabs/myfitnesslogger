@@ -451,7 +451,7 @@ export function ClientHomeView({ lang }: { lang: Lang }) {
       </h1>
 
       <DateHeading lang={lang} />
-      <ClientStartMessageCard lang={lang} />
+      <HeroCheckinCard lang={lang} />
       <ClientStartMessageCard lang={lang} />
       <WeekStrip lang={lang} />
       <TodayTodos lang={lang} />
