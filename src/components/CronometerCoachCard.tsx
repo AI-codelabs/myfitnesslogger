@@ -163,12 +163,10 @@ export function CronometerCoachCard({ coachId, clientId, clientEmail, clientName
                 {t(lang, "Status verversen", "Refresh status")}
               </Button>
             )}
-            {(link.status === "active" || link.status === "error") && (
-              <Button size="sm" onClick={handleSync} disabled={busy === "sync"}>
-                {busy === "sync" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-                {t(lang, "Nu synchroniseren", "Sync now")}
-              </Button>
-            )}
+            <Button size="sm" onClick={handleSync} disabled={busy === "sync"}>
+              {busy === "sync" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+              {t(lang, "Nu synchroniseren", "Sync now")}
+            </Button>
             <Button size="sm" variant="outline" onClick={handleInvite} disabled={busy === "invite"}>
               {t(lang, "Opnieuw uitnodigen", "Re-invite")}
             </Button>
