@@ -28,6 +28,19 @@ import { NutritionTodayCard } from "@/components/client-home/NutritionTodayCard"
 
 const tx = (lang: Lang, nl: string, en: string) => (lang === "nl" ? nl : en);
 
+/* ---------------- Date heading ---------------- */
+function DateHeading({ lang }: { lang: Lang }) {
+  const today = new Date();
+  const heading = today.toLocaleDateString(lang === "nl" ? "nl-NL" : "en-US", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
+  return (
+    <p className="text-sm text-muted-foreground mb-5 capitalize">{heading}</p>
+  );
+}
+
 /* ---------------- Hero check-in ---------------- */
 function HeroCheckinCard({ lang }: { lang: Lang }) {
   const { user } = useAuth();
@@ -134,15 +147,8 @@ function WeekStrip({ lang }: { lang: Lang }) {
       ? ["M", "D", "W", "D", "V", "Z", "Z"]
       : ["M", "T", "W", "T", "F", "S", "S"];
 
-  const heading = today.toLocaleDateString(lang === "nl" ? "nl-NL" : "en-US", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  });
-
   return (
     <section className="mb-6">
-      <p className="text-sm text-muted-foreground mb-3 capitalize">{heading}</p>
       <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
         {days.map((d, i) => {
           const isToday = toKey(d) === toKey(today);
@@ -438,12 +444,13 @@ export function ClientHomeView({ lang }: { lang: Lang }) {
 
   return (
     <>
-      <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-5">
+      <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-2">
         {firstName
           ? tx(lang, `Hoi ${firstName}!`, `Hi ${firstName}!`)
           : tx(lang, "Hoi!", "Hi!")}
       </h1>
 
+      <DateHeading lang={lang} />
       <HeroCheckinCard lang={lang} />
       <ClientStartMessageCard lang={lang} />
       <WeekStrip lang={lang} />
@@ -455,3 +462,4 @@ export function ClientHomeView({ lang }: { lang: Lang }) {
     </>
   );
 }
+
