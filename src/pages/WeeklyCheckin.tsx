@@ -346,7 +346,7 @@ export default function WeeklyCheckin() {
           return acc;
         }, {} as Record<string, string>),
       },
-      body_fat_pct: form.body_fat_pct ? Number(form.body_fat_pct) : null,
+      body_fat_pct: form.body_fat_pct ? Number(form.body_fat_pct.replace(",", ".")) : null,
       feeling: form.feeling,
       structure_planning: form.structure_planning || null,
       progress_feeling: form.progress_feeling || null,
