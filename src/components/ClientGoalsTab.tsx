@@ -278,7 +278,7 @@ export function ClientGoalsTab({
           <div className="space-y-1.5">
             <Label>{tx("Onderhoudscalorieën", "Maintenance kcal")}</Label>
             <Input
-              type="number" inputMode="numeric"
+              type="text" inputMode="numeric"
               value={draft.maintenance_calories}
               onChange={(e) => setDraft({ ...draft, maintenance_calories: e.target.value })}
             />
