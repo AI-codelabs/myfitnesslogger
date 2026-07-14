@@ -76,9 +76,9 @@ export const NutritionWizard = ({
       client_id: clientId,
       coach_id: coachId,
       gender: gender || null,
-      age: age === "" ? null : Number(age),
-      height_cm: height_cm === "" ? null : Number(height_cm),
-      weight_kg: weight_kg === "" ? null : Number(weight_kg),
+      age: parseDecimal(age),
+      height_cm: parseDecimal(height_cm),
+      weight_kg: parseDecimal(weight_kg),
       details: rest,
     };
     if (markCompleted) row.completed_at = new Date().toISOString();
