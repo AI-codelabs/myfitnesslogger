@@ -581,13 +581,16 @@ export default function WeeklyCheckin() {
             </Label>
             <Input
               id="checkin-weight-input"
-              inputMode="decimal"
+              type="text"
+              inputMode="text"
+              autoComplete="off"
+              placeholder="bv. 75,5 of 75.5"
               required
               aria-required="true"
               value={form.weight_kg}
               onChange={(e) => set("weight_kg", e.target.value)}
             />
-            <p className="text-xs text-muted-foreground">Verplicht.</p>
+            <p className="text-xs text-muted-foreground">Verplicht. Komma of punt mag allebei.</p>
           </div>
           <div className="space-y-2">
             <Label>Metingen (cm)</Label>
