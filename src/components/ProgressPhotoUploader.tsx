@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { parseDecimal } from "@/lib/parseDecimal";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -58,7 +59,7 @@ export function ProgressPhotoUploader({ clientId, onUploaded }: Props) {
         front_path: paths.front ?? null,
         side_path: paths.side ?? null,
         back_path: paths.back ?? null,
-        weight_kg: weight ? Number(weight) : null,
+        weight_kg: parseDecimal(weight),
       });
       if (insErr) throw insErr;
       toast.success("Foto's opgeslagen!");
@@ -121,12 +122,12 @@ export function ProgressPhotoUploader({ clientId, onUploaded }: Props) {
           <Label htmlFor="weight">Gewicht vandaag (kg, optioneel)</Label>
           <Input
             id="weight"
-            type="number"
-            step="0.1"
-            inputMode="decimal"
+            type="text"
+            inputMode="text"
+            autoComplete="off"
             value={weight}
             onChange={(e) => setWeight(e.target.value)}
-            placeholder="bv. 78.4"
+            placeholder="bv. 78,4 of 78.4"
           />
         </div>
         <Button onClick={upload} disabled={saving} className="h-11">

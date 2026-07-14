@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { parseDecimal } from "@/lib/parseDecimal";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -357,11 +358,11 @@ const LogWorkout = () => {
         plan_exercise_id: planExerciseId,
         set_number: row.set_number,
         reps: row.reps ? parseInt(row.reps) : null,
-        weight_kg: row.weight_kg ? parseFloat(row.weight_kg) : null,
+        weight_kg: parseDecimal(row.weight_kg),
         duration_seconds: row.duration_seconds ? parseInt(row.duration_seconds) : null,
         distance_m: row.distance_m ? parseInt(row.distance_m) : null,
-        speed_kmh: row.speed_kmh ? parseFloat(row.speed_kmh) : null,
-        incline_pct: row.incline_pct ? parseFloat(row.incline_pct) : null,
+        speed_kmh: parseDecimal(row.speed_kmh),
+        incline_pct: parseDecimal(row.incline_pct),
         intensity: row.intensity || null,
         notes: row.notes || null,
       };

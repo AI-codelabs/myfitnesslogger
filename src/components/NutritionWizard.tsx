@@ -14,6 +14,7 @@ import {
 import { Card } from "@/components/ui/card";
 import { Loader2, Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
+import { parseDecimal } from "@/lib/parseDecimal";
 import { Lang } from "@/lib/onboardingSchema";
 import { pushTargetsToCronometer } from "@/lib/cronometerTargets";
 
@@ -75,9 +76,9 @@ export const NutritionWizard = ({
       client_id: clientId,
       coach_id: coachId,
       gender: gender || null,
-      age: age === "" ? null : Number(age),
-      height_cm: height_cm === "" ? null : Number(height_cm),
-      weight_kg: weight_kg === "" ? null : Number(weight_kg),
+      age: parseDecimal(age),
+      height_cm: parseDecimal(height_cm),
+      weight_kg: parseDecimal(weight_kg),
       details: rest,
     };
     if (markCompleted) row.completed_at = new Date().toISOString();
@@ -347,7 +348,7 @@ const NumberInput = ({
   disabled?: boolean;
 }) => (
   <Input
-    type="number"
+    type="text"
     inputMode="decimal"
     value={value ?? ""}
     onChange={(e) => onChange(e.target.value)}
@@ -376,9 +377,9 @@ const GOAL_ADJUST: Record<string, number> = {
 };
 
 const computeMacros = (v: Values) => {
-  const age = Number(v.age);
-  const h = Number(v.height_cm);
-  const w = Number(v.weight_kg);
+  const age = parseDecimal(v.age) ?? 0;
+  const h = parseDecimal(v.height_cm) ?? 0;
+  const w = parseDecimal(v.weight_kg) ?? 0;
   const gender = v.gender;
   const activity = v.activity_level || "moderate";
   const goal = v.macro_goal || v.goal || "maintain";

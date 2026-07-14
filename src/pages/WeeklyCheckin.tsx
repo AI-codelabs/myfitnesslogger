@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { parseDecimal } from "@/lib/parseDecimal";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -306,9 +307,8 @@ export default function WeeklyCheckin() {
 
   const submit = async () => {
     if (!user) return;
-    const weightRaw = form.weight_kg.trim().replace(",", ".");
-    const weightNum = weightRaw ? Number(weightRaw) : NaN;
-    if (!weightRaw || !Number.isFinite(weightNum) || weightNum <= 0) {
+    const weightNum = parseDecimal(form.weight_kg);
+    if (weightNum == null || weightNum <= 0) {
       toast.error("Vul je gewicht in — dit veld is verplicht.");
       document.getElementById("checkin-weight-input")?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
@@ -346,7 +346,7 @@ export default function WeeklyCheckin() {
           return acc;
         }, {} as Record<string, string>),
       },
-      body_fat_pct: form.body_fat_pct ? Number(form.body_fat_pct.replace(",", ".")) : null,
+      body_fat_pct: parseDecimal(form.body_fat_pct),
       feeling: form.feeling,
       structure_planning: form.structure_planning || null,
       progress_feeling: form.progress_feeling || null,
@@ -604,7 +604,8 @@ export default function WeeklyCheckin() {
                     {f.label}
                   </Label>
                   <Input
-                    inputMode="decimal"
+                    type="text"
+                    inputMode="text"
                     value={form[f.key] as string}
                     onChange={(e) => set(f.key, e.target.value as Form[typeof f.key])}
                     placeholder="—"
@@ -616,7 +617,9 @@ export default function WeeklyCheckin() {
           <div className="space-y-2">
             <Label>Vetpercentage (indien bekend)</Label>
             <Input
-              inputMode="decimal"
+              type="text"
+              inputMode="text"
+              placeholder="bv. 15,5"
               value={form.body_fat_pct}
               onChange={(e) => set("body_fat_pct", e.target.value)}
             />

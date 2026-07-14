@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Loader2, Target, History, Sparkles, Save, Plus } from "lucide-react";
 import { toast } from "sonner";
+import { parseDecimal } from "@/lib/parseDecimal";
 import {
   ClientGoal,
   GOAL_TYPE_LABELS,
@@ -161,14 +162,12 @@ export function ClientGoalsTab({
       client_id: clientId,
       goal_type: draft.goal_type,
       goal_label: draft.goal_label || null,
-      goal_weight_kg: draft.goal_weight_kg ? Number(draft.goal_weight_kg) : null,
-      starting_weight_kg: draft.starting_weight_kg ? Number(draft.starting_weight_kg) : null,
+      goal_weight_kg: parseDecimal(draft.goal_weight_kg),
+      starting_weight_kg: parseDecimal(draft.starting_weight_kg),
       target_date: draft.target_date || null,
-      maintenance_calories: draft.maintenance_calories ? Number(draft.maintenance_calories) : null,
+      maintenance_calories: parseDecimal(draft.maintenance_calories),
       activity_level: draft.activity_level || null,
-      weekly_drift_tolerance_kg: draft.weekly_drift_tolerance_kg
-        ? Number(draft.weekly_drift_tolerance_kg)
-        : 0.3,
+      weekly_drift_tolerance_kg: parseDecimal(draft.weekly_drift_tolerance_kg) ?? 0.3,
       notes: draft.notes || null,
       is_active: true,
       created_by: coachId,
@@ -255,7 +254,7 @@ export function ClientGoalsTab({
           <div className="space-y-1.5">
             <Label>{tx("Streefgewicht (kg)", "Goal weight (kg)")}</Label>
             <Input
-              type="number" inputMode="decimal" step="0.1"
+              type="text" inputMode="decimal" placeholder="bv. 80,5"
               value={draft.goal_weight_kg}
               onChange={(e) => setDraft({ ...draft, goal_weight_kg: e.target.value })}
             />
@@ -263,7 +262,7 @@ export function ClientGoalsTab({
           <div className="space-y-1.5">
             <Label>{tx("Startgewicht (kg)", "Starting weight (kg)")}</Label>
             <Input
-              type="number" inputMode="decimal" step="0.1"
+              type="text" inputMode="decimal" placeholder="bv. 82,5"
               value={draft.starting_weight_kg}
               onChange={(e) => setDraft({ ...draft, starting_weight_kg: e.target.value })}
             />
@@ -279,7 +278,7 @@ export function ClientGoalsTab({
           <div className="space-y-1.5">
             <Label>{tx("Onderhoudscalorieën", "Maintenance kcal")}</Label>
             <Input
-              type="number" inputMode="numeric"
+              type="text" inputMode="numeric"
               value={draft.maintenance_calories}
               onChange={(e) => setDraft({ ...draft, maintenance_calories: e.target.value })}
             />
@@ -302,7 +301,7 @@ export function ClientGoalsTab({
             <div className="space-y-1.5">
               <Label>{tx("Wekelijkse drift-tolerantie (kg)", "Weekly drift tolerance (kg)")}</Label>
               <Input
-                type="number" inputMode="decimal" step="0.05"
+                type="text" inputMode="decimal" placeholder="bv. 0,3"
                 value={draft.weekly_drift_tolerance_kg}
                 onChange={(e) => setDraft({ ...draft, weekly_drift_tolerance_kg: e.target.value })}
               />

@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Plus, Scale, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { parseDecimal } from "@/lib/parseDecimal";
 
 export type WeightLog = {
   id: string;
@@ -66,8 +67,8 @@ export function DailyWeightLogger({ clientId, lang = "nl", onChange }: Props) {
   }, [clientId]);
 
   const save = async () => {
-    const w = Number(weight);
-    if (!weight || Number.isNaN(w) || w <= 0) {
+    const w = parseDecimal(weight);
+    if (w == null || w <= 0) {
       toast.error(L.required);
       return;
     }
@@ -135,10 +136,10 @@ export function DailyWeightLogger({ clientId, lang = "nl", onChange }: Props) {
           <Label htmlFor="wl-weight" className="text-xs">{L.weight}</Label>
           <Input
             id="wl-weight"
-            type="number"
-            step="0.1"
-            inputMode="decimal"
-            placeholder="78.4"
+            type="text"
+            inputMode="text"
+            autoComplete="off"
+            placeholder="bv. 78,4 of 78.4"
             value={weight}
             onChange={(e) => setWeight(e.target.value)}
             className="h-12 text-base"
