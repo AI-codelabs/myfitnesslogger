@@ -262,7 +262,7 @@ export function ClientGoalsTab({
           <div className="space-y-1.5">
             <Label>{tx("Startgewicht (kg)", "Starting weight (kg)")}</Label>
             <Input
-              type="number" inputMode="decimal" step="0.1"
+              type="text" inputMode="decimal" placeholder="bv. 82,5"
               value={draft.starting_weight_kg}
               onChange={(e) => setDraft({ ...draft, starting_weight_kg: e.target.value })}
             />
