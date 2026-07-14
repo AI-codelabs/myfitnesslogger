@@ -136,10 +136,10 @@ export function DailyWeightLogger({ clientId, lang = "nl", onChange }: Props) {
           <Label htmlFor="wl-weight" className="text-xs">{L.weight}</Label>
           <Input
             id="wl-weight"
-            type="number"
-            step="0.1"
-            inputMode="decimal"
-            placeholder="78.4"
+            type="text"
+            inputMode="text"
+            autoComplete="off"
+            placeholder="bv. 78,4 of 78.4"
             value={weight}
             onChange={(e) => setWeight(e.target.value)}
             className="h-12 text-base"
