@@ -617,7 +617,9 @@ export default function WeeklyCheckin() {
           <div className="space-y-2">
             <Label>Vetpercentage (indien bekend)</Label>
             <Input
-              inputMode="decimal"
+              type="text"
+              inputMode="text"
+              placeholder="bv. 15,5"
               value={form.body_fat_pct}
               onChange={(e) => set("body_fat_pct", e.target.value)}
             />
