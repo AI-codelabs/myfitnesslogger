@@ -66,8 +66,8 @@ export function DailyWeightLogger({ clientId, lang = "nl", onChange }: Props) {
   }, [clientId]);
 
   const save = async () => {
-    const w = Number(weight);
-    if (!weight || Number.isNaN(w) || w <= 0) {
+    const w = parseDecimal(weight);
+    if (w == null || w <= 0) {
       toast.error(L.required);
       return;
     }
