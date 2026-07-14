@@ -307,9 +307,8 @@ export default function WeeklyCheckin() {
 
   const submit = async () => {
     if (!user) return;
-    const weightRaw = form.weight_kg.trim().replace(",", ".");
-    const weightNum = weightRaw ? Number(weightRaw) : NaN;
-    if (!weightRaw || !Number.isFinite(weightNum) || weightNum <= 0) {
+    const weightNum = parseDecimal(form.weight_kg);
+    if (weightNum == null || weightNum <= 0) {
       toast.error("Vul je gewicht in — dit veld is verplicht.");
       document.getElementById("checkin-weight-input")?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
