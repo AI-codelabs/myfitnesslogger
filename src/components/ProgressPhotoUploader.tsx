@@ -122,12 +122,12 @@ export function ProgressPhotoUploader({ clientId, onUploaded }: Props) {
           <Label htmlFor="weight">Gewicht vandaag (kg, optioneel)</Label>
           <Input
             id="weight"
-            type="number"
-            step="0.1"
-            inputMode="decimal"
+            type="text"
+            inputMode="text"
+            autoComplete="off"
             value={weight}
             onChange={(e) => setWeight(e.target.value)}
-            placeholder="bv. 78.4"
+            placeholder="bv. 78,4 of 78.4"
           />
         </div>
         <Button onClick={upload} disabled={saving} className="h-11">
