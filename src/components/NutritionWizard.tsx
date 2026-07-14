@@ -377,9 +377,9 @@ const GOAL_ADJUST: Record<string, number> = {
 };
 
 const computeMacros = (v: Values) => {
-  const age = Number(v.age);
-  const h = Number(v.height_cm);
-  const w = Number(v.weight_kg);
+  const age = parseDecimal(v.age) ?? 0;
+  const h = parseDecimal(v.height_cm) ?? 0;
+  const w = parseDecimal(v.weight_kg) ?? 0;
   const gender = v.gender;
   const activity = v.activity_level || "moderate";
   const goal = v.macro_goal || v.goal || "maintain";
