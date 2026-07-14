@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Loader2, Target, History, Sparkles, Save, Plus } from "lucide-react";
 import { toast } from "sonner";
+import { parseDecimal } from "@/lib/parseDecimal";
 import {
   ClientGoal,
   GOAL_TYPE_LABELS,
