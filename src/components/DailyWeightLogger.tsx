@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Plus, Scale, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { parseDecimal } from "@/lib/parseDecimal";
 
 export type WeightLog = {
   id: string;
