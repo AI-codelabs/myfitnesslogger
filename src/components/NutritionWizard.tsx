@@ -14,6 +14,7 @@ import {
 import { Card } from "@/components/ui/card";
 import { Loader2, Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
+import { parseDecimal } from "@/lib/parseDecimal";
 import { Lang } from "@/lib/onboardingSchema";
 import { pushTargetsToCronometer } from "@/lib/cronometerTargets";
 
