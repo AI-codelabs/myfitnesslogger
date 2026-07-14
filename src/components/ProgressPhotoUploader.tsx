@@ -59,7 +59,7 @@ export function ProgressPhotoUploader({ clientId, onUploaded }: Props) {
         front_path: paths.front ?? null,
         side_path: paths.side ?? null,
         back_path: paths.back ?? null,
-        weight_kg: weight ? Number(weight) : null,
+        weight_kg: parseDecimal(weight),
       });
       if (insErr) throw insErr;
       toast.success("Foto's opgeslagen!");
