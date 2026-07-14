@@ -301,7 +301,7 @@ export function ClientGoalsTab({
             <div className="space-y-1.5">
               <Label>{tx("Wekelijkse drift-tolerantie (kg)", "Weekly drift tolerance (kg)")}</Label>
               <Input
-                type="number" inputMode="decimal" step="0.05"
+                type="text" inputMode="decimal" placeholder="bv. 0,3"
                 value={draft.weekly_drift_tolerance_kg}
                 onChange={(e) => setDraft({ ...draft, weekly_drift_tolerance_kg: e.target.value })}
               />
