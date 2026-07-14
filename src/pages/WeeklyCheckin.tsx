@@ -604,7 +604,8 @@ export default function WeeklyCheckin() {
                     {f.label}
                   </Label>
                   <Input
-                    inputMode="decimal"
+                    type="text"
+                    inputMode="text"
                     value={form[f.key] as string}
                     onChange={(e) => set(f.key, e.target.value as Form[typeof f.key])}
                     placeholder="—"
