@@ -162,14 +162,12 @@ export function ClientGoalsTab({
       client_id: clientId,
       goal_type: draft.goal_type,
       goal_label: draft.goal_label || null,
-      goal_weight_kg: draft.goal_weight_kg ? Number(draft.goal_weight_kg) : null,
-      starting_weight_kg: draft.starting_weight_kg ? Number(draft.starting_weight_kg) : null,
+      goal_weight_kg: parseDecimal(draft.goal_weight_kg),
+      starting_weight_kg: parseDecimal(draft.starting_weight_kg),
       target_date: draft.target_date || null,
-      maintenance_calories: draft.maintenance_calories ? Number(draft.maintenance_calories) : null,
+      maintenance_calories: parseDecimal(draft.maintenance_calories),
       activity_level: draft.activity_level || null,
-      weekly_drift_tolerance_kg: draft.weekly_drift_tolerance_kg
-        ? Number(draft.weekly_drift_tolerance_kg)
-        : 0.3,
+      weekly_drift_tolerance_kg: parseDecimal(draft.weekly_drift_tolerance_kg) ?? 0.3,
       notes: draft.notes || null,
       is_active: true,
       created_by: coachId,
