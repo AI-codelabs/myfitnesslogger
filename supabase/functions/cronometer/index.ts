@@ -921,8 +921,9 @@ Deno.serve(async (req) => {
     }
 
     if (action === "web_status") {
-      const { client_id } = body;
-      if (!client_id) return json({ error: "client_id required" }, 400);
+      const { client_id: bodyClientId } = body;
+      const client_id = (bodyClientId as string | undefined) ?? userId;
+
       const row = await loadWebSession(client_id);
       if (!row) return json({ success: true, connected: false });
       const targets = await loadCurrentTargets(admin, client_id);
