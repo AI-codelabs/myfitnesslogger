@@ -830,8 +830,9 @@ Deno.serve(async (req) => {
 
 
     if (action === "web_push_targets") {
-      const { client_id, force } = body;
-      if (!client_id) return json({ error: "client_id required" }, 400);
+      const { client_id: bodyClientId, force } = body;
+      const client_id = (bodyClientId as string | undefined) ?? userId;
+
       const row = await loadWebSession(client_id);
       if (!row) return json({ error: "not_connected" }, 404);
       if (row.status === "needs_reauth") return json({ error: "needs_reauth" }, 409);
