@@ -1,10 +1,6 @@
-// Legacy shim. Cronometer's official API has no write endpoint for targets,
-// so we no longer push targets to Cronometer. Targets live in this app
-// (see nutrition_plans) and are shown to the client in the Nutrition tab.
-//
-// Existing callers (NutritionWizard, WeeklyReviewTab) fire-and-forget this
-// helper; returning a benign "skipped" result keeps them working until
-// Phase 4 removes the calls entirely.
+// Fire-and-forget push of in-app targets into the client's Cronometer account.
+// Silently no-ops if the coach hasn't connected target sync for this client.
+import { pushCronometerTargets } from "./cronometerTargetsWeb";
 
 export interface PushTargetsArgs {
   client_id: string;
@@ -14,10 +10,17 @@ export interface PushTargetsArgs {
   fat_g: number;
 }
 
-export async function pushTargetsToCronometer(_args: PushTargetsArgs): Promise<{
+export async function pushTargetsToCronometer(args: PushTargetsArgs): Promise<{
   success: boolean;
-  skipped?: "no_session" | "sync_disabled";
+  skipped?: "not_connected" | "unchanged" | "needs_reauth";
   error?: string;
 }> {
-  return { success: false, skipped: "sync_disabled" };
+  const { data, error } = await pushCronometerTargets(args.client_id);
+  if (error) {
+    if (error === "not_connected") return { success: false, skipped: "not_connected" };
+    if (error === "needs_reauth") return { success: false, skipped: "needs_reauth" };
+    return { success: false, error };
+  }
+  if ((data as any)?.skipped === "unchanged") return { success: true, skipped: "unchanged" };
+  return { success: true };
 }
