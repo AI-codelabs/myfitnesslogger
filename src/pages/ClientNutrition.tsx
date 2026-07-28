@@ -201,7 +201,7 @@ const ClientNutrition = () => {
       </div>
 
 
-      {/* Cronometer connection card */}
+      {/* 1) Pro link — coach invite → we READ your diary macros */}
       <Card className="p-4 sm:p-5">
         <div className="flex items-start sm:items-center justify-between gap-3 flex-col sm:flex-row">
           <div className="flex items-center gap-3 min-w-0">
@@ -210,7 +210,7 @@ const ClientNutrition = () => {
             </div>
             <div className="min-w-0">
               <p className="font-medium">
-                {t("Cronometer", "Cronometer")}{" "}
+                {t("Cronometer dagboek (via coach)", "Cronometer diary (via coach)")}{" "}
                 <span className={`ml-1 text-xs ${connected ? "text-emerald-600" : "text-muted-foreground"}`}>
                   {connected ? t("verbonden", "connected") : t("niet verbonden", "not connected")}
                 </span>
@@ -218,12 +218,12 @@ const ClientNutrition = () => {
               <p className="text-xs text-muted-foreground mt-0.5">
                 {connected
                   ? t(
-                      "Klik op Log om nieuwe dagen te synchroniseren.",
-                      "Click Log to sync new days.",
+                      "Je coach leest je dagelijkse macro's. Klik op Log om te synchroniseren.",
+                      "Your coach can read your daily macros. Click Log to sync.",
                     )
                   : t(
-                      "Verbind om je voedingsdata bij te houden.",
-                      "Connect to track your nutrition data.",
+                      "Je coach stuurt een Cronometer-uitnodiging. Accepteer die in je e-mail — geen wachtwoord hier.",
+                      "Your coach sends a Cronometer invite. Accept it in your email — no password needed here.",
                     )}
               </p>
             </div>
@@ -256,14 +256,14 @@ const ClientNutrition = () => {
             ) : (
               <Button onClick={() => setConnectDialogOpen(true)} className="flex-1 sm:flex-none">
                 <Plug className="h-4 w-4 mr-2" />
-                {t("Verbinden", "Connect")}
+                {t("Hoe verbind ik?", "How do I connect?")}
               </Button>
             )}
           </div>
         </div>
       </Card>
 
-      {/* Cronometer target sync — pushes your macro targets INTO Cronometer */}
+      {/* 2) Client web login — WE PUSH coach targets into Cronometer */}
       <Card className="p-4 sm:p-5">
         <div className="flex items-start sm:items-center justify-between gap-3 flex-col sm:flex-row">
           <div className="flex items-center gap-3 min-w-0">
@@ -276,7 +276,7 @@ const ClientNutrition = () => {
             </div>
             <div className="min-w-0">
               <p className="font-medium">
-                {t("Cronometer doel-sync", "Cronometer target sync")}{" "}
+                {t("Cronometer doelen pushen", "Push Cronometer targets")}{" "}
                 <span className={`ml-1 text-xs ${
                   targetSync?.connected && targetSync.status === "active"
                     ? "text-emerald-600"
@@ -294,8 +294,8 @@ const ClientNutrition = () => {
               <p className="text-xs text-muted-foreground mt-0.5">
                 {!targetSync?.connected
                   ? t(
-                      "Log éénmalig in met je Cronometer-account om je macro-doelen automatisch te laten pushen.",
-                      "Sign in once with your Cronometer account so your macro targets are pushed automatically.",
+                      "Log hier zelf in met je Cronometer-account. Zo kunnen we je macro-doelen in Cronometer zetten (dit kan de coach-API niet).",
+                      "Sign in here with your own Cronometer account so we can push your macro targets into Cronometer (the coach API cannot do this).",
                     )
                   : targetSync.last_push_at
                     ? <>{t("Laatst gepusht", "Last pushed")}: {new Date(targetSync.last_push_at).toLocaleString()}</>
@@ -322,7 +322,7 @@ const ClientNutrition = () => {
                 <Plug className="h-4 w-4 mr-2" />
                 {targetSync?.status === "needs_reauth"
                   ? t("Opnieuw inloggen", "Re-authenticate")
-                  : t("Verbinden", "Connect")}
+                  : t("Inloggen bij Cronometer", "Sign in to Cronometer")}
               </Button>
             )}
           </div>

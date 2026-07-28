@@ -64,12 +64,12 @@ export function CronometerTargetSyncDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Lock className="h-5 w-5" />
-            {t(lang, "Verbind je Cronometer-account", "Connect your Cronometer account")}
+            {t(lang, "Log in bij Cronometer", "Sign in to Cronometer")}
           </DialogTitle>
           <DialogDescription>
             {t(lang,
-              "Log eenmalig in met je Cronometer-gegevens zodat je macro-doelen automatisch worden bijgewerkt in je Cronometer-app.",
-              "Sign in once with your Cronometer credentials so your macro targets are automatically kept in sync with your Cronometer app.",
+              "Dit is jouw login — niet die van je coach. Zo kunnen we je macro-doelen in Cronometer zetten. Je coach ziet je wachtwoord niet.",
+              "This is your login — not your coach's. It lets us push your macro targets into Cronometer. Your coach never sees your password.",
             )}
           </DialogDescription>
         </DialogHeader>

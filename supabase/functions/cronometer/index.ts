@@ -10,8 +10,13 @@
 //   - sync_all            (cron)  loop active clients, incremental sync
 //   - get_targets         (coach) POST /api_v1/targets
 //   - sync                (client) self-sync via Pro link
-//   - web_connect/status/disconnect/push_targets  (client or coach) target sync
+//   - web_connect/status/disconnect/push_targets
+//                         (CLIENT or coach) — clients self-connect to push targets
 //   - web_reconcile       (cron)  push changed targets for active web sessions
+//
+// Auth model:
+//   - web_* target-sync actions use requireAuth (any signed-in user). Clients connect themselves.
+//   - Pro invite / diary sync actions use requireCoach.
 //
 // Legacy no-ops (kept so existing frontend calls don't error):
 //   - connect_and_save    returns { error: "legacy_flow", ... }
@@ -36,21 +41,6 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-cron-secret",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
-
-/** Actions that any signed-in user may call (clients for self-service target sync). */
-const CLIENT_ALLOWED_ACTIONS = new Set([
-  "web_connect",
-  "web_disconnect",
-  "web_push_targets",
-  "web_status",
-  "push_targets",
-  "admin_sync_all",
-  "reapply_today_targets",
-  "connect_and_save",
-  "connect",
-  "login_and_export",
-  "export",
-]);
 
 const CRONO_BASE = "https://cronometer.com/api_v1";
 const PRO_TOKEN = Deno.env.get("CRONOMETER_PRO_TOKEN");
@@ -548,217 +538,31 @@ Deno.serve(async (req) => {
       return json({ success: true, count: results.length, results });
     }
 
-    // Target-sync web actions are callable by clients (self) or coaches.
-    // Pro invite / diary sync management stays coach-only.
-    const auth = CLIENT_ALLOWED_ACTIONS.has(action ?? "")
-      ? await requireAuth(req)
-      : await requireCoach(req);
-    if ("error" in auth) return json({ error: auth.error }, auth.status);
-    const { userId, admin } = auth;
+    // ─────────────────────── CLIENT TARGET SYNC (any signed-in user) ───────────────────────
+    // Clients MUST be able to connect here. Pro API has no write endpoint for targets,
+    // so the client logs into Cronometer once; we store an encrypted session and push
+    // macro targets. Do NOT gate these actions on coach role.
+    const CLIENT_WEB_ACTIONS = new Set([
+      "web_connect",
+      "web_disconnect",
+      "web_push_targets",
+      "web_status",
+      "push_targets",
+      "admin_sync_all",
+      "reapply_today_targets",
+      "connect_and_save",
+      "connect",
+      "login_and_export",
+      "export",
+    ]);
+    const isClientWebAction =
+      CLIENT_WEB_ACTIONS.has(action ?? "") ||
+      (typeof action === "string" && action.startsWith("web_") && action !== "web_reconcile");
 
-
-    if (action === "invite_client") {
-      const { client_id, email, name } = body;
-      if (!client_id || !email) return json({ error: "client_id and email required" }, 400);
-      if (!(await admin.rpc("is_coach_of", { _coach_id: userId, _client_id: client_id })).data) {
-        return json({ error: "Not your client" }, 403);
-      }
-
-      const ctx: LogCtx = { action: "invite_client", coach_id: userId, client_id };
-      const inviteBody = { email, name: name ?? email };
-
-      const tryInvite = () => callCrono<any>("/client_invite", inviteBody, ctx);
-
-      let resp: any;
-      try {
-        resp = await tryInvite();
-      } catch (e) {
-        // Cronometer refuses because the pro account already has this email.
-        // Auto-heal: look up the upstream client_id by email, remove it, retry once.
-        const isAlreadyClient = e instanceof CronoApiError
-          && e.status === 400
-          && /already a client of this pro/i.test(e.body);
-        if (!isAlreadyClient) throw e;
-
-        console.warn(`invite_client: ${email} already exists upstream — removing and retrying`);
-        try {
-          const statusResp = await callCrono<any>("/client_status", {}, {
-            ...ctx,
-            action: "invite_client:lookup",
-          });
-          const list: any[] = Array.isArray(statusResp) ? statusResp : (statusResp?.clients ?? []);
-          const match = list.find((r) =>
-            String(r?.email ?? "").toLowerCase() === email.toLowerCase()
-          );
-          const upstreamId = match?.client_id ?? match?.id ?? null;
-          if (upstreamId) {
-            await callCrono("/client_remove", { client_id: Number(upstreamId) }, {
-              ...ctx,
-              action: "invite_client:cleanup",
-              cronometer_client_id: Number(upstreamId),
-            });
-          } else {
-            return json({
-              error: "already_client",
-              message:
-                `Cronometer says ${email} is already linked to this Pro account, but it isn't visible in /client_status. Remove them manually in Cronometer, then retry.`,
-            }, 409);
-          }
-        } catch (cleanupErr) {
-          const msg = cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr);
-          return json({
-            error: "already_client_cleanup_failed",
-            message: `Cronometer already has ${email}, and auto-cleanup failed: ${msg}`,
-          }, 502);
-        }
-
-        // Also nuke any local rows for this email under this coach so we don't
-        // trip a stale unique constraint.
-        await admin
-          .from("cronometer_clients")
-          .delete()
-          .eq("coach_id", userId)
-          .eq("email", email);
-
-        resp = await tryInvite();
-      }
-
-      const cronoId = resp?.client_id ?? resp?.id ?? null;
-      const { data: row, error } = await admin
-        .from("cronometer_clients")
-        .upsert(
-          {
-            coach_id: userId,
-            client_id,
-            email,
-            name: name ?? null,
-            cronometer_client_id: cronoId,
-            status: "pending",
-            invited_at: new Date().toISOString(),
-            last_error: null,
-          },
-          { onConflict: "coach_id,client_id" },
-        )
-        .select()
-        .single();
-      if (error) return json({ error: error.message }, 500);
-      return json({ success: true, client: row });
-    }
-
-    if (action === "remove_client") {
-      const { client_id } = body;
-      if (!client_id) return json({ error: "client_id required" }, 400);
-      const { data: link } = await admin
-        .from("cronometer_clients")
-        .select("cronometer_client_id")
-        .eq("coach_id", userId)
-        .eq("client_id", client_id)
-        .maybeSingle();
-      if (link?.cronometer_client_id) {
-        try {
-          await callCrono("/client_remove", { client_id: link.cronometer_client_id });
-        } catch (e) {
-          console.warn("client_remove upstream failed:", e);
-        }
-      }
-      await admin.from("cronometer_clients").delete().eq("coach_id", userId).eq("client_id", client_id);
-      return json({ success: true });
-    }
-
-    if (action === "refresh_status") {
-      const resp = await callCrono<any>("/client_status", {});
-      const list: any[] = Array.isArray(resp) ? resp : (resp?.clients ?? []);
-      const { data: myRows } = await admin
-        .from("cronometer_clients")
-        .select("id, cronometer_client_id, email, status, client_id")
-        .eq("coach_id", userId);
-
-      const byEmail = new Map<string, any>();
-      const byId = new Map<number, any>();
-      for (const r of list) {
-        if (r.email) byEmail.set(String(r.email).toLowerCase(), r);
-        const cid = r.client_id ?? r.id;
-        if (cid) byId.set(Number(cid), r);
-      }
-
-      const updates: Promise<any>[] = [];
-      for (const local of myRows ?? []) {
-        const match = (local.cronometer_client_id && byId.get(Number(local.cronometer_client_id)))
-          || byEmail.get(String(local.email).toLowerCase());
-        if (!match) {
-          if (local.status !== "pending") {
-            updates.push(
-              admin.from("cronometer_clients").update({ status: "revoked" }).eq("id", local.id) as any,
-            );
-          }
-          continue;
-        }
-        const upstreamStatus = String(match.status ?? "").toUpperCase();
-        const nextStatus = upstreamStatus.includes("PENDING") ? "pending" : "active";
-        const patch: Record<string, unknown> = { status: nextStatus, last_error: null };
-        const remoteId = match.client_id ?? match.id;
-        if (remoteId && !local.cronometer_client_id) patch.cronometer_client_id = Number(remoteId);
-        if (nextStatus === "active" && local.status !== "active") {
-          patch.connected_at = new Date().toISOString();
-        }
-        updates.push(admin.from("cronometer_clients").update(patch).eq("id", local.id) as any);
-
-        // Newly active → enqueue full backfill.
-        if (nextStatus === "active" && local.status === "pending") {
-          try {
-            await syncOneClient(admin, {
-              id: local.id,
-              client_id: local.client_id,
-              cronometer_client_id: Number(remoteId ?? local.cronometer_client_id),
-              last_synced_day: null,
-            }, { full: true });
-          } catch (e) {
-            console.warn("initial backfill failed:", e);
-          }
-        }
-      }
-      await Promise.all(updates);
-      return json({ success: true, upstream_count: list.length });
-    }
-
-    if (action === "sync_client") {
-      const { client_id, full } = body;
-      if (!client_id) return json({ error: "client_id required" }, 400);
-      const { data: link, error } = await admin
-        .from("cronometer_clients")
-        .select("id, client_id, cronometer_client_id, last_synced_day, status")
-        .eq("coach_id", userId)
-        .eq("client_id", client_id)
-        .maybeSingle();
-      if (error || !link) return json({ error: "not_linked" }, 404);
-      if (link.status !== "active") return json({ error: "not_active", status: link.status }, 409);
-      try {
-        const r = await syncOneClient(admin, link, { full: !!full });
-        return json({ success: true, ...r });
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : String(e);
-        await admin.from("cronometer_clients").update({ status: "error", last_error: msg }).eq("id", link.id);
-        return json({ error: "sync_failed", message: msg }, 502);
-      }
-    }
-
-    if (action === "get_targets") {
-      const { client_id, day } = body;
-      if (!client_id) return json({ error: "client_id required" }, 400);
-      const { data: link } = await admin
-        .from("cronometer_clients")
-        .select("cronometer_client_id")
-        .eq("coach_id", userId)
-        .eq("client_id", client_id)
-        .maybeSingle();
-      if (!link?.cronometer_client_id) return json({ error: "not_linked" }, 404);
-      const resp = await callCrono("/targets", {
-        client_id: link.cronometer_client_id,
-        day: day ?? ymd(new Date()),
-      });
-      return json({ success: true, targets: resp });
-    }
-
+    if (isClientWebAction) {
+      const auth = await requireAuth(req);
+      if ("error" in auth) return json({ error: auth.error }, auth.status);
+      const { userId, admin } = auth;
 
     // ─────────────────────── WEB TARGET SYNC (scraper) ───────────────────────
     // These actions push in-app targets into the client's Cronometer account
@@ -1011,6 +815,220 @@ Deno.serve(async (req) => {
         }
       }
       return json({ error: "not_connected", message: "Target sync is not connected for this client." }, 200);
+    }
+
+
+      return json({
+        error: "invalid_action",
+        message: "Unhandled client web action",
+      }, 400);
+    }
+
+    // ─────────────────────── COACH-ONLY (Pro invite / diary sync) ───────────────────────
+    const auth = await requireCoach(req);
+    if ("error" in auth) return json({ error: auth.error }, auth.status);
+    const { userId, admin } = auth;
+
+    if (action === "invite_client") {
+      const { client_id, email, name } = body;
+      if (!client_id || !email) return json({ error: "client_id and email required" }, 400);
+      if (!(await admin.rpc("is_coach_of", { _coach_id: userId, _client_id: client_id })).data) {
+        return json({ error: "Not your client" }, 403);
+      }
+
+      const ctx: LogCtx = { action: "invite_client", coach_id: userId, client_id };
+      const inviteBody = { email, name: name ?? email };
+
+      const tryInvite = () => callCrono<any>("/client_invite", inviteBody, ctx);
+
+      let resp: any;
+      try {
+        resp = await tryInvite();
+      } catch (e) {
+        // Cronometer refuses because the pro account already has this email.
+        // Auto-heal: look up the upstream client_id by email, remove it, retry once.
+        const isAlreadyClient = e instanceof CronoApiError
+          && e.status === 400
+          && /already a client of this pro/i.test(e.body);
+        if (!isAlreadyClient) throw e;
+
+        console.warn(`invite_client: ${email} already exists upstream — removing and retrying`);
+        try {
+          const statusResp = await callCrono<any>("/client_status", {}, {
+            ...ctx,
+            action: "invite_client:lookup",
+          });
+          const list: any[] = Array.isArray(statusResp) ? statusResp : (statusResp?.clients ?? []);
+          const match = list.find((r) =>
+            String(r?.email ?? "").toLowerCase() === email.toLowerCase()
+          );
+          const upstreamId = match?.client_id ?? match?.id ?? null;
+          if (upstreamId) {
+            await callCrono("/client_remove", { client_id: Number(upstreamId) }, {
+              ...ctx,
+              action: "invite_client:cleanup",
+              cronometer_client_id: Number(upstreamId),
+            });
+          } else {
+            return json({
+              error: "already_client",
+              message:
+                `Cronometer says ${email} is already linked to this Pro account, but it isn't visible in /client_status. Remove them manually in Cronometer, then retry.`,
+            }, 409);
+          }
+        } catch (cleanupErr) {
+          const msg = cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr);
+          return json({
+            error: "already_client_cleanup_failed",
+            message: `Cronometer already has ${email}, and auto-cleanup failed: ${msg}`,
+          }, 502);
+        }
+
+        // Also nuke any local rows for this email under this coach so we don't
+        // trip a stale unique constraint.
+        await admin
+          .from("cronometer_clients")
+          .delete()
+          .eq("coach_id", userId)
+          .eq("email", email);
+
+        resp = await tryInvite();
+      }
+
+      const cronoId = resp?.client_id ?? resp?.id ?? null;
+      const { data: row, error } = await admin
+        .from("cronometer_clients")
+        .upsert(
+          {
+            coach_id: userId,
+            client_id,
+            email,
+            name: name ?? null,
+            cronometer_client_id: cronoId,
+            status: "pending",
+            invited_at: new Date().toISOString(),
+            last_error: null,
+          },
+          { onConflict: "coach_id,client_id" },
+        )
+        .select()
+        .single();
+      if (error) return json({ error: error.message }, 500);
+      return json({ success: true, client: row });
+    }
+
+    if (action === "remove_client") {
+      const { client_id } = body;
+      if (!client_id) return json({ error: "client_id required" }, 400);
+      const { data: link } = await admin
+        .from("cronometer_clients")
+        .select("cronometer_client_id")
+        .eq("coach_id", userId)
+        .eq("client_id", client_id)
+        .maybeSingle();
+      if (link?.cronometer_client_id) {
+        try {
+          await callCrono("/client_remove", { client_id: link.cronometer_client_id });
+        } catch (e) {
+          console.warn("client_remove upstream failed:", e);
+        }
+      }
+      await admin.from("cronometer_clients").delete().eq("coach_id", userId).eq("client_id", client_id);
+      return json({ success: true });
+    }
+
+    if (action === "refresh_status") {
+      const resp = await callCrono<any>("/client_status", {});
+      const list: any[] = Array.isArray(resp) ? resp : (resp?.clients ?? []);
+      const { data: myRows } = await admin
+        .from("cronometer_clients")
+        .select("id, cronometer_client_id, email, status, client_id")
+        .eq("coach_id", userId);
+
+      const byEmail = new Map<string, any>();
+      const byId = new Map<number, any>();
+      for (const r of list) {
+        if (r.email) byEmail.set(String(r.email).toLowerCase(), r);
+        const cid = r.client_id ?? r.id;
+        if (cid) byId.set(Number(cid), r);
+      }
+
+      const updates: Promise<any>[] = [];
+      for (const local of myRows ?? []) {
+        const match = (local.cronometer_client_id && byId.get(Number(local.cronometer_client_id)))
+          || byEmail.get(String(local.email).toLowerCase());
+        if (!match) {
+          if (local.status !== "pending") {
+            updates.push(
+              admin.from("cronometer_clients").update({ status: "revoked" }).eq("id", local.id) as any,
+            );
+          }
+          continue;
+        }
+        const upstreamStatus = String(match.status ?? "").toUpperCase();
+        const nextStatus = upstreamStatus.includes("PENDING") ? "pending" : "active";
+        const patch: Record<string, unknown> = { status: nextStatus, last_error: null };
+        const remoteId = match.client_id ?? match.id;
+        if (remoteId && !local.cronometer_client_id) patch.cronometer_client_id = Number(remoteId);
+        if (nextStatus === "active" && local.status !== "active") {
+          patch.connected_at = new Date().toISOString();
+        }
+        updates.push(admin.from("cronometer_clients").update(patch).eq("id", local.id) as any);
+
+        // Newly active → enqueue full backfill.
+        if (nextStatus === "active" && local.status === "pending") {
+          try {
+            await syncOneClient(admin, {
+              id: local.id,
+              client_id: local.client_id,
+              cronometer_client_id: Number(remoteId ?? local.cronometer_client_id),
+              last_synced_day: null,
+            }, { full: true });
+          } catch (e) {
+            console.warn("initial backfill failed:", e);
+          }
+        }
+      }
+      await Promise.all(updates);
+      return json({ success: true, upstream_count: list.length });
+    }
+
+    if (action === "sync_client") {
+      const { client_id, full } = body;
+      if (!client_id) return json({ error: "client_id required" }, 400);
+      const { data: link, error } = await admin
+        .from("cronometer_clients")
+        .select("id, client_id, cronometer_client_id, last_synced_day, status")
+        .eq("coach_id", userId)
+        .eq("client_id", client_id)
+        .maybeSingle();
+      if (error || !link) return json({ error: "not_linked" }, 404);
+      if (link.status !== "active") return json({ error: "not_active", status: link.status }, 409);
+      try {
+        const r = await syncOneClient(admin, link, { full: !!full });
+        return json({ success: true, ...r });
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        await admin.from("cronometer_clients").update({ status: "error", last_error: msg }).eq("id", link.id);
+        return json({ error: "sync_failed", message: msg }, 502);
+      }
+    }
+
+    if (action === "get_targets") {
+      const { client_id, day } = body;
+      if (!client_id) return json({ error: "client_id required" }, 400);
+      const { data: link } = await admin
+        .from("cronometer_clients")
+        .select("cronometer_client_id")
+        .eq("coach_id", userId)
+        .eq("client_id", client_id)
+        .maybeSingle();
+      if (!link?.cronometer_client_id) return json({ error: "not_linked" }, 404);
+      const resp = await callCrono("/targets", {
+        client_id: link.cronometer_client_id,
+        day: day ?? ymd(new Date()),
+      });
+      return json({ success: true, targets: resp });
     }
 
 
