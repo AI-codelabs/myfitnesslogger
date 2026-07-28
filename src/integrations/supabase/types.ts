@@ -489,6 +489,63 @@ export type Database = {
         }
         Relationships: []
       }
+      cronometer_web_sessions: {
+        Row: {
+          client_id: string
+          coach_id: string
+          created_at: string
+          credentials_ciphertext: string
+          cronometer_email: string
+          id: string
+          last_error: string | null
+          last_login_at: string | null
+          last_push_at: string | null
+          last_pushed_hash: string | null
+          last_pushed_targets: Json | null
+          last_verified_at: string | null
+          session_cookies: string | null
+          status: string
+          updated_at: string
+          user_agent: string | null
+        }
+        Insert: {
+          client_id: string
+          coach_id: string
+          created_at?: string
+          credentials_ciphertext: string
+          cronometer_email: string
+          id?: string
+          last_error?: string | null
+          last_login_at?: string | null
+          last_push_at?: string | null
+          last_pushed_hash?: string | null
+          last_pushed_targets?: Json | null
+          last_verified_at?: string | null
+          session_cookies?: string | null
+          status?: string
+          updated_at?: string
+          user_agent?: string | null
+        }
+        Update: {
+          client_id?: string
+          coach_id?: string
+          created_at?: string
+          credentials_ciphertext?: string
+          cronometer_email?: string
+          id?: string
+          last_error?: string | null
+          last_login_at?: string | null
+          last_push_at?: string | null
+          last_pushed_hash?: string | null
+          last_pushed_targets?: Json | null
+          last_verified_at?: string | null
+          session_cookies?: string | null
+          status?: string
+          updated_at?: string
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       email_templates: {
         Row: {
           body: string

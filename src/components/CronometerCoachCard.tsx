@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, RefreshCw, Send, Trash2, Plug, AlertCircle } from "lucide-react";
+import { Loader2, RefreshCw, Send, Trash2, Plug, AlertCircle, Target, CheckCircle2, KeyRound } from "lucide-react";
 import { toast } from "sonner";
 import type { Lang } from "@/lib/onboardingSchema";
 import {
@@ -13,6 +13,13 @@ import {
   syncCronometerClient,
   type CronometerClientLink,
 } from "@/lib/cronometerPro";
+import {
+  getCronometerWebStatus,
+  disconnectCronometerWeb,
+  pushCronometerTargets,
+  type CronoWebStatus,
+} from "@/lib/cronometerTargetsWeb";
+import { CronometerTargetSyncDialog } from "./CronometerTargetSyncDialog";
 
 interface Props {
   coachId: string;
@@ -36,15 +43,46 @@ const statusColor = (s: CronometerClientLink["status"]) => {
 export function CronometerCoachCard({ coachId, clientId, clientEmail, clientName, lang }: Props) {
   const [link, setLink] = useState<CronometerClientLink | null>(null);
   const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState<null | "invite" | "sync" | "refresh" | "remove">(null);
+  const [busy, setBusy] = useState<null | "invite" | "sync" | "refresh" | "remove" | "push" | "disconnect_web">(null);
+  const [webStatus, setWebStatus] = useState<CronoWebStatus | null>(null);
+  const [connectOpen, setConnectOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
-    setLink(await getCronometerLink(coachId, clientId));
+    const [linkRow, statusRes] = await Promise.all([
+      getCronometerLink(coachId, clientId),
+      getCronometerWebStatus(clientId),
+    ]);
+    setLink(linkRow);
+    setWebStatus(statusRes.data ?? { connected: false });
     setLoading(false);
   }, [coachId, clientId]);
 
   useEffect(() => { load(); }, [load]);
+
+  const handlePushTargets = async (force = false) => {
+    setBusy("push");
+    const res = await pushCronometerTargets(clientId, force);
+    setBusy(null);
+    if (res.error) return toast.error(res.error);
+    if ((res.data as any)?.skipped === "unchanged") {
+      toast.info(t(lang, "Doelen zijn al gesynchroniseerd", "Targets are already in sync"));
+    } else {
+      toast.success(t(lang, "Doelen naar Cronometer verzonden", "Targets pushed to Cronometer"));
+    }
+    load();
+  };
+
+  const handleDisconnectWeb = async () => {
+    if (!window.confirm(t(lang, "Doel-sync loskoppelen?", "Disconnect target sync?"))) return;
+    setBusy("disconnect_web");
+    const res = await disconnectCronometerWeb(clientId);
+    setBusy(null);
+    if (res.error) return toast.error(res.error);
+    toast.success(t(lang, "Losgekoppeld", "Disconnected"));
+    load();
+  };
+
 
   const handleInvite = async () => {
     if (!clientEmail) {
@@ -177,6 +215,74 @@ export function CronometerCoachCard({ coachId, clientId, clientEmail, clientName
           </>
         )}
       </div>
+
+      {/* ─── Target sync (scraper) ─── */}
+      <div className="pt-3 border-t space-y-2">
+        <div className="flex items-center gap-2">
+          <Target className="h-4 w-4 text-primary" />
+          <p className="text-sm font-medium">{t(lang, "Doel-sync naar Cronometer", "Target sync to Cronometer")}</p>
+          {webStatus?.connected && webStatus.status === "active" && (
+            <Badge variant="outline" className="bg-emerald-500/10 text-emerald-700 border-emerald-500/30">
+              {webStatus.in_sync
+                ? <><CheckCircle2 className="h-3 w-3 mr-1" />{t(lang, "In sync", "In sync")}</>
+                : t(lang, "Verbonden", "Connected")}
+            </Badge>
+          )}
+          {webStatus?.status === "needs_reauth" && (
+            <Badge variant="outline" className="bg-amber-500/10 text-amber-700 border-amber-500/30">
+              <KeyRound className="h-3 w-3 mr-1" />{t(lang, "Her-verificatie", "Needs re-auth")}
+            </Badge>
+          )}
+          {webStatus?.status === "error" && (
+            <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30">
+              <AlertCircle className="h-3 w-3 mr-1" />{t(lang, "Fout", "Error")}
+            </Badge>
+          )}
+        </div>
+        <p className="text-xs text-muted-foreground">
+          {!webStatus?.connected && t(lang,
+            "Verbind eenmalig de Cronometer-login van deze client om macro-doelen automatisch te pushen bij elke wijziging.",
+            "Connect this client's Cronometer login once to auto-push macro targets on every change.",
+          )}
+          {webStatus?.connected && webStatus.last_push_at && (
+            <>{t(lang, "Laatste push", "Last push")}: {new Date(webStatus.last_push_at).toLocaleString()}</>
+          )}
+          {webStatus?.last_error && (
+            <span className="block text-destructive mt-1">{webStatus.last_error}</span>
+          )}
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {!webStatus?.connected || webStatus.status === "needs_reauth" ? (
+            <Button size="sm" variant="outline" onClick={() => setConnectOpen(true)}>
+              <KeyRound className="h-4 w-4 mr-2" />
+              {webStatus?.status === "needs_reauth"
+                ? t(lang, "Opnieuw inloggen", "Re-authenticate")
+                : t(lang, "Doel-sync verbinden", "Connect target sync")}
+            </Button>
+          ) : (
+            <>
+              <Button size="sm" onClick={() => handlePushTargets(true)} disabled={busy === "push"}>
+                {busy === "push" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
+                {t(lang, "Nu pushen", "Push now")}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={handleDisconnectWeb} disabled={busy === "disconnect_web"}>
+                <Trash2 className="h-4 w-4 mr-2" />
+                {t(lang, "Loskoppelen", "Disconnect")}
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+
+      <CronometerTargetSyncDialog
+        open={connectOpen}
+        onOpenChange={setConnectOpen}
+        clientId={clientId}
+        defaultEmail={webStatus?.email ?? clientEmail ?? ""}
+        lang={lang}
+        onConnected={load}
+      />
     </Card>
   );
 }
+
