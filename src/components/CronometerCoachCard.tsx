@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, RefreshCw, Send, Trash2, Plug, AlertCircle } from "lucide-react";
+import { Loader2, RefreshCw, Send, Trash2, Plug, AlertCircle, Target, CheckCircle2, KeyRound } from "lucide-react";
 import { toast } from "sonner";
 import type { Lang } from "@/lib/onboardingSchema";
 import {
@@ -13,6 +13,13 @@ import {
   syncCronometerClient,
   type CronometerClientLink,
 } from "@/lib/cronometerPro";
+import {
+  getCronometerWebStatus,
+  disconnectCronometerWeb,
+  pushCronometerTargets,
+  type CronoWebStatus,
+} from "@/lib/cronometerTargetsWeb";
+import { CronometerTargetSyncDialog } from "./CronometerTargetSyncDialog";
 
 interface Props {
   coachId: string;
