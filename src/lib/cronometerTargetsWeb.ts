@@ -32,18 +32,20 @@ async function invoke<T = any>(body: Record<string, unknown>): Promise<{ data?: 
   return { data: data as T };
 }
 
-export const getCronometerWebStatus = (client_id: string) =>
-  invoke<CronoWebStatus>({ action: "web_status", client_id });
+export const getCronometerWebStatus = (client_id?: string) =>
+  invoke<CronoWebStatus>({ action: "web_status", ...(client_id ? { client_id } : {}) });
 
 export const connectCronometerWeb = (args: {
-  client_id: string;
+  /** Omit for self-connect (client). Coaches pass their client's id. */
+  client_id?: string;
   email: string;
   password: string;
   totpCode?: string;
 }) => invoke({ action: "web_connect", ...args });
 
-export const disconnectCronometerWeb = (client_id: string) =>
-  invoke({ action: "web_disconnect", client_id });
+export const disconnectCronometerWeb = (client_id?: string) =>
+  invoke({ action: "web_disconnect", ...(client_id ? { client_id } : {}) });
 
-export const pushCronometerTargets = (client_id: string, force = false) =>
-  invoke({ action: "web_push_targets", client_id, force });
+export const pushCronometerTargets = (client_id?: string, force = false) =>
+  invoke({ action: "web_push_targets", force, ...(client_id ? { client_id } : {}) });
+
