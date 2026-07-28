@@ -406,6 +406,14 @@ const ClientNutrition = () => {
         onConnected={() => loadAll()}
       />
 
+      <CronometerTargetSyncDialog
+        open={targetSyncOpen}
+        onOpenChange={setTargetSyncOpen}
+        lang={lang}
+        onConnected={() => loadAll()}
+      />
+
+
 
 
     </div>
