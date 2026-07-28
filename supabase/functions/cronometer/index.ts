@@ -9,11 +9,13 @@
 //   - sync_client         (coach) fetch data_summary + diary_summary → upsert logs
 //   - sync_all            (cron)  loop active clients, incremental sync
 //   - get_targets         (coach) POST /api_v1/targets
+//   - sync                (client) self-sync via Pro link
+//   - web_connect/status/disconnect/push_targets  (client or coach) target sync
+//   - web_reconcile       (cron)  push changed targets for active web sessions
 //
 // Legacy no-ops (kept so existing frontend calls don't error):
 //   - connect_and_save    returns { error: "legacy_flow", ... }
-//   - sync                maps to sync_client for the current authenticated user
-//   - push_targets        returns { error: "sync_disabled" } — API has no write endpoint
+//   - push_targets        routes to web_push_targets when connected
 
 import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2";
 import {
@@ -34,6 +36,21 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-cron-secret",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
+
+/** Actions that any signed-in user may call (clients for self-service target sync). */
+const CLIENT_ALLOWED_ACTIONS = new Set([
+  "web_connect",
+  "web_disconnect",
+  "web_push_targets",
+  "web_status",
+  "push_targets",
+  "admin_sync_all",
+  "reapply_today_targets",
+  "connect_and_save",
+  "connect",
+  "login_and_export",
+  "export",
+]);
 
 const CRONO_BASE = "https://cronometer.com/api_v1";
 const PRO_TOKEN = Deno.env.get("CRONOMETER_PRO_TOKEN");
@@ -155,7 +172,7 @@ type AuthedCall = {
   admin: SupabaseClient;
 };
 
-async function requireCoach(req: Request): Promise<AuthedCall | { error: string; status: number }> {
+async function requireAuth(req: Request): Promise<AuthedCall | { error: string; status: number }> {
   const authHeader = req.headers.get("Authorization");
   if (!authHeader?.startsWith("Bearer ")) {
     return { error: "Unauthorized", status: 401 };
@@ -168,9 +185,15 @@ async function requireCoach(req: Request): Promise<AuthedCall | { error: string;
   if (error || !data?.claims) return { error: "Unauthorized", status: 401 };
   const userId = data.claims.sub as string;
   const admin = createClient(SUPABASE_URL, SERVICE_KEY);
-  const { data: isCoach } = await admin.rpc("has_role", { _user_id: userId, _role: "coach" });
-  if (!isCoach) return { error: "Coach role required", status: 403 };
   return { userId, supabase, admin };
+}
+
+async function requireCoach(req: Request): Promise<AuthedCall | { error: string; status: number }> {
+  const auth = await requireAuth(req);
+  if ("error" in auth) return auth;
+  const { data: isCoach } = await auth.admin.rpc("has_role", { _user_id: auth.userId, _role: "coach" });
+  if (!isCoach) return { error: "Coach role required", status: 403 };
+  return auth;
 }
 
 function requireCronSecret(req: Request): boolean {
@@ -436,8 +459,100 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Everything below requires a signed-in coach.
-    const auth = await requireCoach(req);
+    // Cron target reconcile — must run before user auth (uses x-cron-secret only).
+    if (action === "web_reconcile") {
+      if (!requireCronSecret(req)) return json({ error: "Forbidden" }, 403);
+      const service = createClient(SUPABASE_URL, SERVICE_KEY);
+      const { data: rows } = await service
+        .from("cronometer_web_sessions")
+        .select("*")
+        .in("status", ["active"]);
+      const results: any[] = [];
+      for (const raw of rows ?? []) {
+        const row = raw as WebSessionRow;
+        try {
+          const targets = await loadCurrentTargets(service, row.client_id);
+          if (!targets) { results.push({ client_id: row.client_id, skipped: "no_targets" }); continue; }
+          const currentHash = targetsHash(targets);
+          if (row.last_pushed_hash === currentHash) {
+            results.push({ client_id: row.client_id, skipped: "unchanged" });
+            continue;
+          }
+          const scoped: WebSessionRow = row;
+          const savedCookies: CookieJar = scoped.session_cookies
+            ? await decryptJson<CookieJar>(scoped.session_cookies)
+            : {};
+          const ua = scoped.user_agent ?? "";
+          const log = async (entry: {
+            endpoint: string;
+            request_body: unknown;
+            response_status: number | null;
+            response_text: string;
+            error?: string | null;
+            duration_ms: number;
+          }) => {
+            await logApiCall({
+              ctx: { action: "web_reconcile", coach_id: scoped.coach_id, client_id: scoped.client_id },
+              endpoint: `WEB ${entry.endpoint}`,
+              request_body: entry.request_body,
+              response_status: entry.response_status,
+              response_text: entry.response_text,
+              error: entry.error,
+              duration_ms: entry.duration_ms,
+            });
+          };
+          let pushRes = await pushTargets({ cookies: savedCookies, userAgent: ua, targets, log });
+          if (!pushRes.ok && pushRes.error === "session_expired") {
+            const creds = await decryptJson<{ password: string }>(scoped.credentials_ciphertext);
+            const login = await cronoLogin({ email: scoped.cronometer_email, password: creds.password, log });
+            if (!login.ok) {
+              await service.from("cronometer_web_sessions").update({
+                status: login.needsTotp ? "needs_reauth" : "error",
+                last_error: login.error,
+              }).eq("id", scoped.id);
+              results.push({ client_id: scoped.client_id, error: login.error });
+              continue;
+            }
+            await service.from("cronometer_web_sessions").update({
+              session_cookies: await encryptJson(login.cookies),
+              user_agent: login.userAgent,
+              last_login_at: new Date().toISOString(),
+            }).eq("id", scoped.id);
+            pushRes = await pushTargets({
+              cookies: login.cookies,
+              userAgent: login.userAgent,
+              targets,
+              log,
+            });
+          }
+          if (pushRes.ok) {
+            await service.from("cronometer_web_sessions").update({
+              session_cookies: await encryptJson(pushRes.cookies),
+              last_push_at: new Date().toISOString(),
+              last_pushed_hash: currentHash,
+              last_pushed_targets: targets,
+              last_error: null,
+            }).eq("id", scoped.id);
+            results.push({ client_id: scoped.client_id, pushed: true });
+          } else {
+            await service.from("cronometer_web_sessions").update({
+              status: "error",
+              last_error: pushRes.error ?? "push_failed",
+            }).eq("id", scoped.id);
+            results.push({ client_id: scoped.client_id, error: pushRes.error });
+          }
+        } catch (e) {
+          results.push({ client_id: row.client_id, error: e instanceof Error ? e.message : String(e) });
+        }
+      }
+      return json({ success: true, count: results.length, results });
+    }
+
+    // Target-sync web actions are callable by clients (self) or coaches.
+    // Pro invite / diary sync management stays coach-only.
+    const auth = CLIENT_ALLOWED_ACTIONS.has(action ?? "")
+      ? await requireAuth(req)
+      : await requireCoach(req);
     if ("error" in auth) return json({ error: auth.error }, auth.status);
     const { userId, admin } = auth;
 
@@ -819,12 +934,21 @@ Deno.serve(async (req) => {
     if (action === "web_disconnect") {
       const { client_id: bodyClientId } = body;
       const client_id = (bodyClientId as string | undefined) ?? userId;
-      // RLS enforces: client can only delete their own row; coach can only
-      // delete rows they own. No need to filter on coach_id here.
-      await admin
-        .from("cronometer_web_sessions")
-        .delete()
-        .eq("client_id", client_id);
+      // Service-role bypasses RLS — enforce caller is the client or their coach.
+      if (client_id !== userId) {
+        const isCoach = (await admin.rpc("is_coach_of", { _coach_id: userId, _client_id: client_id })).data;
+        if (!isCoach) return json({ error: "Forbidden" }, 403);
+        await admin
+          .from("cronometer_web_sessions")
+          .delete()
+          .eq("client_id", client_id)
+          .eq("coach_id", userId);
+      } else {
+        await admin
+          .from("cronometer_web_sessions")
+          .delete()
+          .eq("client_id", client_id);
+      }
       return json({ success: true });
     }
 
@@ -843,81 +967,6 @@ Deno.serve(async (req) => {
       }
       const r = await doPush(row, targets);
       return json(r.ok ? { success: true } : { error: r.error, message: r.error }, r.ok ? 200 : 502);
-    }
-
-    if (action === "web_reconcile") {
-      if (!requireCronSecret(req)) return json({ error: "Forbidden" }, 403);
-      const service = createClient(SUPABASE_URL, SERVICE_KEY);
-      const { data: rows } = await service
-        .from("cronometer_web_sessions")
-        .select("*")
-        .in("status", ["active"]);
-      const results: any[] = [];
-      for (const raw of rows ?? []) {
-        const row = raw as WebSessionRow;
-        try {
-          const targets = await loadCurrentTargets(service, row.client_id);
-          if (!targets) { results.push({ client_id: row.client_id, skipped: "no_targets" }); continue; }
-          const currentHash = targetsHash(targets);
-          if (row.last_pushed_hash === currentHash) {
-            // Targets unchanged since last push — nothing to do (Cronometer
-            // keeps the values persistently, so no daily re-push needed).
-            results.push({ client_id: row.client_id, skipped: "unchanged" });
-            continue;
-          }
-          // Rebind admin ownership for helpers scoped to this coach.
-          const scoped: WebSessionRow = row;
-          // Run push using service-role admin (bypass coach scoping).
-          const savedCookies: CookieJar = scoped.session_cookies
-            ? await decryptJson<CookieJar>(scoped.session_cookies)
-            : {};
-          const ua = scoped.user_agent ?? "";
-          const log = webLog({ action: "web_reconcile", coach_id: scoped.coach_id, client_id: scoped.client_id });
-          let pushRes = await pushTargets({ cookies: savedCookies, userAgent: ua, targets, log });
-          if (!pushRes.ok && pushRes.error === "session_expired") {
-            const creds = await decryptJson<{ password: string }>(scoped.credentials_ciphertext);
-            const login = await cronoLogin({ email: scoped.cronometer_email, password: creds.password, log });
-            if (!login.ok) {
-              await service.from("cronometer_web_sessions").update({
-                status: login.needsTotp ? "needs_reauth" : "error",
-                last_error: login.error,
-              }).eq("id", scoped.id);
-              results.push({ client_id: scoped.client_id, error: login.error });
-              continue;
-            }
-            await service.from("cronometer_web_sessions").update({
-              session_cookies: await encryptJson(login.cookies),
-              user_agent: login.userAgent,
-              last_login_at: new Date().toISOString(),
-            }).eq("id", scoped.id);
-            pushRes = await pushTargets({
-              cookies: login.cookies,
-              userAgent: login.userAgent,
-              targets,
-              log,
-            });
-          }
-          if (pushRes.ok) {
-            await service.from("cronometer_web_sessions").update({
-              session_cookies: await encryptJson(pushRes.cookies),
-              last_push_at: new Date().toISOString(),
-              last_pushed_hash: currentHash,
-              last_pushed_targets: targets,
-              last_error: null,
-            }).eq("id", scoped.id);
-            results.push({ client_id: scoped.client_id, pushed: true });
-          } else {
-            await service.from("cronometer_web_sessions").update({
-              status: "error",
-              last_error: pushRes.error ?? "push_failed",
-            }).eq("id", scoped.id);
-            results.push({ client_id: scoped.client_id, error: pushRes.error });
-          }
-        } catch (e) {
-          results.push({ client_id: row.client_id, error: e instanceof Error ? e.message : String(e) });
-        }
-      }
-      return json({ success: true, count: results.length, results });
     }
 
     if (action === "web_status") {

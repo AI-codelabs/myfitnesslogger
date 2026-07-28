@@ -9,19 +9,40 @@ export interface CronoWebStatus {
   in_sync?: boolean;
 }
 
+async function parseInvokeError(error: unknown): Promise<{ error?: string; needsTotp?: boolean } | null> {
+  const context = (error as { context?: unknown } | null)?.context;
+  if (context instanceof Response) {
+    try {
+      const text = await context.text();
+      const parsed = text ? JSON.parse(text) : null;
+      if (!parsed) return null;
+      return {
+        error: parsed.message || parsed.error,
+        needsTotp: parsed.needsTotp === true || parsed.error === "totp_required",
+      };
+    } catch {
+      return null;
+    }
+  }
+  const body = (context as { body?: unknown } | null)?.body;
+  if (!body) return null;
+  try {
+    const parsed = typeof body === "string" ? JSON.parse(body) : body;
+    return {
+      error: (parsed as any)?.message || (parsed as any)?.error,
+      needsTotp: (parsed as any)?.needsTotp === true || (parsed as any)?.error === "totp_required",
+    };
+  } catch {
+    return null;
+  }
+}
+
 async function invoke<T = any>(body: Record<string, unknown>): Promise<{ data?: T; error?: string; needsTotp?: boolean }> {
   const { data, error } = await supabase.functions.invoke("cronometer", { body });
   if (error) {
-    const ctx: any = (error as any).context;
-    try {
-      const parsed = typeof ctx?.body === "string" ? JSON.parse(ctx.body) : ctx?.body;
-      return {
-        error: parsed?.message || parsed?.error || error.message,
-        needsTotp: parsed?.needsTotp === true || parsed?.error === "totp_required",
-      };
-    } catch {
-      return { error: error.message };
-    }
+    const parsed = await parseInvokeError(error);
+    if (parsed?.error) return parsed;
+    return { error: error.message };
   }
   if ((data as any)?.error) {
     return {
