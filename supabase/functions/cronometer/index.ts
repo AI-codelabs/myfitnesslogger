@@ -16,6 +16,17 @@
 //   - push_targets        returns { error: "sync_disabled" } — API has no write endpoint
 
 import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2";
+import {
+  cronoLogin,
+  pushTargets,
+  targetsHash,
+  encryptJson,
+  decryptJson,
+  loadCurrentTargets,
+  type CookieJar,
+  type NutritionTargets,
+  type WebSessionRow,
+} from "./webPush.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
