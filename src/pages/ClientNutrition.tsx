@@ -262,7 +262,74 @@ const ClientNutrition = () => {
           </div>
         </div>
       </Card>
-      {/* Weekly overview */}
+
+      {/* Cronometer target sync — pushes your macro targets INTO Cronometer */}
+      <Card className="p-4 sm:p-5">
+        <div className="flex items-start sm:items-center justify-between gap-3 flex-col sm:flex-row">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
+              targetSync?.connected && targetSync.status === "active"
+                ? "bg-emerald-500/10 text-emerald-600"
+                : "bg-muted text-muted-foreground"
+            }`}>
+              <Plug className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <p className="font-medium">
+                {t("Cronometer doel-sync", "Cronometer target sync")}{" "}
+                <span className={`ml-1 text-xs ${
+                  targetSync?.connected && targetSync.status === "active"
+                    ? "text-emerald-600"
+                    : targetSync?.status === "needs_reauth"
+                      ? "text-amber-600"
+                      : "text-muted-foreground"
+                }`}>
+                  {!targetSync?.connected && t("niet verbonden", "not connected")}
+                  {targetSync?.connected && targetSync.status === "active" && (targetSync.in_sync
+                    ? t("in sync", "in sync")
+                    : t("verbonden", "connected"))}
+                  {targetSync?.status === "needs_reauth" && t("opnieuw inloggen", "re-authenticate")}
+                </span>
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {!targetSync?.connected
+                  ? t(
+                      "Log éénmalig in met je Cronometer-account om je macro-doelen automatisch te laten pushen.",
+                      "Sign in once with your Cronometer account so your macro targets are pushed automatically.",
+                    )
+                  : targetSync.last_push_at
+                    ? <>{t("Laatst gepusht", "Last pushed")}: {new Date(targetSync.last_push_at).toLocaleString()}</>
+                    : t("Nog geen push uitgevoerd.", "No push yet.")}
+                {targetSync?.last_error && (
+                  <span className="block text-destructive mt-1">{targetSync.last_error}</span>
+                )}
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-2 w-full sm:w-auto">
+            {targetSync?.connected && targetSync.status !== "needs_reauth" ? (
+              <Button
+                variant="outline"
+                onClick={handleDisconnectTargetSync}
+                disabled={targetBusy}
+                className="flex-1 sm:flex-none"
+              >
+                {targetBusy ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Unplug className="h-4 w-4 mr-2" />}
+                {t("Ontkoppelen", "Disconnect")}
+              </Button>
+            ) : (
+              <Button onClick={() => setTargetSyncOpen(true)} className="flex-1 sm:flex-none">
+                <Plug className="h-4 w-4 mr-2" />
+                {targetSync?.status === "needs_reauth"
+                  ? t("Opnieuw inloggen", "Re-authenticate")
+                  : t("Verbinden", "Connect")}
+              </Button>
+            )}
+          </div>
+        </div>
+      </Card>
+
+
       <NutritionWeeklyOverview
         lang={lang}
         logs={logs}
