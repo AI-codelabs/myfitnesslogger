@@ -215,6 +215,74 @@ export function CronometerCoachCard({ coachId, clientId, clientEmail, clientName
           </>
         )}
       </div>
+
+      {/* ─── Target sync (scraper) ─── */}
+      <div className="pt-3 border-t space-y-2">
+        <div className="flex items-center gap-2">
+          <Target className="h-4 w-4 text-primary" />
+          <p className="text-sm font-medium">{t(lang, "Doel-sync naar Cronometer", "Target sync to Cronometer")}</p>
+          {webStatus?.connected && webStatus.status === "active" && (
+            <Badge variant="outline" className="bg-emerald-500/10 text-emerald-700 border-emerald-500/30">
+              {webStatus.in_sync
+                ? <><CheckCircle2 className="h-3 w-3 mr-1" />{t(lang, "In sync", "In sync")}</>
+                : t(lang, "Verbonden", "Connected")}
+            </Badge>
+          )}
+          {webStatus?.status === "needs_reauth" && (
+            <Badge variant="outline" className="bg-amber-500/10 text-amber-700 border-amber-500/30">
+              <KeyRound className="h-3 w-3 mr-1" />{t(lang, "Her-verificatie", "Needs re-auth")}
+            </Badge>
+          )}
+          {webStatus?.status === "error" && (
+            <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30">
+              <AlertCircle className="h-3 w-3 mr-1" />{t(lang, "Fout", "Error")}
+            </Badge>
+          )}
+        </div>
+        <p className="text-xs text-muted-foreground">
+          {!webStatus?.connected && t(lang,
+            "Verbind eenmalig de Cronometer-login van deze client om macro-doelen automatisch te pushen bij elke wijziging.",
+            "Connect this client's Cronometer login once to auto-push macro targets on every change.",
+          )}
+          {webStatus?.connected && webStatus.last_push_at && (
+            <>{t(lang, "Laatste push", "Last push")}: {new Date(webStatus.last_push_at).toLocaleString()}</>
+          )}
+          {webStatus?.last_error && (
+            <span className="block text-destructive mt-1">{webStatus.last_error}</span>
+          )}
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {!webStatus?.connected || webStatus.status === "needs_reauth" ? (
+            <Button size="sm" variant="outline" onClick={() => setConnectOpen(true)}>
+              <KeyRound className="h-4 w-4 mr-2" />
+              {webStatus?.status === "needs_reauth"
+                ? t(lang, "Opnieuw inloggen", "Re-authenticate")
+                : t(lang, "Doel-sync verbinden", "Connect target sync")}
+            </Button>
+          ) : (
+            <>
+              <Button size="sm" onClick={() => handlePushTargets(true)} disabled={busy === "push"}>
+                {busy === "push" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
+                {t(lang, "Nu pushen", "Push now")}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={handleDisconnectWeb} disabled={busy === "disconnect_web"}>
+                <Trash2 className="h-4 w-4 mr-2" />
+                {t(lang, "Loskoppelen", "Disconnect")}
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+
+      <CronometerTargetSyncDialog
+        open={connectOpen}
+        onOpenChange={setConnectOpen}
+        clientId={clientId}
+        defaultEmail={webStatus?.email ?? clientEmail ?? ""}
+        lang={lang}
+        onConnected={load}
+      />
     </Card>
   );
 }
+
