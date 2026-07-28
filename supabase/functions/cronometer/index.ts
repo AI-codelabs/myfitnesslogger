@@ -935,7 +935,7 @@ Deno.serve(async (req) => {
 
     return json({
       error: "invalid_action",
-      message: "Valid actions: invite_client, remove_client, refresh_status, sync_client, sync_all, get_targets, sync",
+      message: "Valid actions: invite_client, remove_client, refresh_status, sync_client, sync_all, get_targets, sync, web_connect, web_disconnect, web_push_targets, web_reconcile, web_status",
     }, 400);
   } catch (e) {
     if (e instanceof CronoApiError) {
