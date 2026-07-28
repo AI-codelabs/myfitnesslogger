@@ -43,15 +43,46 @@ const statusColor = (s: CronometerClientLink["status"]) => {
 export function CronometerCoachCard({ coachId, clientId, clientEmail, clientName, lang }: Props) {
   const [link, setLink] = useState<CronometerClientLink | null>(null);
   const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState<null | "invite" | "sync" | "refresh" | "remove">(null);
+  const [busy, setBusy] = useState<null | "invite" | "sync" | "refresh" | "remove" | "push" | "disconnect_web">(null);
+  const [webStatus, setWebStatus] = useState<CronoWebStatus | null>(null);
+  const [connectOpen, setConnectOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
-    setLink(await getCronometerLink(coachId, clientId));
+    const [linkRow, statusRes] = await Promise.all([
+      getCronometerLink(coachId, clientId),
+      getCronometerWebStatus(clientId),
+    ]);
+    setLink(linkRow);
+    setWebStatus(statusRes.data ?? { connected: false });
     setLoading(false);
   }, [coachId, clientId]);
 
   useEffect(() => { load(); }, [load]);
+
+  const handlePushTargets = async (force = false) => {
+    setBusy("push");
+    const res = await pushCronometerTargets(clientId, force);
+    setBusy(null);
+    if (res.error) return toast.error(res.error);
+    if ((res.data as any)?.skipped === "unchanged") {
+      toast.info(t(lang, "Doelen zijn al gesynchroniseerd", "Targets are already in sync"));
+    } else {
+      toast.success(t(lang, "Doelen naar Cronometer verzonden", "Targets pushed to Cronometer"));
+    }
+    load();
+  };
+
+  const handleDisconnectWeb = async () => {
+    if (!window.confirm(t(lang, "Doel-sync loskoppelen?", "Disconnect target sync?"))) return;
+    setBusy("disconnect_web");
+    const res = await disconnectCronometerWeb(clientId);
+    setBusy(null);
+    if (res.error) return toast.error(res.error);
+    toast.success(t(lang, "Losgekoppeld", "Disconnected"));
+    load();
+  };
+
 
   const handleInvite = async () => {
     if (!clientEmail) {
