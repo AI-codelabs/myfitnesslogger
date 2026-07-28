@@ -90,12 +90,26 @@ const ClientNutrition = () => {
     setNutrition((planRes.data as NutritionPlan | null) ?? null);
     setConnected(!!sessionRes.data);
     setLogs((logsRes.data as NutritionLog[]) || []);
+    // Target sync status (separate from the read-only Pro API link).
+    const statusRes = await getCronometerWebStatus();
+    setTargetSync(statusRes.data ?? { connected: false });
     setLoading(false);
   }, [user?.id]);
 
   useEffect(() => {
     loadAll();
   }, [loadAll]);
+
+  const handleDisconnectTargetSync = async () => {
+    if (!window.confirm(t("Cronometer doel-sync loskoppelen?", "Disconnect Cronometer target sync?"))) return;
+    setTargetBusy(true);
+    const res = await disconnectCronometerWeb();
+    setTargetBusy(false);
+    if (res.error) return toast.error(res.error);
+    toast.success(t("Losgekoppeld", "Disconnected"));
+    loadAll();
+  };
+
 
   const handleSync = async () => {
     setSyncing(true);
