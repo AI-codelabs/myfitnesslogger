@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Lock } from "lucide-react";
+import { Loader2, Lock, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { connectCronometerWeb } from "@/lib/cronometerTargetsWeb";
 import type { Lang } from "@/lib/onboardingSchema";
@@ -11,7 +11,8 @@ import type { Lang } from "@/lib/onboardingSchema";
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  clientId: string;
+  /** Optional — omit when the current user IS the client (self-connect). */
+  clientId?: string;
   defaultEmail?: string;
   lang: Lang;
   onConnected?: () => void;
@@ -19,7 +20,9 @@ interface Props {
 
 const t = (lang: Lang, nl: string, en: string) => (lang === "nl" ? nl : en);
 
-export function CronometerTargetSyncDialog({ open, onOpenChange, clientId, defaultEmail, lang, onConnected }: Props) {
+export function CronometerTargetSyncDialog({
+  open, onOpenChange, clientId, defaultEmail, lang, onConnected,
+}: Props) {
   const [email, setEmail] = useState(defaultEmail ?? "");
   const [password, setPassword] = useState("");
   const [totpCode, setTotpCode] = useState("");
@@ -33,7 +36,7 @@ export function CronometerTargetSyncDialog({ open, onOpenChange, clientId, defau
     }
     setBusy(true);
     const res = await connectCronometerWeb({
-      client_id: clientId,
+      client_id: clientId, // undefined = self-connect
       email,
       password,
       totpCode: totpCode || undefined,
@@ -42,12 +45,12 @@ export function CronometerTargetSyncDialog({ open, onOpenChange, clientId, defau
     if (res.error) {
       if (res.needsTotp) {
         setNeedsTotp(true);
-        toast.info(t(lang, "Vul de 2FA-code van de client in", "Enter the client's 2FA code"));
+        toast.info(t(lang, "Vul je 2FA-code in", "Enter your 2FA code"));
         return;
       }
       return toast.error(res.error);
     }
-    toast.success(t(lang, "Cronometer doel-sync verbonden", "Cronometer target sync connected"));
+    toast.success(t(lang, "Cronometer verbonden", "Cronometer connected"));
     setPassword("");
     setTotpCode("");
     setNeedsTotp(false);
@@ -61,24 +64,39 @@ export function CronometerTargetSyncDialog({ open, onOpenChange, clientId, defau
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Lock className="h-5 w-5" />
-            {t(lang, "Cronometer doel-sync verbinden", "Connect Cronometer target sync")}
+            {t(lang, "Verbind je Cronometer-account", "Connect your Cronometer account")}
           </DialogTitle>
           <DialogDescription>
             {t(lang,
-              "Voer eenmalig de Cronometer-inloggegevens van deze client in. Gegevens worden versleuteld opgeslagen en alleen gebruikt om macro-doelen te synchroniseren.",
-              "Enter the client's Cronometer login once. Credentials are stored encrypted and used only to sync macro targets.",
+              "Log eenmalig in met je Cronometer-gegevens zodat je macro-doelen automatisch worden bijgewerkt in je Cronometer-app.",
+              "Sign in once with your Cronometer credentials so your macro targets are automatically kept in sync with your Cronometer app.",
             )}
           </DialogDescription>
         </DialogHeader>
 
+        <div className="rounded-md border bg-muted/40 p-3 text-xs text-muted-foreground flex items-start gap-2">
+          <ShieldCheck className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+          <span>
+            {t(lang,
+              "Je wachtwoord wordt versleuteld opgeslagen en uitsluitend gebruikt om je macro-doelen naar Cronometer te sturen. Je coach ziet je wachtwoord niet.",
+              "Your password is stored encrypted and used only to push macro targets to Cronometer. Your coach never sees your password.",
+            )}
+          </span>
+        </div>
+
         <div className="space-y-3">
           <div className="space-y-1.5">
-            <Label>{t(lang, "E-mail", "Email")}</Label>
-            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="off" />
+            <Label>{t(lang, "Cronometer-e-mail", "Cronometer email")}</Label>
+            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" />
           </div>
           <div className="space-y-1.5">
             <Label>{t(lang, "Wachtwoord", "Password")}</Label>
-            <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" />
+            <Input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
+            />
           </div>
           {needsTotp && (
             <div className="space-y-1.5">
