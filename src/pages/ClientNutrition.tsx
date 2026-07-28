@@ -61,8 +61,12 @@ const ClientNutrition = () => {
   const [logs, setLogs] = useState<NutritionLog[]>([]);
   const [syncing, setSyncing] = useState(false);
   const [connectDialogOpen, setConnectDialogOpen] = useState(false);
-  
+  const [targetSyncOpen, setTargetSyncOpen] = useState(false);
+  const [targetSync, setTargetSync] = useState<CronoWebStatus | null>(null);
+  const [targetBusy, setTargetBusy] = useState(false);
+
   const [disconnecting, setDisconnecting] = useState(false);
+
   const t = (nl: string, en: string) => (lang === "nl" ? nl : en);
 
   const loadAll = useCallback(async () => {
