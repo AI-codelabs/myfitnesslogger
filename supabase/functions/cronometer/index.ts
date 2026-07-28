@@ -669,14 +669,29 @@ Deno.serve(async (req) => {
     };
 
     async function loadWebSession(clientId: string): Promise<WebSessionRow | null> {
+      // Allow either the coach who owns the row OR the client themselves.
       const { data } = await admin
         .from("cronometer_web_sessions")
         .select("*")
-        .eq("coach_id", userId)
         .eq("client_id", clientId)
+        .or(`coach_id.eq.${userId},client_id.eq.${userId}`)
         .maybeSingle();
       return (data as WebSessionRow) ?? null;
     }
+
+    async function resolveCoachForClient(clientId: string): Promise<string | null> {
+      // Find the (most recent) active coach for a self-connecting client.
+      const { data } = await admin
+        .from("invitations")
+        .select("coach_id")
+        .eq("accepted_user_id", clientId)
+        .in("status", ["onboarding", "active", "accepted", "inactive"])
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return (data as { coach_id: string } | null)?.coach_id ?? null;
+    }
+
 
     async function saveSessionCookies(row: WebSessionRow, cookies: CookieJar, ua: string) {
       await admin.from("cronometer_web_sessions").update({
