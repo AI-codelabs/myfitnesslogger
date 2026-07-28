@@ -7,11 +7,18 @@ import { Loader2, RefreshCw, Plug, Unplug } from "lucide-react";
 import { Lang } from "@/lib/onboardingSchema";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import { CronometerConnectDialog } from "@/components/CronometerConnectDialog";
+import { CronometerTargetSyncDialog } from "@/components/CronometerTargetSyncDialog";
 import { NutritionWeeklyOverview } from "@/components/NutritionWeeklyOverview";
 import { ClientNutritionDocuments } from "@/components/ClientNutritionDocuments";
 import type { NutritionEntry } from "@/components/NutritionDayDetailDialog";
 import { hasCronometerSession, syncCronometer, disconnectCronometer } from "@/lib/cronometer";
+import {
+  getCronometerWebStatus,
+  disconnectCronometerWeb,
+  type CronoWebStatus,
+} from "@/lib/cronometerTargetsWeb";
 import { toast } from "sonner";
+
 
 
 
@@ -54,8 +61,12 @@ const ClientNutrition = () => {
   const [logs, setLogs] = useState<NutritionLog[]>([]);
   const [syncing, setSyncing] = useState(false);
   const [connectDialogOpen, setConnectDialogOpen] = useState(false);
-  
+  const [targetSyncOpen, setTargetSyncOpen] = useState(false);
+  const [targetSync, setTargetSync] = useState<CronoWebStatus | null>(null);
+  const [targetBusy, setTargetBusy] = useState(false);
+
   const [disconnecting, setDisconnecting] = useState(false);
+
   const t = (nl: string, en: string) => (lang === "nl" ? nl : en);
 
   const loadAll = useCallback(async () => {
@@ -79,12 +90,26 @@ const ClientNutrition = () => {
     setNutrition((planRes.data as NutritionPlan | null) ?? null);
     setConnected(!!sessionRes.data);
     setLogs((logsRes.data as NutritionLog[]) || []);
+    // Target sync status (separate from the read-only Pro API link).
+    const statusRes = await getCronometerWebStatus();
+    setTargetSync(statusRes.data ?? { connected: false });
     setLoading(false);
   }, [user?.id]);
 
   useEffect(() => {
     loadAll();
   }, [loadAll]);
+
+  const handleDisconnectTargetSync = async () => {
+    if (!window.confirm(t("Cronometer doel-sync loskoppelen?", "Disconnect Cronometer target sync?"))) return;
+    setTargetBusy(true);
+    const res = await disconnectCronometerWeb();
+    setTargetBusy(false);
+    if (res.error) return toast.error(res.error);
+    toast.success(t("Losgekoppeld", "Disconnected"));
+    loadAll();
+  };
+
 
   const handleSync = async () => {
     setSyncing(true);
@@ -237,7 +262,74 @@ const ClientNutrition = () => {
           </div>
         </div>
       </Card>
-      {/* Weekly overview */}
+
+      {/* Cronometer target sync — pushes your macro targets INTO Cronometer */}
+      <Card className="p-4 sm:p-5">
+        <div className="flex items-start sm:items-center justify-between gap-3 flex-col sm:flex-row">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
+              targetSync?.connected && targetSync.status === "active"
+                ? "bg-emerald-500/10 text-emerald-600"
+                : "bg-muted text-muted-foreground"
+            }`}>
+              <Plug className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <p className="font-medium">
+                {t("Cronometer doel-sync", "Cronometer target sync")}{" "}
+                <span className={`ml-1 text-xs ${
+                  targetSync?.connected && targetSync.status === "active"
+                    ? "text-emerald-600"
+                    : targetSync?.status === "needs_reauth"
+                      ? "text-amber-600"
+                      : "text-muted-foreground"
+                }`}>
+                  {!targetSync?.connected && t("niet verbonden", "not connected")}
+                  {targetSync?.connected && targetSync.status === "active" && (targetSync.in_sync
+                    ? t("in sync", "in sync")
+                    : t("verbonden", "connected"))}
+                  {targetSync?.status === "needs_reauth" && t("opnieuw inloggen", "re-authenticate")}
+                </span>
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {!targetSync?.connected
+                  ? t(
+                      "Log éénmalig in met je Cronometer-account om je macro-doelen automatisch te laten pushen.",
+                      "Sign in once with your Cronometer account so your macro targets are pushed automatically.",
+                    )
+                  : targetSync.last_push_at
+                    ? <>{t("Laatst gepusht", "Last pushed")}: {new Date(targetSync.last_push_at).toLocaleString()}</>
+                    : t("Nog geen push uitgevoerd.", "No push yet.")}
+                {targetSync?.last_error && (
+                  <span className="block text-destructive mt-1">{targetSync.last_error}</span>
+                )}
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-2 w-full sm:w-auto">
+            {targetSync?.connected && targetSync.status !== "needs_reauth" ? (
+              <Button
+                variant="outline"
+                onClick={handleDisconnectTargetSync}
+                disabled={targetBusy}
+                className="flex-1 sm:flex-none"
+              >
+                {targetBusy ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Unplug className="h-4 w-4 mr-2" />}
+                {t("Ontkoppelen", "Disconnect")}
+              </Button>
+            ) : (
+              <Button onClick={() => setTargetSyncOpen(true)} className="flex-1 sm:flex-none">
+                <Plug className="h-4 w-4 mr-2" />
+                {targetSync?.status === "needs_reauth"
+                  ? t("Opnieuw inloggen", "Re-authenticate")
+                  : t("Verbinden", "Connect")}
+              </Button>
+            )}
+          </div>
+        </div>
+      </Card>
+
+
       <NutritionWeeklyOverview
         lang={lang}
         logs={logs}
@@ -313,6 +405,14 @@ const ClientNutrition = () => {
         lang={lang}
         onConnected={() => loadAll()}
       />
+
+      <CronometerTargetSyncDialog
+        open={targetSyncOpen}
+        onOpenChange={setTargetSyncOpen}
+        lang={lang}
+        onConnected={() => loadAll()}
+      />
+
 
 
 

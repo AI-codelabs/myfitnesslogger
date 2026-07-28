@@ -15,11 +15,9 @@ import {
 } from "@/lib/cronometerPro";
 import {
   getCronometerWebStatus,
-  disconnectCronometerWeb,
   pushCronometerTargets,
   type CronoWebStatus,
 } from "@/lib/cronometerTargetsWeb";
-import { CronometerTargetSyncDialog } from "./CronometerTargetSyncDialog";
 
 interface Props {
   coachId: string;
@@ -43,9 +41,8 @@ const statusColor = (s: CronometerClientLink["status"]) => {
 export function CronometerCoachCard({ coachId, clientId, clientEmail, clientName, lang }: Props) {
   const [link, setLink] = useState<CronometerClientLink | null>(null);
   const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState<null | "invite" | "sync" | "refresh" | "remove" | "push" | "disconnect_web">(null);
+  const [busy, setBusy] = useState<null | "invite" | "sync" | "refresh" | "remove" | "push">(null);
   const [webStatus, setWebStatus] = useState<CronoWebStatus | null>(null);
-  const [connectOpen, setConnectOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -73,15 +70,7 @@ export function CronometerCoachCard({ coachId, clientId, clientEmail, clientName
     load();
   };
 
-  const handleDisconnectWeb = async () => {
-    if (!window.confirm(t(lang, "Doel-sync loskoppelen?", "Disconnect target sync?"))) return;
-    setBusy("disconnect_web");
-    const res = await disconnectCronometerWeb(clientId);
-    setBusy(null);
-    if (res.error) return toast.error(res.error);
-    toast.success(t(lang, "Losgekoppeld", "Disconnected"));
-    load();
-  };
+
 
 
   const handleInvite = async () => {
@@ -241,8 +230,8 @@ export function CronometerCoachCard({ coachId, clientId, clientEmail, clientName
         </div>
         <p className="text-xs text-muted-foreground">
           {!webStatus?.connected && t(lang,
-            "Verbind eenmalig de Cronometer-login van deze client om macro-doelen automatisch te pushen bij elke wijziging.",
-            "Connect this client's Cronometer login once to auto-push macro targets on every change.",
+            "De client moet zelf inloggen vanuit hun eigen portal (Voeding → Cronometer verbinden). Coaches vragen nooit om wachtwoorden.",
+            "The client must connect from their own portal (Nutrition → Connect Cronometer). Coaches never handle passwords.",
           )}
           {webStatus?.connected && webStatus.last_push_at && (
             <>{t(lang, "Laatste push", "Last push")}: {new Date(webStatus.last_push_at).toLocaleString()}</>
@@ -251,38 +240,25 @@ export function CronometerCoachCard({ coachId, clientId, clientEmail, clientName
             <span className="block text-destructive mt-1">{webStatus.last_error}</span>
           )}
         </p>
-        <div className="flex flex-wrap gap-2">
-          {!webStatus?.connected || webStatus.status === "needs_reauth" ? (
-            <Button size="sm" variant="outline" onClick={() => setConnectOpen(true)}>
-              <KeyRound className="h-4 w-4 mr-2" />
-              {webStatus?.status === "needs_reauth"
-                ? t(lang, "Opnieuw inloggen", "Re-authenticate")
-                : t(lang, "Doel-sync verbinden", "Connect target sync")}
+        {webStatus?.connected && webStatus.status !== "needs_reauth" && (
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" onClick={() => handlePushTargets(true)} disabled={busy === "push"}>
+              {busy === "push" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
+              {t(lang, "Nu pushen", "Push now")}
             </Button>
-          ) : (
-            <>
-              <Button size="sm" onClick={() => handlePushTargets(true)} disabled={busy === "push"}>
-                {busy === "push" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
-                {t(lang, "Nu pushen", "Push now")}
-              </Button>
-              <Button size="sm" variant="ghost" onClick={handleDisconnectWeb} disabled={busy === "disconnect_web"}>
-                <Trash2 className="h-4 w-4 mr-2" />
-                {t(lang, "Loskoppelen", "Disconnect")}
-              </Button>
-            </>
-          )}
-        </div>
+          </div>
+        )}
+        {webStatus?.status === "needs_reauth" && (
+          <p className="text-xs text-amber-700">
+            {t(lang,
+              "De Cronometer-sessie van deze client is verlopen. Vraag de client opnieuw in te loggen vanuit hun portal.",
+              "This client's Cronometer session has expired. Ask them to sign in again from their portal.",
+            )}
+          </p>
+        )}
       </div>
-
-      <CronometerTargetSyncDialog
-        open={connectOpen}
-        onOpenChange={setConnectOpen}
-        clientId={clientId}
-        defaultEmail={webStatus?.email ?? clientEmail ?? ""}
-        lang={lang}
-        onConnected={load}
-      />
     </Card>
   );
 }
+
 

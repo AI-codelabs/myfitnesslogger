@@ -669,14 +669,29 @@ Deno.serve(async (req) => {
     };
 
     async function loadWebSession(clientId: string): Promise<WebSessionRow | null> {
+      // Allow either the coach who owns the row OR the client themselves.
       const { data } = await admin
         .from("cronometer_web_sessions")
         .select("*")
-        .eq("coach_id", userId)
         .eq("client_id", clientId)
+        .or(`coach_id.eq.${userId},client_id.eq.${userId}`)
         .maybeSingle();
       return (data as WebSessionRow) ?? null;
     }
+
+    async function resolveCoachForClient(clientId: string): Promise<string | null> {
+      // Find the (most recent) active coach for a self-connecting client.
+      const { data } = await admin
+        .from("invitations")
+        .select("coach_id")
+        .eq("accepted_user_id", clientId)
+        .in("status", ["onboarding", "active", "accepted", "inactive"])
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return (data as { coach_id: string } | null)?.coach_id ?? null;
+    }
+
 
     async function saveSessionCookies(row: WebSessionRow, cookies: CookieJar, ua: string) {
       await admin.from("cronometer_web_sessions").update({
@@ -740,14 +755,27 @@ Deno.serve(async (req) => {
     }
 
     if (action === "web_connect") {
-      const { client_id, email, password, totpCode } = body;
-      if (!client_id || !email || !password) {
-        return json({ error: "client_id, email and password required" }, 400);
+      const { client_id: bodyClientId, email, password, totpCode } = body;
+      if (!email || !password) {
+        return json({ error: "email and password required" }, 400);
       }
-      if (!(await admin.rpc("is_coach_of", { _coach_id: userId, _client_id: client_id })).data) {
-        return json({ error: "Not your client" }, 403);
+      // Two callers: (a) the client themselves (self-connect), (b) a coach on
+      // behalf of the client (legacy fallback). Resolve client_id + coach_id
+      // from the authenticated user.
+      let client_id = bodyClientId as string | undefined;
+      let coach_id: string | null = null;
+      if (!client_id || client_id === userId) {
+        // Self-connect
+        client_id = userId;
+        coach_id = await resolveCoachForClient(userId);
+        if (!coach_id) return json({ error: "no_coach", message: "No active coach found for this account." }, 400);
+      } else {
+        // Coach-on-behalf-of
+        const isCoach = (await admin.rpc("is_coach_of", { _coach_id: userId, _client_id: client_id })).data;
+        if (!isCoach) return json({ error: "Not your client" }, 403);
+        coach_id = userId;
       }
-      const log = webLog({ action: "web_connect", coach_id: userId, client_id });
+      const log = webLog({ action: "web_connect", coach_id, client_id });
       const login = await cronoLogin({ email, password, totpCode, log });
       if (!login.ok) {
         return json({
@@ -765,7 +793,7 @@ Deno.serve(async (req) => {
       const { data: upserted, error: upErr } = await admin
         .from("cronometer_web_sessions")
         .upsert({
-          coach_id: userId,
+          coach_id,
           client_id,
           cronometer_email: email,
           credentials_ciphertext: encCreds,
@@ -789,19 +817,22 @@ Deno.serve(async (req) => {
     }
 
     if (action === "web_disconnect") {
-      const { client_id } = body;
-      if (!client_id) return json({ error: "client_id required" }, 400);
+      const { client_id: bodyClientId } = body;
+      const client_id = (bodyClientId as string | undefined) ?? userId;
+      // RLS enforces: client can only delete their own row; coach can only
+      // delete rows they own. No need to filter on coach_id here.
       await admin
         .from("cronometer_web_sessions")
         .delete()
-        .eq("coach_id", userId)
         .eq("client_id", client_id);
       return json({ success: true });
     }
 
+
     if (action === "web_push_targets") {
-      const { client_id, force } = body;
-      if (!client_id) return json({ error: "client_id required" }, 400);
+      const { client_id: bodyClientId, force } = body;
+      const client_id = (bodyClientId as string | undefined) ?? userId;
+
       const row = await loadWebSession(client_id);
       if (!row) return json({ error: "not_connected" }, 404);
       if (row.status === "needs_reauth") return json({ error: "needs_reauth" }, 409);
@@ -890,8 +921,9 @@ Deno.serve(async (req) => {
     }
 
     if (action === "web_status") {
-      const { client_id } = body;
-      if (!client_id) return json({ error: "client_id required" }, 400);
+      const { client_id: bodyClientId } = body;
+      const client_id = (bodyClientId as string | undefined) ?? userId;
+
       const row = await loadWebSession(client_id);
       if (!row) return json({ success: true, connected: false });
       const targets = await loadCurrentTargets(admin, client_id);
