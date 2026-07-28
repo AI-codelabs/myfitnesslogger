@@ -645,8 +645,269 @@ Deno.serve(async (req) => {
     }
 
 
-    // ───── Legacy no-ops for existing frontend calls ─────
+    // ─────────────────────── WEB TARGET SYNC (scraper) ───────────────────────
+    // These actions push in-app targets into the client's Cronometer account
+    // using a persisted web session. Reads still use the Pro API above.
 
+    const webLog = (extraCtx: LogCtx) => async (entry: {
+      endpoint: string;
+      request_body: unknown;
+      response_status: number | null;
+      response_text: string;
+      error?: string | null;
+      duration_ms: number;
+    }) => {
+      await logApiCall({
+        ctx: { action: extraCtx.action ?? "web", coach_id: extraCtx.coach_id ?? null, client_id: extraCtx.client_id ?? null },
+        endpoint: `WEB ${entry.endpoint}`,
+        request_body: entry.request_body,
+        response_status: entry.response_status,
+        response_text: entry.response_text,
+        error: entry.error,
+        duration_ms: entry.duration_ms,
+      });
+    };
+
+    async function loadWebSession(clientId: string): Promise<WebSessionRow | null> {
+      const { data } = await admin
+        .from("cronometer_web_sessions")
+        .select("*")
+        .eq("coach_id", userId)
+        .eq("client_id", clientId)
+        .maybeSingle();
+      return (data as WebSessionRow) ?? null;
+    }
+
+    async function saveSessionCookies(row: WebSessionRow, cookies: CookieJar, ua: string) {
+      await admin.from("cronometer_web_sessions").update({
+        session_cookies: await encryptJson(cookies),
+        user_agent: ua,
+        last_login_at: new Date().toISOString(),
+        status: "active",
+        last_error: null,
+      }).eq("id", row.id);
+    }
+
+    async function markSessionError(row: WebSessionRow, status: string, err: string) {
+      await admin.from("cronometer_web_sessions").update({
+        status,
+        last_error: err,
+      }).eq("id", row.id);
+    }
+
+    async function doPush(row: WebSessionRow, targets: NutritionTargets): Promise<{ ok: boolean; error?: string }> {
+      let cookies: CookieJar = {};
+      let ua = row.user_agent ?? "";
+      if (row.session_cookies) {
+        try { cookies = await decryptJson<CookieJar>(row.session_cookies); } catch { cookies = {}; }
+      }
+      const log = webLog({ action: "web_push", coach_id: row.coach_id, client_id: row.client_id });
+
+      const attempt = async () => pushTargets({ cookies, userAgent: ua || "", targets, log });
+
+      let res = await attempt();
+      if (!res.ok && res.error === "session_expired") {
+        // Re-login using stored credentials (no TOTP available for automated push).
+        const creds = await decryptJson<{ password: string; totp_secret?: string }>(row.credentials_ciphertext);
+        const login = await cronoLogin({
+          email: row.cronometer_email,
+          password: creds.password,
+          log,
+        });
+        if (!login.ok) {
+          const needsTotp = login.needsTotp || login.error === "totp_required";
+          await markSessionError(row, needsTotp ? "needs_reauth" : "error", login.error);
+          return { ok: false, error: needsTotp ? "needs_reauth" : login.error };
+        }
+        cookies = login.cookies;
+        ua = login.userAgent;
+        await saveSessionCookies(row, cookies, ua);
+        res = await attempt();
+      }
+      if (!res.ok) {
+        await markSessionError(row, "error", res.error ?? "push_failed");
+        return { ok: false, error: res.error };
+      }
+      await admin.from("cronometer_web_sessions").update({
+        session_cookies: await encryptJson(res.cookies),
+        last_push_at: new Date().toISOString(),
+        last_pushed_hash: targetsHash(targets),
+        last_pushed_targets: targets,
+        status: "active",
+        last_error: null,
+      }).eq("id", row.id);
+      return { ok: true };
+    }
+
+    if (action === "web_connect") {
+      const { client_id, email, password, totpCode } = body;
+      if (!client_id || !email || !password) {
+        return json({ error: "client_id, email and password required" }, 400);
+      }
+      if (!(await admin.rpc("is_coach_of", { _coach_id: userId, _client_id: client_id })).data) {
+        return json({ error: "Not your client" }, 403);
+      }
+      const log = webLog({ action: "web_connect", coach_id: userId, client_id });
+      const login = await cronoLogin({ email, password, totpCode, log });
+      if (!login.ok) {
+        return json({
+          error: login.error,
+          needsTotp: login.needsTotp === true,
+          message: login.error === "totp_required"
+            ? "Two-factor code required."
+            : login.error === "bad_credentials"
+              ? "Incorrect email or password."
+              : `Login failed (${login.error}).`,
+        }, 400);
+      }
+      const encCookies = await encryptJson(login.cookies);
+      const encCreds = await encryptJson({ password });
+      const { data: upserted, error: upErr } = await admin
+        .from("cronometer_web_sessions")
+        .upsert({
+          coach_id: userId,
+          client_id,
+          cronometer_email: email,
+          credentials_ciphertext: encCreds,
+          session_cookies: encCookies,
+          user_agent: login.userAgent,
+          status: "active",
+          last_login_at: new Date().toISOString(),
+          last_error: null,
+        }, { onConflict: "coach_id,client_id" })
+        .select()
+        .single();
+      if (upErr) return json({ error: upErr.message }, 500);
+
+      // Immediately push current targets so account is 1:1 from day one.
+      const targets = await loadCurrentTargets(admin, client_id);
+      if (targets) {
+        const r = await doPush(upserted as WebSessionRow, targets);
+        return json({ success: true, first_push: r });
+      }
+      return json({ success: true, first_push: { ok: false, error: "no_targets_yet" } });
+    }
+
+    if (action === "web_disconnect") {
+      const { client_id } = body;
+      if (!client_id) return json({ error: "client_id required" }, 400);
+      await admin
+        .from("cronometer_web_sessions")
+        .delete()
+        .eq("coach_id", userId)
+        .eq("client_id", client_id);
+      return json({ success: true });
+    }
+
+    if (action === "web_push_targets") {
+      const { client_id, force } = body;
+      if (!client_id) return json({ error: "client_id required" }, 400);
+      const row = await loadWebSession(client_id);
+      if (!row) return json({ error: "not_connected" }, 404);
+      if (row.status === "needs_reauth") return json({ error: "needs_reauth" }, 409);
+      const targets = await loadCurrentTargets(admin, client_id);
+      if (!targets) return json({ error: "no_targets" }, 404);
+      if (!force && row.last_pushed_hash === targetsHash(targets)) {
+        return json({ success: true, skipped: "unchanged" });
+      }
+      const r = await doPush(row, targets);
+      return json(r.ok ? { success: true } : { error: r.error, message: r.error }, r.ok ? 200 : 502);
+    }
+
+    if (action === "web_reconcile") {
+      if (!requireCronSecret(req)) return json({ error: "Forbidden" }, 403);
+      const service = createClient(SUPABASE_URL, SERVICE_KEY);
+      const { data: rows } = await service
+        .from("cronometer_web_sessions")
+        .select("*")
+        .in("status", ["active"]);
+      const results: any[] = [];
+      for (const raw of rows ?? []) {
+        const row = raw as WebSessionRow;
+        try {
+          const targets = await loadCurrentTargets(service, row.client_id);
+          if (!targets) { results.push({ client_id: row.client_id, skipped: "no_targets" }); continue; }
+          const currentHash = targetsHash(targets);
+          if (row.last_pushed_hash === currentHash) {
+            // Targets unchanged since last push — nothing to do (Cronometer
+            // keeps the values persistently, so no daily re-push needed).
+            results.push({ client_id: row.client_id, skipped: "unchanged" });
+            continue;
+          }
+          // Rebind admin ownership for helpers scoped to this coach.
+          const scoped: WebSessionRow = row;
+          // Run push using service-role admin (bypass coach scoping).
+          const savedCookies: CookieJar = scoped.session_cookies
+            ? await decryptJson<CookieJar>(scoped.session_cookies)
+            : {};
+          const ua = scoped.user_agent ?? "";
+          const log = webLog({ action: "web_reconcile", coach_id: scoped.coach_id, client_id: scoped.client_id });
+          let pushRes = await pushTargets({ cookies: savedCookies, userAgent: ua, targets, log });
+          if (!pushRes.ok && pushRes.error === "session_expired") {
+            const creds = await decryptJson<{ password: string }>(scoped.credentials_ciphertext);
+            const login = await cronoLogin({ email: scoped.cronometer_email, password: creds.password, log });
+            if (!login.ok) {
+              await service.from("cronometer_web_sessions").update({
+                status: login.needsTotp ? "needs_reauth" : "error",
+                last_error: login.error,
+              }).eq("id", scoped.id);
+              results.push({ client_id: scoped.client_id, error: login.error });
+              continue;
+            }
+            await service.from("cronometer_web_sessions").update({
+              session_cookies: await encryptJson(login.cookies),
+              user_agent: login.userAgent,
+              last_login_at: new Date().toISOString(),
+            }).eq("id", scoped.id);
+            pushRes = await pushTargets({
+              cookies: login.cookies,
+              userAgent: login.userAgent,
+              targets,
+              log,
+            });
+          }
+          if (pushRes.ok) {
+            await service.from("cronometer_web_sessions").update({
+              session_cookies: await encryptJson(pushRes.cookies),
+              last_push_at: new Date().toISOString(),
+              last_pushed_hash: currentHash,
+              last_pushed_targets: targets,
+              last_error: null,
+            }).eq("id", scoped.id);
+            results.push({ client_id: scoped.client_id, pushed: true });
+          } else {
+            await service.from("cronometer_web_sessions").update({
+              status: "error",
+              last_error: pushRes.error ?? "push_failed",
+            }).eq("id", scoped.id);
+            results.push({ client_id: scoped.client_id, error: pushRes.error });
+          }
+        } catch (e) {
+          results.push({ client_id: row.client_id, error: e instanceof Error ? e.message : String(e) });
+        }
+      }
+      return json({ success: true, count: results.length, results });
+    }
+
+    if (action === "web_status") {
+      const { client_id } = body;
+      if (!client_id) return json({ error: "client_id required" }, 400);
+      const row = await loadWebSession(client_id);
+      if (!row) return json({ success: true, connected: false });
+      const targets = await loadCurrentTargets(admin, client_id);
+      const inSync = !!targets && row.last_pushed_hash === targetsHash(targets);
+      return json({
+        success: true,
+        connected: true,
+        status: row.status,
+        email: row.cronometer_email,
+        last_push_at: row.last_push_at,
+        last_error: row.last_error,
+        in_sync: inSync,
+      });
+    }
+
+    // ─────────────────────── Legacy no-ops ───────────────────────
 
     if (action === "connect_and_save" || action === "connect" || action === "login_and_export" || action === "export") {
       return json({
@@ -656,9 +917,21 @@ Deno.serve(async (req) => {
     }
 
     if (action === "push_targets" || action === "admin_sync_all" || action === "reapply_today_targets") {
-      // Cronometer API has no write endpoints. Targets now live in this app.
-      return json({ error: "sync_disabled", message: "Targets are managed in-app; Cronometer API has no write endpoint." }, 200);
+      // Legacy alias — route to web_push_targets.
+      const { client_id } = body;
+      if (client_id) {
+        const row = await loadWebSession(client_id);
+        if (row && row.status === "active") {
+          const t = await loadCurrentTargets(admin, client_id);
+          if (t) {
+            const r = await doPush(row, t);
+            return json(r.ok ? { success: true } : { error: r.error }, r.ok ? 200 : 502);
+          }
+        }
+      }
+      return json({ error: "not_connected", message: "Target sync is not connected for this client." }, 200);
     }
+
 
     return json({
       error: "invalid_action",
