@@ -15,11 +15,9 @@ import {
 } from "@/lib/cronometerPro";
 import {
   getCronometerWebStatus,
-  disconnectCronometerWeb,
   pushCronometerTargets,
   type CronoWebStatus,
 } from "@/lib/cronometerTargetsWeb";
-import { CronometerTargetSyncDialog } from "./CronometerTargetSyncDialog";
 
 interface Props {
   coachId: string;
@@ -43,9 +41,8 @@ const statusColor = (s: CronometerClientLink["status"]) => {
 export function CronometerCoachCard({ coachId, clientId, clientEmail, clientName, lang }: Props) {
   const [link, setLink] = useState<CronometerClientLink | null>(null);
   const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState<null | "invite" | "sync" | "refresh" | "remove" | "push" | "disconnect_web">(null);
+  const [busy, setBusy] = useState<null | "invite" | "sync" | "refresh" | "remove" | "push">(null);
   const [webStatus, setWebStatus] = useState<CronoWebStatus | null>(null);
-  const [connectOpen, setConnectOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -73,15 +70,7 @@ export function CronometerCoachCard({ coachId, clientId, clientEmail, clientName
     load();
   };
 
-  const handleDisconnectWeb = async () => {
-    if (!window.confirm(t(lang, "Doel-sync loskoppelen?", "Disconnect target sync?"))) return;
-    setBusy("disconnect_web");
-    const res = await disconnectCronometerWeb(clientId);
-    setBusy(null);
-    if (res.error) return toast.error(res.error);
-    toast.success(t(lang, "Losgekoppeld", "Disconnected"));
-    load();
-  };
+
 
 
   const handleInvite = async () => {
