@@ -7,11 +7,18 @@ import { Loader2, RefreshCw, Plug, Unplug } from "lucide-react";
 import { Lang } from "@/lib/onboardingSchema";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import { CronometerConnectDialog } from "@/components/CronometerConnectDialog";
+import { CronometerTargetSyncDialog } from "@/components/CronometerTargetSyncDialog";
 import { NutritionWeeklyOverview } from "@/components/NutritionWeeklyOverview";
 import { ClientNutritionDocuments } from "@/components/ClientNutritionDocuments";
 import type { NutritionEntry } from "@/components/NutritionDayDetailDialog";
 import { hasCronometerSession, syncCronometer, disconnectCronometer } from "@/lib/cronometer";
+import {
+  getCronometerWebStatus,
+  disconnectCronometerWeb,
+  type CronoWebStatus,
+} from "@/lib/cronometerTargetsWeb";
 import { toast } from "sonner";
+
 
 
 
