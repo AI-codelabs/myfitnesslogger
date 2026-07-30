@@ -395,6 +395,10 @@ export type Database = {
           id: string
           invited_at: string
           last_error: string | null
+          last_push_at: string | null
+          last_push_error: string | null
+          last_pushed_hash: string | null
+          last_pushed_targets: Json | null
           last_synced_at: string | null
           last_synced_day: string | null
           name: string | null
@@ -411,6 +415,10 @@ export type Database = {
           id?: string
           invited_at?: string
           last_error?: string | null
+          last_push_at?: string | null
+          last_push_error?: string | null
+          last_pushed_hash?: string | null
+          last_pushed_targets?: Json | null
           last_synced_at?: string | null
           last_synced_day?: string | null
           name?: string | null
@@ -427,6 +435,10 @@ export type Database = {
           id?: string
           invited_at?: string
           last_error?: string | null
+          last_push_at?: string | null
+          last_push_error?: string | null
+          last_pushed_hash?: string | null
+          last_pushed_targets?: Json | null
           last_synced_at?: string | null
           last_synced_day?: string | null
           name?: string | null
