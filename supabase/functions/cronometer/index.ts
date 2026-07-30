@@ -144,6 +144,11 @@ async function saveCoachSession(admin: SupabaseClient, session: CoachSession) {
   );
 }
 
+// Login throttle guard (per isolate): Cronometer blocks repeated login bursts.
+let coachLoginBlockedUntil = 0;
+let coachLoginLastError: string | null = null;
+
+
 async function coachLogin(
   admin: SupabaseClient,
   log?: Parameters<typeof cronoLogin>[0]["log"],
