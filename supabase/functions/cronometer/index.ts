@@ -192,12 +192,20 @@ async function pushTargetsAsCoach(args: {
     });
   };
 
+  const recordError = async (err: string) => {
+    await admin.from("cronometer_clients").update({ last_push_error: err }).eq("client_id", clientId);
+  };
+
   let session = await loadCoachSession(admin);
   if (!session) {
     const login = await coachLogin(admin, log);
-    if (!login.ok) return { ok: false, error: login.error };
+    if (!login.ok) {
+      await recordError(`coach_login:${login.error}`);
+      return { ok: false, error: login.error };
+    }
     session = login.session;
   }
+
 
   const attempt = (s: CoachSession) =>
     pushTargets({
