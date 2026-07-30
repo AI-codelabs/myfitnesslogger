@@ -148,11 +148,22 @@ async function coachLogin(
   admin: SupabaseClient,
   log?: Parameters<typeof cronoLogin>[0]["log"],
 ): Promise<{ ok: true; session: CoachSession } | { ok: false; error: string }> {
+  // Cronometer throttles repeated logins hard; never retry within the cooldown.
+  if (Date.now() < coachLoginBlockedUntil) {
+    return { ok: false, error: coachLoginLastError ?? "rate_limited" };
+  }
   const email = Deno.env.get("CRONO_COACH_EMAIL");
   const password = Deno.env.get("CRONO_COACH_PASSWORD");
   if (!email || !password) return { ok: false, error: "coach_credentials_missing" };
   const res = await cronoLogin({ email, password, log });
-  if (!res.ok) return { ok: false, error: res.error };
+  if (!res.ok) {
+    coachLoginLastError = res.error;
+    // One failed login blocks further attempts for 15 minutes (whole runtime).
+    coachLoginBlockedUntil = Date.now() + 15 * 60 * 1000;
+    return { ok: false, error: res.error };
+  }
+  coachLoginBlockedUntil = 0;
+  coachLoginLastError = null;
   const session = { cookies: res.cookies, userAgent: res.userAgent };
   await saveCoachSession(admin, session);
   return { ok: true, session };
