@@ -328,9 +328,26 @@ async function requireCoach(req: Request): Promise<AuthedCall | { error: string;
 }
 
 function requireCronSecret(req: Request): boolean {
-  if (!CRON_SECRET) return false;
-  return req.headers.get("x-cron-secret") === CRON_SECRET;
+  const provided = req.headers.get("x-cron-secret");
+  if (!provided) return false;
+  return !!CRON_SECRET && provided === CRON_SECRET;
 }
+
+/** Cron auth: env CRON_SECRET or the DB-stored token used by the scheduled jobs. */
+async function cronAuthorized(req: Request): Promise<boolean> {
+  if (requireCronSecret(req)) return true;
+  const provided = req.headers.get("x-cron-secret");
+  if (!provided) return false;
+  const service = createClient(SUPABASE_URL, SERVICE_KEY);
+  const { data } = await service
+    .from("internal_secrets")
+    .select("value")
+    .eq("name", "cron_token")
+    .maybeSingle();
+  const token = (data as { value: string } | null)?.value;
+  return !!token && provided === token;
+}
+
 
 // ─────────────────────────── Sync helpers ───────────────────────────
 
