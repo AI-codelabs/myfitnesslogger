@@ -219,7 +219,10 @@ async function pushTargetsAsCoach(args: {
   let res = await attempt(session);
   if (!res.ok && res.error === "session_expired") {
     const login = await coachLogin(admin, log);
-    if (!login.ok) return { ok: false, error: login.error };
+    if (!login.ok) {
+      await recordError(`coach_login:${login.error}`);
+      return { ok: false, error: login.error };
+    }
     session = login.session;
     res = await attempt(session);
   }
