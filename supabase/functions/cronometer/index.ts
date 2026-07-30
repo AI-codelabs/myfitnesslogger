@@ -729,6 +729,7 @@ Deno.serve(async (req) => {
       const results: any[] = [];
       for (const raw of rows ?? []) {
         const row = raw as WebSessionRow;
+        if (pushedClientIds.has(row.client_id)) continue; // already handled by coach push
         try {
           const targets = await loadCurrentTargets(service, row.client_id);
           if (!targets) { results.push({ client_id: row.client_id, skipped: "no_targets" }); continue; }
