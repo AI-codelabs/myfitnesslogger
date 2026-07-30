@@ -347,13 +347,19 @@ export async function pushTargets(args: {
   cookies: CookieJar;
   userAgent: string;
   targets: NutritionTargets;
+  /**
+   * Cronometer numeric user id to write to. Omit to write the logged-in
+   * account's own targets; pass a managed client's id when the session is a
+   * Pro coach session (the coach nonce is accepted for their own clients).
+   */
+  targetUserId?: number;
   log?: LogFn;
 }): Promise<{ ok: boolean; error?: string; endpoint?: string; cookies: CookieJar }> {
   const jar = { ...args.cookies };
   const ua = args.userAgent || UA;
 
   const nonce = jar["sesnonce"];
-  const userId = Number(jar[USER_ID_KEY]);
+  const userId = Number(args.targetUserId ?? jar[USER_ID_KEY]);
   if (!nonce) return { ok: false, error: "session_expired", cookies: jar };
   if (!Number.isFinite(userId) || userId <= 0) {
     return { ok: false, error: "session_expired", cookies: jar };
