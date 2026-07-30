@@ -15,6 +15,11 @@ const UA =
 
 const BASE = "https://cronometer.com";
 
+// Pseudo cookie slot used to carry the Cronometer numeric user id alongside the
+// session cookies (both are persisted together, encrypted).
+const USER_ID_KEY = "__crono_user_id";
+
+
 // ─────────────────────────── AES-GCM helpers ───────────────────────────
 
 async function getKey(): Promise<CryptoKey> {
@@ -89,7 +94,10 @@ function parseSetCookies(headers: Headers, jar: CookieJar) {
 }
 
 function cookieHeader(jar: CookieJar): string {
-  return Object.entries(jar).map(([k, v]) => `${k}=${v}`).join("; ");
+  return Object.entries(jar)
+    .filter(([k]) => k !== USER_ID_KEY)
+    .map(([k, v]) => `${k}=${v}`)
+    .join("; ");
 }
 
 // ─────────────────────────── HTTP helper ───────────────────────────
@@ -169,48 +177,86 @@ export async function cronoLogin(args: {
   const jar: CookieJar = {};
   const ua = UA;
 
-  // 1. Warm session — Cronometer sets JSESSIONID + XSRF cookies on /login.
-  await req("/login", { method: "GET", jar, ua }, args.log);
+  // 1. Warm session — /login/ sets JSESSIONID + a per-session anticsrf cookie,
+  //    and embeds the matching token in a hidden input.
+  const page = await req("/login/", { method: "GET", jar, ua }, args.log);
+  const csrfMatch = page.text.match(
+    /name=["']anticsrf["']\s+value=["']([^"']+)["']/i,
+  ) ?? page.text.match(/value=["']([^"']+)["']\s+name=["']anticsrf["']/i);
+  const anticsrf = csrfMatch?.[1];
+  if (!anticsrf) return { ok: false, error: "csrf_token_missing" };
+
   await jitter(300, 700);
 
-  // 2. Submit credentials (form-encoded, mirrors browser).
+  // 2. Submit credentials exactly like the browser form (jQuery .serialize()).
   const form = new URLSearchParams();
   form.set("username", args.email);
   form.set("password", args.password);
-  if (args.totpCode) form.set("totp", args.totpCode);
-  // xsrf token echo (some deployments require this cookie value in the body).
-  if (jar["XSRF-TOKEN"]) form.set("xsrf", jar["XSRF-TOKEN"]);
+  form.set("userCode", args.totpCode ?? "");
+  form.set("anticsrf", anticsrf);
 
   const res = await req("/login", {
     method: "POST",
     jar,
     ua,
     headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
+      "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+      "X-Requested-With": "XMLHttpRequest",
+      "Accept": "application/json, text/javascript, */*; q=0.01",
       "Origin": BASE,
-      "Referer": `${BASE}/login`,
+      "Referer": `${BASE}/login/`,
     },
     body: form.toString(),
   }, args.log);
 
-  // Cronometer signals success via a redirect (302) or by setting a `sesnonce` cookie.
-  const loggedIn = !!jar["sesnonce"] || !!jar["cf_bm"] && !!jar["JSESSIONID"] && res.status === 302;
-  if (!loggedIn) {
-    const low = res.text.toLowerCase();
-    if (low.includes("two-factor") || low.includes("totp") || low.includes("2fa")) {
-      return { ok: false, error: "totp_required", needsTotp: true };
+  // Cronometer answers with JSON: {error: "..."} or {redirect, id, ...}
+  let payload: { error?: string; redirect?: string; id?: string | number } | null = null;
+  try {
+    payload = JSON.parse(res.text);
+  } catch {
+    payload = null;
+  }
+
+  const err = payload?.error ?? null;
+  if (err) {
+    const up = String(err).toUpperCase();
+    if (up.includes("TOTP")) {
+      return {
+        ok: false,
+        error: up.includes("INCORRECT") ? "totp_incorrect" : "totp_required",
+        needsTotp: true,
+      };
     }
-    if (low.includes("invalid") || low.includes("incorrect")) {
+    if (up.includes("TOO MANY") || up.includes("RATE")) {
+      return { ok: false, error: "rate_limited" };
+    }
+    if (up.includes("CSRF")) return { ok: false, error: "csrf_rejected" };
+    if (
+      up.includes("PASSWORD") || up.includes("USERNAME") ||
+      up.includes("CREDENTIAL") || up.includes("LOGIN_FAILED") ||
+      up.includes("NO_SUCH_USER") || up.includes("INCORRECT")
+    ) {
       return { ok: false, error: "bad_credentials" };
     }
+    return { ok: false, error: `login_error_${err}` };
+  }
+
+  const loggedIn = !!jar["sesnonce"] && (!!payload?.redirect || res.status === 200);
+  if (!loggedIn) {
+    if (res.status === 429) return { ok: false, error: "rate_limited" };
     return { ok: false, error: `login_failed_${res.status}` };
   }
 
+  const userId = Number(payload?.id);
+  if (Number.isFinite(userId) && userId > 0) jar[USER_ID_KEY] = String(userId);
+
   // 3. Warm the app so subsequent target POSTs have full session context.
   await jitter(500, 1200);
-  await req("/cronometer/app", { method: "GET", jar, ua }, args.log);
+  await req("/", { method: "GET", jar, ua }, args.log);
   return { ok: true, cookies: jar, userAgent: ua };
 }
+
+
 
 // ─────────────────────────── Target push ───────────────────────────
 
@@ -225,11 +271,77 @@ export function targetsHash(t: NutritionTargets): string {
   return `${Math.round(t.calories)}|${Math.round(t.protein_g)}|${Math.round(t.carbs_g)}|${Math.round(t.fat_g)}`;
 }
 
+// Cronometer's web app is GWT. Targets are stored as user preferences and set
+// through a single RPC: CronometerService.setUserPreference(nonce, userId, key, value).
+// The payload format below was captured from the live app.
+const GWT_MODULE_BASE = "https://cronometer.com/cronometer/";
+const GWT_SERVICE = "com.cronometer.shared.rpc.CronometerService";
+const GWT_STRING = "java.lang.String/2004016611";
+
+/** Discover the current permutation strong name (policy hash) from the app loader. */
+async function fetchGwtIds(
+  jar: CookieJar,
+  ua: string,
+  log?: LogFn,
+): Promise<{ permutation: string; policy: string }> {
+  const nocache = await req("/cronometer/cronometer.nocache.js", { method: "GET", jar, ua }, log);
+  const permutation = nocache.text.match(/[0-9A-F]{32}/)?.[0];
+  if (!permutation) throw new Error("gwt_permutation_not_found");
+  const cache = await req(`/cronometer/${permutation}.cache.js`, { method: "GET", jar, ua }, log);
+  // The service policy is registered as: Uyj.call(this,...,'app','<POLICY>',...)
+  const policy = cache.text.match(/'app'\s*,\s*'([0-9A-F]{32})'/)?.[1];
+  if (!policy) throw new Error("gwt_policy_not_found");
+  return { permutation, policy };
+}
+
+function buildSetPreferencePayload(
+  policy: string,
+  nonce: string,
+  userId: number,
+  key: string,
+  value: string,
+): string {
+  const strings: string[] = [];
+  const idx = (s: string) => {
+    const at = strings.indexOf(s);
+    if (at >= 0) return at + 1;
+    strings.push(s);
+    return strings.length;
+  };
+  const url = idx(GWT_MODULE_BASE);
+  const pol = idx(policy);
+  const svc = idx(GWT_SERVICE);
+  const method = idx("setUserPreference");
+  const strType = idx(GWT_STRING);
+  const intType = idx("I");
+  const nonceRef = idx(nonce);
+  const keyRef = idx(key);
+  const valRef = idx(value);
+  return [
+    "7",
+    "0",
+    String(strings.length),
+    ...strings,
+    String(url),
+    String(pol),
+    String(svc),
+    String(method),
+    "4", // arg count
+    String(strType),
+    String(intType),
+    String(strType),
+    String(strType),
+    String(nonceRef),
+    String(userId),
+    String(keyRef),
+    String(valRef),
+  ].join("|") + "|";
+}
+
 /**
- * Attempt to push targets. Cronometer's target-update endpoint is an internal
- * GWT-RPC call whose exact contract can change; we try the documented JSON
- * settings endpoint first, then fall back to the RPC path. Every attempt is
- * fully logged so we can iterate from the logs table.
+ * Push targets to Cronometer by writing the same user preferences the
+ * "Targets + Profile → Fixed Targets" screen writes. Min and max are set to the
+ * same value so the client sees an exact 1:1 target.
  */
 export async function pushTargets(args: {
   cookies: CookieJar;
@@ -240,59 +352,83 @@ export async function pushTargets(args: {
   const jar = { ...args.cookies };
   const ua = args.userAgent || UA;
 
-  const payload = {
-    energy_kcal: Math.round(args.targets.calories),
-    protein_g: Math.round(args.targets.protein_g),
-    carbs_g: Math.round(args.targets.carbs_g),
-    fat_g: Math.round(args.targets.fat_g),
-  };
+  const nonce = jar["sesnonce"];
+  const userId = Number(jar[USER_ID_KEY]);
+  if (!nonce) return { ok: false, error: "session_expired", cookies: jar };
+  if (!Number.isFinite(userId) || userId <= 0) {
+    return { ok: false, error: "session_expired", cookies: jar };
+  }
 
-  // Candidate endpoints, tried in order until one returns 2xx.
-  const candidates: Array<{ path: string; body: string; contentType: string }> = [
-    {
-      path: "/user/targets",
-      body: JSON.stringify(payload),
-      contentType: "application/json",
-    },
-    {
-      path: "/profile/targets",
-      body: new URLSearchParams(
-        Object.fromEntries(Object.entries(payload).map(([k, v]) => [k, String(v)])),
-      ).toString(),
-      contentType: "application/x-www-form-urlencoded",
-    },
+  let ids: { permutation: string; policy: string };
+  try {
+    ids = await fetchGwtIds(jar, ua, args.log);
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e), cookies: jar };
+  }
+
+  const kcal = Math.round(args.targets.calories);
+  const protein = Math.round(args.targets.protein_g);
+  const carbs = Math.round(args.targets.carbs_g);
+  const fat = Math.round(args.targets.fat_g);
+
+  // Force the "Fixed Targets" mode, then write each macro (min + max) and the
+  // custom energy target. Order matters: mode first, energy last.
+  const prefs: Array<[string, string]> = [
+    ["targets.macros", "targets.macros.fixedvalues.grams"],
+    ["targets.fixed.protein", String(protein)],
+    ["targets.fixed.protein.max", String(protein)],
+    ["targets.fixed.net.carbs", String(carbs)],
+    ["targets.fixed.net.carbs.max", String(carbs)],
+    ["targets.fixed.total.carbs", String(carbs)],
+    ["targets.fixed.total.carbs.max", String(carbs)],
+    ["targets.fixed.fats", String(fat)],
+    ["targets.fixed.fats.max", String(fat)],
+    ["targets.custom.energy.target", String(kcal)],
+    ["targets.custom.energy.target.max", String(kcal)],
   ];
 
-  let lastErr = "no_endpoint_accepted";
-  for (const c of candidates) {
-    await jitter(600, 1400);
+  for (const [key, value] of prefs) {
+    await jitter(150, 400);
+    let res;
     try {
-      const res = await req(c.path, {
+      res = await req("/cronometer/app", {
         method: "POST",
         jar,
         ua,
         headers: {
-          "Content-Type": c.contentType,
-          "Accept": "application/json, text/plain, */*",
+          "Content-Type": "text/x-gwt-rpc; charset=UTF-8",
+          "Accept": "*/*",
+          "X-GWT-Permutation": ids.permutation,
+          "X-GWT-Module-Base": GWT_MODULE_BASE,
           "Origin": BASE,
-          "Referer": `${BASE}/cronometer/app`,
-          ...(jar["XSRF-TOKEN"] ? { "X-XSRF-TOKEN": jar["XSRF-TOKEN"] } : {}),
+          "Referer": `${BASE}/`,
         },
-        body: c.body,
+        body: buildSetPreferencePayload(ids.policy, nonce, userId, key, value),
       }, args.log);
-      if (res.status >= 200 && res.status < 300) {
-        return { ok: true, endpoint: c.path, cookies: jar };
-      }
-      if (res.status === 401 || res.status === 403) {
-        return { ok: false, error: "session_expired", cookies: jar };
-      }
-      lastErr = `${c.path}=${res.status}`;
     } catch (e) {
-      lastErr = e instanceof Error ? e.message : String(e);
+      return { ok: false, error: e instanceof Error ? e.message : String(e), cookies: jar };
+    }
+
+    if (res.status === 401 || res.status === 403) {
+      return { ok: false, error: "session_expired", cookies: jar };
+    }
+    if (res.status < 200 || res.status >= 300) {
+      return { ok: false, error: `rpc_${key}_${res.status}`, cookies: jar };
+    }
+    // GWT answers "//OK[...]" on success and "//EX[...]" on a server exception.
+    if (res.text.startsWith("//EX")) {
+      const expired = /NotLoggedIn|SessionExpired|Authentication/i.test(res.text);
+      return {
+        ok: false,
+        error: expired ? "session_expired" : `rpc_exception_${key}`,
+        cookies: jar,
+      };
     }
   }
-  return { ok: false, error: lastErr, cookies: jar };
+
+  return { ok: true, endpoint: "gwt:setUserPreference", cookies: jar };
 }
+
 
 // ─────────────────────────── DB helpers ───────────────────────────
 
