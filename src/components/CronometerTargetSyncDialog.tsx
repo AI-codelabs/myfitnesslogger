@@ -91,13 +91,25 @@ export function CronometerTargetSyncDialog({
           </div>
           <div className="space-y-1.5">
             <Label>{t(lang, "Wachtwoord", "Password")}</Label>
-            <Input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="current-password"
-            />
+            <div className="relative">
+              <Input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+                className="pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? t(lang, "Wachtwoord verbergen", "Hide password") : t(lang, "Wachtwoord tonen", "Show password")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
+
           {needsTotp && (
             <div className="space-y-1.5">
               <Label>{t(lang, "2FA-code (6 cijfers)", "2FA code (6 digits)")}</Label>
