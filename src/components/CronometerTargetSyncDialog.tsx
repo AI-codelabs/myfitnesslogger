@@ -25,6 +25,7 @@ export function CronometerTargetSyncDialog({
 }: Props) {
   const [email, setEmail] = useState(defaultEmail ?? "");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [totpCode, setTotpCode] = useState("");
   const [needsTotp, setNeedsTotp] = useState(false);
   const [busy, setBusy] = useState(false);
