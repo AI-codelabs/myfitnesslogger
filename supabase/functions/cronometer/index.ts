@@ -805,7 +805,13 @@ Deno.serve(async (req) => {
           results.push({ client_id: row.client_id, error: e instanceof Error ? e.message : String(e) });
         }
       }
-      return json({ success: true, count: results.length, results });
+      return json({
+        success: true,
+        coach_count: coachResults.length,
+        coach_results: coachResults,
+        count: results.length,
+        results,
+      });
     }
 
     // ─────────────────────── CLIENT TARGET SYNC (any signed-in user) ───────────────────────
