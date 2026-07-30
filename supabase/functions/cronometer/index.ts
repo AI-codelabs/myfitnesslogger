@@ -112,6 +112,147 @@ async function logApiCall(entry: {
   }
 }
 
+// ───────────────── Coach-session target push (preferred path) ─────────────────
+// Cronometer's diary reads the coach-managed target set, so client-side pushes
+// are overridden. One Pro coach web session can write any managed client's
+// preferences (the client's numeric Cronometer id is the RPC user argument),
+// so we keep a single encrypted coach session server-side and push from it.
+
+const COACH_SESSION_KEY = "crono_coach_session";
+
+type CoachSession = { cookies: CookieJar; userAgent: string };
+
+async function loadCoachSession(admin: SupabaseClient): Promise<CoachSession | null> {
+  const { data } = await admin
+    .from("internal_secrets")
+    .select("value")
+    .eq("name", COACH_SESSION_KEY)
+    .maybeSingle();
+  const blob = (data as { value: string } | null)?.value;
+  if (!blob) return null;
+  try {
+    return await decryptJson<CoachSession>(blob);
+  } catch {
+    return null;
+  }
+}
+
+async function saveCoachSession(admin: SupabaseClient, session: CoachSession) {
+  await admin.from("internal_secrets").upsert(
+    { name: COACH_SESSION_KEY, value: await encryptJson(session) },
+    { onConflict: "name" },
+  );
+}
+
+async function coachLogin(
+  admin: SupabaseClient,
+  log?: Parameters<typeof cronoLogin>[0]["log"],
+): Promise<{ ok: true; session: CoachSession } | { ok: false; error: string }> {
+  const email = Deno.env.get("CRONO_COACH_EMAIL");
+  const password = Deno.env.get("CRONO_COACH_PASSWORD");
+  if (!email || !password) return { ok: false, error: "coach_credentials_missing" };
+  const res = await cronoLogin({ email, password, log });
+  if (!res.ok) return { ok: false, error: res.error };
+  const session = { cookies: res.cookies, userAgent: res.userAgent };
+  await saveCoachSession(admin, session);
+  return { ok: true, session };
+}
+
+/** Push targets into a managed client's Cronometer account via the coach session. */
+async function pushTargetsAsCoach(args: {
+  admin: SupabaseClient;
+  clientId: string;
+  cronometerClientId: number;
+  targets: NutritionTargets;
+  coachId?: string | null;
+  action?: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  const { admin, clientId, cronometerClientId, targets } = args;
+  const log = async (entry: {
+    endpoint: string;
+    request_body: unknown;
+    response_status: number | null;
+    response_text: string;
+    error?: string | null;
+    duration_ms: number;
+  }) => {
+    await logApiCall({
+      ctx: {
+        action: args.action ?? "coach_push",
+        coach_id: args.coachId ?? null,
+        client_id: clientId,
+        cronometer_client_id: cronometerClientId,
+      },
+      endpoint: `WEBCOACH ${entry.endpoint}`,
+      request_body: entry.request_body,
+      response_status: entry.response_status,
+      response_text: entry.response_text,
+      error: entry.error,
+      duration_ms: entry.duration_ms,
+    });
+  };
+
+  let session = await loadCoachSession(admin);
+  if (!session) {
+    const login = await coachLogin(admin, log);
+    if (!login.ok) return { ok: false, error: login.error };
+    session = login.session;
+  }
+
+  const attempt = (s: CoachSession) =>
+    pushTargets({
+      cookies: s.cookies,
+      userAgent: s.userAgent,
+      targets,
+      targetUserId: cronometerClientId,
+      log,
+    });
+
+  let res = await attempt(session);
+  if (!res.ok && res.error === "session_expired") {
+    const login = await coachLogin(admin, log);
+    if (!login.ok) return { ok: false, error: login.error };
+    session = login.session;
+    res = await attempt(session);
+  }
+
+  if (res.ok) {
+    await saveCoachSession(admin, { cookies: res.cookies, userAgent: session.userAgent });
+    await admin.from("cronometer_clients").update({
+      last_pushed_hash: targetsHash(targets),
+      last_pushed_targets: targets,
+      last_push_at: new Date().toISOString(),
+      last_push_error: null,
+    }).eq("client_id", clientId);
+    return { ok: true };
+  }
+
+  await admin.from("cronometer_clients").update({
+    last_push_error: res.error ?? "push_failed",
+  }).eq("client_id", clientId);
+  return { ok: false, error: res.error };
+}
+
+async function getCronoLink(admin: SupabaseClient, clientId: string) {
+  const { data } = await admin
+    .from("cronometer_clients")
+    .select("coach_id, client_id, cronometer_client_id, email, status, last_pushed_hash, last_push_at, last_push_error")
+    .eq("client_id", clientId)
+    .maybeSingle();
+  return data as
+    | {
+      coach_id: string;
+      client_id: string;
+      cronometer_client_id: number | null;
+      email: string;
+      status: string;
+      last_pushed_hash: string | null;
+      last_push_at: string | null;
+      last_push_error: string | null;
+    }
+    | null;
+}
+
 async function callCrono<T = any>(
   path: string,
   body: Record<string, unknown>,
