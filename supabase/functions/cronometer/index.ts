@@ -685,6 +685,43 @@ Deno.serve(async (req) => {
     if (action === "web_reconcile") {
       if (!requireCronSecret(req)) return json({ error: "Forbidden" }, 403);
       const service = createClient(SUPABASE_URL, SERVICE_KEY);
+
+      // Primary pass: coach-session pushes for every linked Cronometer client.
+      const coachResults: any[] = [];
+      const { data: links } = await service
+        .from("cronometer_clients")
+        .select("coach_id, client_id, cronometer_client_id, last_pushed_hash")
+        .not("cronometer_client_id", "is", null);
+      const pushedClientIds = new Set<string>();
+      for (const raw of links ?? []) {
+        const link = raw as {
+          coach_id: string;
+          client_id: string;
+          cronometer_client_id: number;
+          last_pushed_hash: string | null;
+        };
+        try {
+          const targets = await loadCurrentTargets(service, link.client_id);
+          if (!targets) { coachResults.push({ client_id: link.client_id, skipped: "no_targets" }); continue; }
+          pushedClientIds.add(link.client_id);
+          if (link.last_pushed_hash === targetsHash(targets)) {
+            coachResults.push({ client_id: link.client_id, skipped: "unchanged" });
+            continue;
+          }
+          const r = await pushTargetsAsCoach({
+            admin: service,
+            clientId: link.client_id,
+            cronometerClientId: Number(link.cronometer_client_id),
+            targets,
+            coachId: link.coach_id,
+            action: "web_reconcile",
+          });
+          coachResults.push({ client_id: link.client_id, pushed: r.ok, error: r.error });
+        } catch (e) {
+          coachResults.push({ client_id: link.client_id, error: e instanceof Error ? e.message : String(e) });
+        }
+      }
+
       const { data: rows } = await service
         .from("cronometer_web_sessions")
         .select("*")
