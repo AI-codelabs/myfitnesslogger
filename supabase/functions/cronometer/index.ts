@@ -993,12 +993,34 @@ Deno.serve(async (req) => {
       const { client_id: bodyClientId, force } = body;
       const client_id = (bodyClientId as string | undefined) ?? userId;
 
+      const targets = await loadCurrentTargets(admin, client_id);
+      if (!targets) return json({ error: "no_targets" }, 404);
+      const hash = targetsHash(targets);
+
+      // Preferred: push from the Pro coach session (the diary reads the
+      // coach-managed target set, which overrides client-side targets).
+      const link = await getCronoLink(admin, client_id);
+      if (link?.cronometer_client_id) {
+        if (!force && link.last_pushed_hash === hash) {
+          return json({ success: true, skipped: "unchanged" });
+        }
+        const r = await pushTargetsAsCoach({
+          admin,
+          clientId: client_id,
+          cronometerClientId: Number(link.cronometer_client_id),
+          targets,
+          coachId: link.coach_id,
+          action: "web_push_targets",
+        });
+        if (r.ok) return json({ success: true, mode: "coach" });
+        return json({ error: r.error, message: r.error, mode: "coach" }, 502);
+      }
+
+      // Fallback: legacy per-client web session.
       const row = await loadWebSession(client_id);
       if (!row) return json({ error: "not_connected" }, 404);
       if (row.status === "needs_reauth") return json({ error: "needs_reauth" }, 409);
-      const targets = await loadCurrentTargets(admin, client_id);
-      if (!targets) return json({ error: "no_targets" }, 404);
-      if (!force && row.last_pushed_hash === targetsHash(targets)) {
+      if (!force && row.last_pushed_hash === hash) {
         return json({ success: true, skipped: "unchanged" });
       }
       const r = await doPush(row, targets);
@@ -1008,14 +1030,29 @@ Deno.serve(async (req) => {
     if (action === "web_status") {
       const { client_id: bodyClientId } = body;
       const client_id = (bodyClientId as string | undefined) ?? userId;
+      const targets = await loadCurrentTargets(admin, client_id);
+
+      const link = await getCronoLink(admin, client_id);
+      if (link?.cronometer_client_id) {
+        return json({
+          success: true,
+          connected: true,
+          mode: "coach",
+          status: link.last_push_error ? "error" : "active",
+          email: link.email,
+          last_push_at: link.last_push_at,
+          last_error: link.last_push_error,
+          in_sync: !!targets && link.last_pushed_hash === targetsHash(targets),
+        });
+      }
 
       const row = await loadWebSession(client_id);
       if (!row) return json({ success: true, connected: false });
-      const targets = await loadCurrentTargets(admin, client_id);
       const inSync = !!targets && row.last_pushed_hash === targetsHash(targets);
       return json({
         success: true,
         connected: true,
+        mode: "client",
         status: row.status,
         email: row.cronometer_email,
         last_push_at: row.last_push_at,
