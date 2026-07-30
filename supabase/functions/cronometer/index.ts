@@ -573,7 +573,7 @@ Deno.serve(async (req) => {
 
     // ───── Cron entry point ─────
     if (action === "sync_all") {
-      if (!requireCronSecret(req)) return json({ error: "Forbidden" }, 403);
+      if (!(await cronAuthorized(req))) return json({ error: "Forbidden" }, 403);
       const admin = createClient(SUPABASE_URL, SERVICE_KEY);
       const { data: clients, error } = await admin
         .from("cronometer_clients")
@@ -598,7 +598,7 @@ Deno.serve(async (req) => {
     // ───── Hourly reconcile (cron) ─────
     // Refreshes upstream client status for all rows and syncs newly-active clients.
     if (action === "hourly_reconcile") {
-      if (!requireCronSecret(req)) return json({ error: "Forbidden" }, 403);
+      if (!(await cronAuthorized(req))) return json({ error: "Forbidden" }, 403);
       const admin = createClient(SUPABASE_URL, SERVICE_KEY);
       const resp = await callCrono<any>("/client_status", {}, { action: "hourly_reconcile" });
       const list: any[] = Array.isArray(resp) ? resp : (resp?.clients ?? []);
@@ -700,7 +700,7 @@ Deno.serve(async (req) => {
 
     // Cron target reconcile — must run before user auth (uses x-cron-secret only).
     if (action === "web_reconcile") {
-      if (!requireCronSecret(req)) return json({ error: "Forbidden" }, 403);
+      if (!(await cronAuthorized(req))) return json({ error: "Forbidden" }, 403);
       const service = createClient(SUPABASE_URL, SERVICE_KEY);
 
       // Primary pass: coach-session pushes for every linked Cronometer client.
