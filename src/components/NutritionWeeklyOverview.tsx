@@ -6,7 +6,7 @@ import { Lang } from "@/lib/onboardingSchema";
 import { cn } from "@/lib/utils";
 import {
   NutritionDayDetailDialog,
-  NutritionEntry,
+  type DayDetailLog,
 } from "@/components/NutritionDayDetailDialog";
 
 export interface DailyLog {
@@ -15,7 +15,10 @@ export interface DailyLog {
   protein_g: number;
   carbs_g: number;
   fat_g: number;
-  entries?: NutritionEntry[] | null;
+  fiber_g?: number | null;
+  sugar_g?: number | null;
+  sodium_mg?: number | null;
+  entries?: DayDetailLog["entries"];
 }
 
 interface Targets {
@@ -438,8 +441,8 @@ export const NutritionWeeklyOverview = ({ lang, logs, targets }: Props) => {
         </div>
         <p className="text-[11px] text-muted-foreground mt-2">
           {t(
-            "Tip: tik of klik op een dag om alle voedingsmiddelen te bekijken.",
-            "Tip: tap or click a day to see all foods logged.",
+            "Tip: tik of klik op een dag om maaltijden en nutriënten te bekijken.",
+            "Tip: tap or click a day to see meals and nutrients.",
           )}
         </p>
       </Card>

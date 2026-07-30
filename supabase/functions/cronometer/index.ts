@@ -195,37 +195,128 @@ function requireCronSecret(req: Request): boolean {
 
 const ymd = (d: Date) => d.toISOString().slice(0, 10);
 
-function normalizeDiary(day: string, payload: any) {
-  // Cronometer's diary_summary currently returns macro totals under `macros`
-  // (kcal, protein, total_carbs, fat), while older/export shapes may use
-  // totals/nutrients with different casing. Keep this tolerant so raw API
-  // shape changes do not silently zero out nutrition summaries.
-  const totals = payload?.macros ?? payload?.totals ?? payload?.summary ?? payload ?? {};
-  const nutrients = payload?.nutrients ?? {};
-  const lowerTotals = Object.fromEntries(
-    Object.entries(totals).map(([key, value]) => [key.toLowerCase(), value]),
-  );
-  const lowerNutrients = Object.fromEntries(
-    Object.entries(nutrients).map(([key, value]) => [key.toLowerCase(), value]),
-  );
-  const num = (...keys: string[]) => {
+function numPick(sources: Record<string, unknown>[], ...keys: string[]): number {
+  for (const src of sources) {
+    const lower = Object.fromEntries(
+      Object.entries(src).map(([k, v]) => [k.toLowerCase(), v]),
+    );
     for (const key of keys) {
-      const normalized = key.toLowerCase();
-      const value = totals[key] ?? nutrients[key] ?? lowerTotals[normalized] ?? lowerNutrients[normalized];
+      const value = src[key] ?? lower[key.toLowerCase()];
       if (value !== undefined && value !== null && value !== "") return Number(value) || 0;
     }
-    return 0;
+  }
+  return 0;
+}
+
+function macrosFromPayload(raw: Record<string, unknown> | null | undefined) {
+  if (!raw || typeof raw !== "object") {
+    return { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 };
+  }
+  return {
+    calories: numPick([raw], "kcal", "calories", "energy", "energy_kcal"),
+    protein_g: numPick([raw], "protein", "protein_g"),
+    carbs_g: numPick([raw], "total_carbs", "carbs", "carbohydrates", "carbohydrates_g"),
+    fat_g: numPick([raw], "fat", "fat_g"),
+    fiber_g: numPick([raw], "fiber", "fiber_g"),
+    sugar_g: numPick([raw], "sugars", "sugar", "sugar_g"),
+    sodium_mg: numPick([raw], "sodium", "sodium_mg"),
+    net_carbs_g: numPick([raw], "net_carbs", "net carbs"),
+    alcohol_g: numPick([raw], "alcohol"),
+    magnesium_mg: numPick([raw], "magnesium"),
+    potassium_mg: numPick([raw], "potassium"),
   };
+}
+
+function isCronoMealGroups(v: unknown): v is Array<Record<string, unknown>> {
+  if (!Array.isArray(v) || v.length === 0) return false;
+  const first = v[0];
+  return !!first && typeof first === "object" && Array.isArray((first as { foods?: unknown }).foods);
+}
+
+/** Build versioned meal/nutrient payload stored in cronometer_nutrition_logs.entries. */
+function buildDiaryEntries(payload: any) {
+  const foods = payload?.foods;
+  let meals: any[] = [];
+  if (isCronoMealGroups(foods)) {
+    meals = foods.map((g) => ({
+      name: String(g.name || "Other"),
+      foods: (Array.isArray(g.foods) ? g.foods : []).map((f: any) => ({
+        name: String(f?.name ?? "—"),
+        serving: f?.serving != null ? String(f.serving) : undefined,
+      })),
+      macros: macrosFromPayload(
+        (g.macros && typeof g.macros === "object" ? g.macros : {}) as Record<string, unknown>,
+      ),
+    }));
+  } else {
+    const flat = payload?.entries ?? payload?.servings ?? payload?.diary ?? [];
+    if (Array.isArray(flat) && flat.length) {
+      const map = new Map<string, any>();
+      for (const e of flat) {
+        const groupName = String(e?.group || e?.category || "Other").trim() || "Other";
+        if (!map.has(groupName)) {
+          map.set(groupName, {
+            name: groupName,
+            foods: [],
+            macros: { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 },
+          });
+        }
+        const g = map.get(groupName)!;
+        g.foods.push({
+          name: String(e?.name ?? "—"),
+          serving: e?.amount ?? e?.serving ?? undefined,
+        });
+        g.macros.calories += Number(e?.calories) || 0;
+        g.macros.protein_g += Number(e?.protein) || 0;
+        g.macros.carbs_g += Number(e?.carbohydrates ?? e?.carbs) || 0;
+        g.macros.fat_g += Number(e?.fat) || 0;
+      }
+      meals = Array.from(map.values());
+    }
+  }
+
+  const nutrientsRaw = payload?.nutrients && typeof payload.nutrients === "object" ? payload.nutrients : {};
+  const nutrients: Record<string, number> = {};
+  for (const [k, v] of Object.entries(nutrientsRaw)) {
+    const n = Number(v);
+    if (!Number.isNaN(n)) nutrients[k] = n;
+  }
+
+  const extras = macrosFromPayload(
+    (payload?.macros ?? payload?.totals ?? payload?.summary ?? {}) as Record<string, unknown>,
+  );
+
+  return {
+    version: 2 as const,
+    completed: payload?.completed === true,
+    food_grams: payload?.food_grams != null ? Number(payload.food_grams) || undefined : undefined,
+    meals,
+    nutrients: Object.keys(nutrients).length ? nutrients : undefined,
+    extras,
+  };
+}
+
+function normalizeDiary(day: string, payload: any) {
+  // Cronometer's diary_summary returns day macros under `macros`, meal groups under
+  // `foods[]` (each with nested foods + macros), and a full `nutrients` micronutrient map.
+  const totals = (payload?.macros ?? payload?.totals ?? payload?.summary ?? payload ?? {}) as Record<string, unknown>;
+  const nutrients = (payload?.nutrients ?? {}) as Record<string, unknown>;
+  const macros = macrosFromPayload(totals);
+  // Prefer day macros; fall back to nutrient map for sugar/sodium/fiber aliases.
+  const fiber = macros.fiber_g || numPick([totals, nutrients], "fiber", "fiber_g", "Fiber");
+  const sugar = macros.sugar_g || numPick([totals, nutrients], "sugars", "sugar", "sugar_g", "Sugars");
+  const sodium = macros.sodium_mg || numPick([totals, nutrients], "sodium", "sodium_mg", "Sodium");
+
   return {
     log_date: day,
-    calories: num("kcal", "calories", "energy", "energy_kcal"),
-    protein_g: num("protein", "protein_g"),
-    carbs_g: num("total_carbs", "carbs", "carbohydrates", "carbohydrates_g"),
-    fat_g: num("fat", "fat_g"),
-    fiber_g: num("fiber", "fiber_g"),
-    sugar_g: num("sugars", "sugar", "sugar_g"),
-    sodium_mg: num("sodium", "sodium_mg"),
-    entries: payload?.entries ?? payload?.servings ?? payload?.foods ?? payload?.diary ?? [],
+    calories: macros.calories,
+    protein_g: macros.protein_g,
+    carbs_g: macros.carbs_g,
+    fat_g: macros.fat_g,
+    fiber_g: fiber,
+    sugar_g: sugar,
+    sodium_mg: sodium,
+    entries: buildDiaryEntries(payload),
     source: "api",
     synced_at: new Date().toISOString(),
   };

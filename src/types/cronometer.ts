@@ -1,3 +1,7 @@
+import type { DiaryDayPayload, MealFood, MealGroup, MealMacros } from "@/lib/nutritionDiary";
+
+export type { MealFood, MealGroup, MealMacros, DiaryDayPayload };
+
 export interface CronometerEntry {
   name: string;
   amount: string;
@@ -15,6 +19,8 @@ export interface CronometerEntry {
 export interface DayLog {
   date: string;
   entries: CronometerEntry[];
+  /** Preferred rich meal payload from Pro diary_summary sync. */
+  diary?: DiaryDayPayload;
   totals: {
     calories: number;
     protein: number;

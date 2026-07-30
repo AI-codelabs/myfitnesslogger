@@ -46,7 +46,7 @@ const DaySection = ({ day }: { day: DayLog }) => {
         <>
           {day.entries.length === 0 ? (
             <div className="px-4 py-4 text-xs text-muted-foreground">
-              Cronometer only shares daily totals with coaches — per-meal detail isn't available.
+              No meal items for this day. Sync Cronometer again to pull per-meal detail.
             </div>
           ) : (
             <>

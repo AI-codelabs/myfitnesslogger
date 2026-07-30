@@ -10,7 +10,7 @@ import { CronometerConnectDialog } from "@/components/CronometerConnectDialog";
 import { CronometerTargetSyncDialog } from "@/components/CronometerTargetSyncDialog";
 import { NutritionWeeklyOverview } from "@/components/NutritionWeeklyOverview";
 import { ClientNutritionDocuments } from "@/components/ClientNutritionDocuments";
-import type { NutritionEntry } from "@/components/NutritionDayDetailDialog";
+import type { DayDetailLog } from "@/components/NutritionDayDetailDialog";
 import { hasCronometerSession, syncCronometer, disconnectCronometer } from "@/lib/cronometer";
 import {
   getCronometerWebStatus,
@@ -31,8 +31,10 @@ interface NutritionLog {
   carbs_g: number;
   fat_g: number;
   fiber_g: number;
+  sugar_g?: number;
+  sodium_mg?: number;
   synced_at: string;
-  entries: NutritionEntry[] | null;
+  entries: DayDetailLog["entries"];
 }
 
 interface NutritionPlanDetails {
@@ -82,7 +84,7 @@ const ClientNutrition = () => {
         .maybeSingle(),
       supabase
         .from("cronometer_nutrition_logs")
-        .select("id, log_date, calories, protein_g, carbs_g, fat_g, fiber_g, synced_at, entries")
+        .select("id, log_date, calories, protein_g, carbs_g, fat_g, fiber_g, sugar_g, sodium_mg, synced_at, entries")
         .eq("client_id", user.id)
         .order("log_date", { ascending: false })
         .limit(14),

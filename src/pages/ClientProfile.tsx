@@ -147,7 +147,7 @@ const ClientProfile = () => {
           .maybeSingle(),
         supabase
           .from("cronometer_nutrition_logs")
-          .select("log_date, calories, protein_g, carbs_g, fat_g")
+          .select("log_date, calories, protein_g, carbs_g, fat_g, fiber_g, sugar_g, sodium_mg, entries")
           .eq("client_id", clientId)
           .order("log_date", { ascending: false })
           .limit(60),
