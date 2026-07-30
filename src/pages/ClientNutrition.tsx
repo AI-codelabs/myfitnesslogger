@@ -87,7 +87,7 @@ const ClientNutrition = () => {
         .select("id, log_date, calories, protein_g, carbs_g, fat_g, fiber_g, sugar_g, sodium_mg, synced_at, entries")
         .eq("client_id", user.id)
         .order("log_date", { ascending: false })
-        .limit(14),
+        .limit(60),
     ]);
     setNutrition((planRes.data as NutritionPlan | null) ?? null);
     setConnected(!!sessionRes.data);
