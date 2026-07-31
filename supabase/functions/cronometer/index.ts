@@ -577,8 +577,6 @@ Deno.serve(async (req) => {
       return json({ success: true, upstream_count: list.length, reconciled: summary.length, summary });
     }
 
-
-
     // ───── Client-invoked self sync (no coach role required) ─────
     if (action === "sync") {
       const authHeader = req.headers.get("Authorization");
