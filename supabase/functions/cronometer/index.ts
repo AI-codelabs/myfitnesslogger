@@ -832,6 +832,123 @@ Deno.serve(async (req) => {
       return { ok: true };
     }
 
+    // ── Coach-session push (no client password needed) ──
+    // Uses the Pro coach's own Cronometer web session to write the managed
+    // client's targets. The coach session row is stored with client_id = coach_id.
+    const COACH_EMAIL = Deno.env.get("CRONO_COACH_EMAIL") ?? "";
+    const COACH_PASSWORD = Deno.env.get("CRONO_COACH_PASSWORD") ?? "";
+
+    async function findProLink(clientId: string): Promise<
+      { coach_id: string; cronometer_client_id: number } | null
+    > {
+      const { data } = await admin
+        .from("cronometer_clients")
+        .select("coach_id, cronometer_client_id, status")
+        .eq("client_id", clientId)
+        .not("cronometer_client_id", "is", null)
+        .order("invited_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const row = data as { coach_id: string; cronometer_client_id: number } | null;
+      return row?.cronometer_client_id ? row : null;
+    }
+
+    async function loadCoachSessionRow(coachId: string): Promise<WebSessionRow | null> {
+      const { data } = await admin
+        .from("cronometer_web_sessions")
+        .select("*")
+        .eq("coach_id", coachId)
+        .eq("client_id", coachId)
+        .maybeSingle();
+      return (data as WebSessionRow) ?? null;
+    }
+
+    async function ensureCoachSession(
+      coachId: string,
+      log: ReturnType<typeof webLog>,
+    ): Promise<{ cookies: CookieJar; ua: string; rowId: string } | { error: string }> {
+      if (!COACH_EMAIL || !COACH_PASSWORD) return { error: "coach_credentials_missing" };
+      const row = await loadCoachSessionRow(coachId);
+      if (row?.session_cookies) {
+        try {
+          const cookies = await decryptJson<CookieJar>(row.session_cookies);
+          if (cookies["sesnonce"]) {
+            return { cookies, ua: row.user_agent ?? "", rowId: row.id };
+          }
+        } catch { /* fall through to fresh login */ }
+      }
+      const login = await cronoLogin({ email: COACH_EMAIL, password: COACH_PASSWORD, log });
+      if (!login.ok) return { error: login.error || "coach_login_failed" };
+      const payload = {
+        coach_id: coachId,
+        client_id: coachId,
+        cronometer_email: COACH_EMAIL,
+        credentials_ciphertext: await encryptJson({ password: COACH_PASSWORD }),
+        session_cookies: await encryptJson(login.cookies),
+        user_agent: login.userAgent,
+        status: "active",
+        last_login_at: new Date().toISOString(),
+        last_error: null,
+      };
+      const { data: saved } = await admin
+        .from("cronometer_web_sessions")
+        .upsert(payload, { onConflict: "coach_id,client_id" })
+        .select("id")
+        .single();
+      return { cookies: login.cookies, ua: login.userAgent, rowId: (saved as any)?.id ?? "" };
+    }
+
+    async function coachPush(
+      clientId: string,
+      targets: NutritionTargets,
+    ): Promise<{ ok: boolean; error?: string }> {
+      const link = await findProLink(clientId);
+      if (!link) return { ok: false, error: "not_linked" };
+      const log = webLog({ action: "web_push_coach", coach_id: link.coach_id, client_id: clientId });
+
+      let session = await ensureCoachSession(link.coach_id, log);
+      if ("error" in session) return { ok: false, error: session.error };
+
+      let res = await pushTargets({
+        cookies: session.cookies,
+        userAgent: session.ua,
+        targets,
+        targetUserId: link.cronometer_client_id,
+        log,
+      });
+      if (!res.ok && res.error === "session_expired") {
+        // Force a fresh coach login and retry once.
+        if (session.rowId) {
+          await admin.from("cronometer_web_sessions")
+            .update({ session_cookies: null })
+            .eq("id", session.rowId);
+        }
+        session = await ensureCoachSession(link.coach_id, log);
+        if ("error" in session) return { ok: false, error: session.error };
+        res = await pushTargets({
+          cookies: session.cookies,
+          userAgent: session.ua,
+          targets,
+          targetUserId: link.cronometer_client_id,
+          log,
+        });
+      }
+      if (session.rowId) {
+        await admin.from("cronometer_web_sessions").update({
+          session_cookies: await encryptJson(res.cookies),
+          last_push_at: res.ok ? new Date().toISOString() : undefined,
+          status: res.ok ? "active" : "error",
+          last_error: res.ok ? null : (res.error ?? "push_failed"),
+        }).eq("id", session.rowId);
+      }
+      await admin.from("cronometer_clients").update({
+        last_error: res.ok ? null : (res.error ?? "push_failed"),
+      }).eq("client_id", clientId).eq("coach_id", link.coach_id);
+      return res.ok ? { ok: true } : { ok: false, error: res.error };
+    }
+
+
+
     if (action === "web_connect") {
       const { client_id: bodyClientId, email, password, totpCode } = body;
       if (!email || !password) {
