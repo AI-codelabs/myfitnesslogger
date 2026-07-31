@@ -579,7 +579,11 @@ Deno.serve(async (req) => {
 
     // ───── TEMP: endpoint probe (cron-secret protected) ─────
     if (action === "probe") {
-      if (!requireCronSecret(req)) return json({ error: "Forbidden" }, 403);
+      {
+        const admin0 = createClient(SUPABASE_URL, SERVICE_KEY);
+        const { data: tok } = await admin0.rpc("get_internal_secret", { _name: "cron_token" });
+        if (!tok || req.headers.get("x-cron-secret") !== tok) return json({ error: "Forbidden" }, 403);
+      }
       const paths: string[] = body.paths ?? [];
       const payload = (body.payload ?? {}) as Record<string, unknown>;
       const out: any[] = [];
