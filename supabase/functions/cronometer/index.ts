@@ -598,6 +598,34 @@ Deno.serve(async (req) => {
       return json({ success: true, out });
     }
 
+    // ───── TEMP: coach-session CSV export probe ─────
+    if (action === "probe_export") {
+      const admin0 = createClient(SUPABASE_URL, SERVICE_KEY);
+      const { data: tok } = await admin0.rpc("get_internal_secret", { _name: "cron_token" });
+      if (!tok || req.headers.get("x-cron-secret") !== tok) return json({ error: "Forbidden" }, 403);
+      const email = Deno.env.get("CRONO_COACH_EMAIL") ?? "";
+      const password = Deno.env.get("CRONO_COACH_PASSWORD") ?? "";
+      const login = await cronoLogin({ email, password });
+      if (!login.ok) return json({ error: "login_failed", detail: login.error }, 502);
+      const nonce = login.cookies["sesnonce"];
+      const day = String(body.day ?? "2026-07-31");
+      const uid = String(body.user_id ?? "");
+      const cookie = Object.entries(login.cookies).map(([k, v]) => `${k}=${v}`).join("; ");
+      const urls: string[] = [
+        `https://cronometer.com/export?nonce=${nonce}&generate=servings&start=${day}&end=${day}`,
+        `https://cronometer.com/export?nonce=${nonce}&generate=servings&start=${day}&end=${day}&user_id=${uid}`,
+        `https://cronometer.com/export?nonce=${nonce}&generate=servings&start=${day}&end=${day}&client_id=${uid}`,
+      ];
+      const out: any[] = [];
+      for (const u of urls) {
+        const r = await fetch(u, { headers: { cookie, "user-agent": login.userAgent } });
+        const text = await r.text();
+        out.push({ url: u.replace(nonce ?? "", "NONCE"), status: r.status, sample: text.slice(0, 800) });
+      }
+      return json({ success: true, out });
+    }
+
+
 
 
 
