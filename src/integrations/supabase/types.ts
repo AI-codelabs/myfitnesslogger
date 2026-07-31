@@ -1377,6 +1377,7 @@ export type Database = {
           id: string
           is_template: boolean
           name: string
+          source_plan_id: string | null
           updated_at: string
         }
         Insert: {
@@ -1388,6 +1389,7 @@ export type Database = {
           id?: string
           is_template?: boolean
           name: string
+          source_plan_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -1399,9 +1401,18 @@ export type Database = {
           id?: string
           is_template?: boolean
           name?: string
+          source_plan_id?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "workout_plans_source_plan_id_fkey"
+            columns: ["source_plan_id"]
+            isOneToOne: false
+            referencedRelation: "workout_plans"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       workout_schedule_overrides: {
         Row: {
