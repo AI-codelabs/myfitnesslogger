@@ -112,174 +112,6 @@ async function logApiCall(entry: {
   }
 }
 
-// ───────────────── Coach-session target push (preferred path) ─────────────────
-// Cronometer's diary reads the coach-managed target set, so client-side pushes
-// are overridden. One Pro coach web session can write any managed client's
-// preferences (the client's numeric Cronometer id is the RPC user argument),
-// so we keep a single encrypted coach session server-side and push from it.
-
-const COACH_SESSION_KEY = "crono_coach_session";
-
-type CoachSession = { cookies: CookieJar; userAgent: string };
-
-async function loadCoachSession(admin: SupabaseClient): Promise<CoachSession | null> {
-  const { data } = await admin
-    .from("internal_secrets")
-    .select("value")
-    .eq("name", COACH_SESSION_KEY)
-    .maybeSingle();
-  const blob = (data as { value: string } | null)?.value;
-  if (!blob) return null;
-  try {
-    return await decryptJson<CoachSession>(blob);
-  } catch {
-    return null;
-  }
-}
-
-async function saveCoachSession(admin: SupabaseClient, session: CoachSession) {
-  await admin.from("internal_secrets").upsert(
-    { name: COACH_SESSION_KEY, value: await encryptJson(session) },
-    { onConflict: "name" },
-  );
-}
-
-// Login throttle guard (per isolate): Cronometer blocks repeated login bursts.
-let coachLoginBlockedUntil = 0;
-let coachLoginLastError: string | null = null;
-
-
-async function coachLogin(
-  admin: SupabaseClient,
-  log?: Parameters<typeof cronoLogin>[0]["log"],
-): Promise<{ ok: true; session: CoachSession } | { ok: false; error: string }> {
-  // Cronometer throttles repeated logins hard; never retry within the cooldown.
-  if (Date.now() < coachLoginBlockedUntil) {
-    return { ok: false, error: coachLoginLastError ?? "rate_limited" };
-  }
-  const email = Deno.env.get("CRONO_COACH_EMAIL");
-  const password = Deno.env.get("CRONO_COACH_PASSWORD");
-  if (!email || !password) return { ok: false, error: "coach_credentials_missing" };
-  const res = await cronoLogin({ email, password, log });
-  if (!res.ok) {
-    coachLoginLastError = res.error;
-    // One failed login blocks further attempts for 15 minutes (whole runtime).
-    coachLoginBlockedUntil = Date.now() + 15 * 60 * 1000;
-    return { ok: false, error: res.error };
-  }
-  coachLoginBlockedUntil = 0;
-  coachLoginLastError = null;
-  const session = { cookies: res.cookies, userAgent: res.userAgent };
-  await saveCoachSession(admin, session);
-  return { ok: true, session };
-}
-
-/** Push targets into a managed client's Cronometer account via the coach session. */
-async function pushTargetsAsCoach(args: {
-  admin: SupabaseClient;
-  clientId: string;
-  cronometerClientId: number;
-  targets: NutritionTargets;
-  coachId?: string | null;
-  action?: string;
-}): Promise<{ ok: boolean; error?: string }> {
-  const { admin, clientId, cronometerClientId, targets } = args;
-  const log = async (entry: {
-    endpoint: string;
-    request_body: unknown;
-    response_status: number | null;
-    response_text: string;
-    error?: string | null;
-    duration_ms: number;
-  }) => {
-    await logApiCall({
-      ctx: {
-        action: args.action ?? "coach_push",
-        coach_id: args.coachId ?? null,
-        client_id: clientId,
-        cronometer_client_id: cronometerClientId,
-      },
-      endpoint: `WEBCOACH ${entry.endpoint}`,
-      request_body: entry.request_body,
-      response_status: entry.response_status,
-      response_text: entry.response_text,
-      error: entry.error,
-      duration_ms: entry.duration_ms,
-    });
-  };
-
-  const recordError = async (err: string) => {
-    await admin.from("cronometer_clients").update({ last_push_error: err }).eq("client_id", clientId);
-  };
-
-  let session = await loadCoachSession(admin);
-  if (!session) {
-    const login = await coachLogin(admin, log);
-    if (!login.ok) {
-      await recordError(`coach_login:${login.error}`);
-      return { ok: false, error: login.error };
-    }
-    session = login.session;
-  }
-
-
-  const attempt = (s: CoachSession) =>
-    pushTargets({
-      cookies: s.cookies,
-      userAgent: s.userAgent,
-      targets,
-      targetUserId: cronometerClientId,
-      log,
-    });
-
-  let res = await attempt(session);
-  if (!res.ok && res.error === "session_expired") {
-    const login = await coachLogin(admin, log);
-    if (!login.ok) {
-      await recordError(`coach_login:${login.error}`);
-      return { ok: false, error: login.error };
-    }
-    session = login.session;
-    res = await attempt(session);
-  }
-
-  if (res.ok) {
-    await saveCoachSession(admin, { cookies: res.cookies, userAgent: session.userAgent });
-    await admin.from("cronometer_clients").update({
-      last_pushed_hash: targetsHash(targets),
-      last_pushed_targets: targets,
-      last_push_at: new Date().toISOString(),
-      last_push_error: null,
-    }).eq("client_id", clientId);
-    return { ok: true };
-  }
-
-  await admin.from("cronometer_clients").update({
-    last_push_error: res.error ?? "push_failed",
-  }).eq("client_id", clientId);
-  return { ok: false, error: res.error };
-}
-
-async function getCronoLink(admin: SupabaseClient, clientId: string) {
-  const { data } = await admin
-    .from("cronometer_clients")
-    .select("coach_id, client_id, cronometer_client_id, email, status, last_pushed_hash, last_push_at, last_push_error")
-    .eq("client_id", clientId)
-    .maybeSingle();
-  return data as
-    | {
-      coach_id: string;
-      client_id: string;
-      cronometer_client_id: number | null;
-      email: string;
-      status: string;
-      last_pushed_hash: string | null;
-      last_push_at: string | null;
-      last_push_error: string | null;
-    }
-    | null;
-}
-
 async function callCrono<T = any>(
   path: string,
   body: Record<string, unknown>,
@@ -322,6 +154,74 @@ async function callCrono<T = any>(
   }
 }
 
+// ───────────────── Remote target verification (source of truth) ─────────────────
+// The Pro API /targets endpoint returns the targets Cronometer ACTUALLY shows the
+// client (coach-assigned targets win over the client's own preference values).
+// We use it to verify a push instead of trusting our own "pushed hash".
+
+export type RemoteTargets = {
+  calories: number | null;
+  protein_g: number | null;
+  carbs_g: number | null;
+  fat_g: number | null;
+};
+
+function pickTarget(raw: Record<string, any>, ...names: string[]): number | null {
+  for (const n of names) {
+    const entry = raw?.[n];
+    if (entry && typeof entry === "object") {
+      const v = entry.min ?? entry.max;
+      if (v !== undefined && v !== null) return Number(v);
+    }
+  }
+  return null;
+}
+
+/** Read the live targets Cronometer shows this client, or null if unavailable. */
+async function fetchRemoteTargets(
+  admin: SupabaseClient,
+  clientId: string,
+  ctx: LogCtx = {},
+): Promise<RemoteTargets | null> {
+  try {
+    const { data: link } = await admin
+      .from("cronometer_clients")
+      .select("cronometer_client_id")
+      .eq("client_id", clientId)
+      .not("cronometer_client_id", "is", null)
+      .maybeSingle();
+    const cronoId = (link as { cronometer_client_id: number | null } | null)?.cronometer_client_id;
+    if (!cronoId) return null;
+    const raw = await callCrono<Record<string, any>>("/targets", {
+      client_id: cronoId,
+      day: ymd(new Date()),
+    }, { ...ctx, action: ctx.action ?? "verify_targets", client_id: clientId, cronometer_client_id: cronoId });
+    if (!raw || typeof raw !== "object") return null;
+    return {
+      calories: pickTarget(raw, "Energy"),
+      protein_g: pickTarget(raw, "Protein"),
+      carbs_g: pickTarget(raw, "Net Carbs", "Carbs"),
+      fat_g: pickTarget(raw, "Fat"),
+    };
+  } catch {
+    return null;
+  }
+}
+
+const near = (a: number | null, b: number, tol = 2) =>
+  a !== null && Math.abs(a - b) <= tol;
+
+function remoteMatches(remote: RemoteTargets | null, targets: NutritionTargets | null): boolean | null {
+  if (!remote || !targets) return null;
+  return (
+    near(remote.calories, targets.calories, 5) &&
+    near(remote.protein_g, targets.protein_g) &&
+    near(remote.carbs_g, targets.carbs_g) &&
+    near(remote.fat_g, targets.fat_g)
+  );
+}
+
+
 // ─────────────────────────── Auth helpers ───────────────────────────
 
 type AuthedCall = {
@@ -355,26 +255,9 @@ async function requireCoach(req: Request): Promise<AuthedCall | { error: string;
 }
 
 function requireCronSecret(req: Request): boolean {
-  const provided = req.headers.get("x-cron-secret");
-  if (!provided) return false;
-  return !!CRON_SECRET && provided === CRON_SECRET;
+  if (!CRON_SECRET) return false;
+  return req.headers.get("x-cron-secret") === CRON_SECRET;
 }
-
-/** Cron auth: env CRON_SECRET or the DB-stored token used by the scheduled jobs. */
-async function cronAuthorized(req: Request): Promise<boolean> {
-  if (requireCronSecret(req)) return true;
-  const provided = req.headers.get("x-cron-secret");
-  if (!provided) return false;
-  const service = createClient(SUPABASE_URL, SERVICE_KEY);
-  const { data } = await service
-    .from("internal_secrets")
-    .select("value")
-    .eq("name", "cron_token")
-    .maybeSingle();
-  const token = (data as { value: string } | null)?.value;
-  return !!token && provided === token;
-}
-
 
 // ─────────────────────────── Sync helpers ───────────────────────────
 
@@ -600,7 +483,7 @@ Deno.serve(async (req) => {
 
     // ───── Cron entry point ─────
     if (action === "sync_all") {
-      if (!(await cronAuthorized(req))) return json({ error: "Forbidden" }, 403);
+      if (!requireCronSecret(req)) return json({ error: "Forbidden" }, 403);
       const admin = createClient(SUPABASE_URL, SERVICE_KEY);
       const { data: clients, error } = await admin
         .from("cronometer_clients")
@@ -625,7 +508,7 @@ Deno.serve(async (req) => {
     // ───── Hourly reconcile (cron) ─────
     // Refreshes upstream client status for all rows and syncs newly-active clients.
     if (action === "hourly_reconcile") {
-      if (!(await cronAuthorized(req))) return json({ error: "Forbidden" }, 403);
+      if (!requireCronSecret(req)) return json({ error: "Forbidden" }, 403);
       const admin = createClient(SUPABASE_URL, SERVICE_KEY);
       const resp = await callCrono<any>("/client_status", {}, { action: "hourly_reconcile" });
       const list: any[] = Array.isArray(resp) ? resp : (resp?.clients ?? []);
@@ -727,45 +610,8 @@ Deno.serve(async (req) => {
 
     // Cron target reconcile — must run before user auth (uses x-cron-secret only).
     if (action === "web_reconcile") {
-      if (!(await cronAuthorized(req))) return json({ error: "Forbidden" }, 403);
+      if (!requireCronSecret(req)) return json({ error: "Forbidden" }, 403);
       const service = createClient(SUPABASE_URL, SERVICE_KEY);
-
-      // Primary pass: coach-session pushes for every linked Cronometer client.
-      const coachResults: any[] = [];
-      const { data: links } = await service
-        .from("cronometer_clients")
-        .select("coach_id, client_id, cronometer_client_id, last_pushed_hash")
-        .not("cronometer_client_id", "is", null);
-      const pushedClientIds = new Set<string>();
-      for (const raw of links ?? []) {
-        const link = raw as {
-          coach_id: string;
-          client_id: string;
-          cronometer_client_id: number;
-          last_pushed_hash: string | null;
-        };
-        try {
-          const targets = await loadCurrentTargets(service, link.client_id);
-          if (!targets) { coachResults.push({ client_id: link.client_id, skipped: "no_targets" }); continue; }
-          pushedClientIds.add(link.client_id);
-          if (link.last_pushed_hash === targetsHash(targets)) {
-            coachResults.push({ client_id: link.client_id, skipped: "unchanged" });
-            continue;
-          }
-          const r = await pushTargetsAsCoach({
-            admin: service,
-            clientId: link.client_id,
-            cronometerClientId: Number(link.cronometer_client_id),
-            targets,
-            coachId: link.coach_id,
-            action: "web_reconcile",
-          });
-          coachResults.push({ client_id: link.client_id, pushed: r.ok, error: r.error });
-        } catch (e) {
-          coachResults.push({ client_id: link.client_id, error: e instanceof Error ? e.message : String(e) });
-        }
-      }
-
       const { data: rows } = await service
         .from("cronometer_web_sessions")
         .select("*")
@@ -773,7 +619,6 @@ Deno.serve(async (req) => {
       const results: any[] = [];
       for (const raw of rows ?? []) {
         const row = raw as WebSessionRow;
-        if (pushedClientIds.has(row.client_id)) continue; // already handled by coach push
         try {
           const targets = await loadCurrentTargets(service, row.client_id);
           if (!targets) { results.push({ client_id: row.client_id, skipped: "no_targets" }); continue; }
@@ -849,13 +694,7 @@ Deno.serve(async (req) => {
           results.push({ client_id: row.client_id, error: e instanceof Error ? e.message : String(e) });
         }
       }
-      return json({
-        success: true,
-        coach_count: coachResults.length,
-        coach_results: coachResults,
-        count: results.length,
-        results,
-      });
+      return json({ success: true, count: results.length, results });
     }
 
     // ─────────────────────── CLIENT TARGET SYNC (any signed-in user) ───────────────────────
@@ -1081,73 +920,63 @@ Deno.serve(async (req) => {
       const { client_id: bodyClientId, force } = body;
       const client_id = (bodyClientId as string | undefined) ?? userId;
 
-      const targets = await loadCurrentTargets(admin, client_id);
-      if (!targets) return json({ error: "no_targets" }, 404);
-      const hash = targetsHash(targets);
-
-      // Preferred: push from the Pro coach session (the diary reads the
-      // coach-managed target set, which overrides client-side targets).
-      const link = await getCronoLink(admin, client_id);
-      if (link?.cronometer_client_id) {
-        if (!force && link.last_pushed_hash === hash) {
-          return json({ success: true, skipped: "unchanged" });
-        }
-        const r = await pushTargetsAsCoach({
-          admin,
-          clientId: client_id,
-          cronometerClientId: Number(link.cronometer_client_id),
-          targets,
-          coachId: link.coach_id,
-          action: "web_push_targets",
-        });
-        if (r.ok) return json({ success: true, mode: "coach" });
-        return json({ error: r.error, message: r.error, mode: "coach" }, 502);
-      }
-
-      // Fallback: legacy per-client web session.
       const row = await loadWebSession(client_id);
       if (!row) return json({ error: "not_connected" }, 404);
       if (row.status === "needs_reauth") return json({ error: "needs_reauth" }, 409);
-      if (!force && row.last_pushed_hash === hash) {
-        return json({ success: true, skipped: "unchanged" });
+      const targets = await loadCurrentTargets(admin, client_id);
+      if (!targets) return json({ error: "no_targets" }, 404);
+      if (!force && row.last_pushed_hash === targetsHash(targets)) {
+        const remoteSame = await fetchRemoteTargets(admin, client_id, { action: "web_push_targets" });
+        const okSame = remoteMatches(remoteSame, targets);
+        if (okSame !== false) return json({ success: true, skipped: "unchanged", remote_targets: remoteSame });
+        // Cronometer disagrees with what we think we pushed → force a real push.
       }
       const r = await doPush(row, targets);
-      return json(r.ok ? { success: true } : { error: r.error, message: r.error }, r.ok ? 200 : 502);
+      if (!r.ok) return json({ error: r.error, message: r.error }, 502);
+      // Verify against what Cronometer actually serves the client.
+      const remote = await fetchRemoteTargets(admin, client_id, { action: "web_push_targets" });
+      const verified = remoteMatches(remote, targets);
+      if (verified === false) {
+        await admin.from("cronometer_web_sessions")
+          .update({ last_error: "remote_mismatch" })
+          .eq("id", row.id);
+      }
+      return json({ success: true, verified, remote_targets: remote, app_targets: targets });
     }
 
     if (action === "web_status") {
       const { client_id: bodyClientId } = body;
       const client_id = (bodyClientId as string | undefined) ?? userId;
-      const targets = await loadCurrentTargets(admin, client_id);
-
-      const link = await getCronoLink(admin, client_id);
-      if (link?.cronometer_client_id) {
-        return json({
-          success: true,
-          connected: true,
-          mode: "coach",
-          status: link.last_push_error ? "error" : "active",
-          email: link.email,
-          last_push_at: link.last_push_at,
-          last_error: link.last_push_error,
-          in_sync: !!targets && link.last_pushed_hash === targetsHash(targets),
-        });
-      }
 
       const row = await loadWebSession(client_id);
-      if (!row) return json({ success: true, connected: false });
-      const inSync = !!targets && row.last_pushed_hash === targetsHash(targets);
+      const targets = await loadCurrentTargets(admin, client_id);
+      const remote = await fetchRemoteTargets(admin, client_id, { action: "web_status" });
+      const verified = remoteMatches(remote, targets);
+      if (!row) {
+        return json({
+          success: true,
+          connected: false,
+          remote_targets: remote,
+          app_targets: targets,
+          verified,
+        });
+      }
+      const hashSync = !!targets && row.last_pushed_hash === targetsHash(targets);
       return json({
         success: true,
         connected: true,
-        mode: "client",
         status: row.status,
         email: row.cronometer_email,
         last_push_at: row.last_push_at,
         last_error: row.last_error,
-        in_sync: inSync,
+        // Prefer Cronometer's own answer over our local bookkeeping.
+        in_sync: verified === null ? hashSync : verified,
+        verified,
+        remote_targets: remote,
+        app_targets: targets,
       });
     }
+
 
     // ─────────────────────── Legacy no-ops ───────────────────────
 
