@@ -290,8 +290,11 @@ export function WeeklyCheckinsTab({ clientId, lang }: Props) {
     };
   }, [items]);
 
-  // Most recent 6 weeks for the comparison table (newest left)
-  const tableWeeks = useMemo(() => items.slice(0, 6), [items]);
+  // Comparison table: recent 6 weeks by default, all weeks on demand (newest left)
+  const tableWeeks = useMemo(
+    () => (showAllWeeks ? items : items.slice(0, 6)),
+    [items, showAllWeeks],
+  );
 
   if (loading) {
     return (
