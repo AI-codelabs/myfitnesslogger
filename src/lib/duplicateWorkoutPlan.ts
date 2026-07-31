@@ -31,6 +31,7 @@ export async function duplicateWorkoutPlan(opts: {
       frequency_per_week: src.frequency_per_week,
       coach_id: coachId,
       is_template: isTemplate,
+      source_plan_id: sourcePlanId,
     })
     .select("id")
     .single();

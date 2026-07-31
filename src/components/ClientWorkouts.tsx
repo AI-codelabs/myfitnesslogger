@@ -143,6 +143,7 @@ export function ClientWorkouts({ clientId, coachId, preferredFrequency, preferre
             frequency_per_week: plan.frequency_per_week,
             is_template: false,
             coach_id: coachId,
+            source_plan_id: plan.id,
           })
           .select()
           .single();

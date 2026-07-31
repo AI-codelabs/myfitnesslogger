@@ -26,6 +26,7 @@ import { DuplicatePlanDialog } from "@/components/DuplicatePlanDialog";
 import { SetsRepsEditor } from "@/components/SetsRepsEditor";
 import { formatWorkoutPlanMutationError } from "@/lib/workoutPlanErrors";
 import { duplicateWorkoutPlan } from "@/lib/duplicateWorkoutPlan";
+import { PushTemplateUpdatesDialog } from "@/components/PushTemplateUpdatesDialog";
 import { formatSetsRepsForDisplay } from "@/lib/setsReps";
 import {
   DndContext,
@@ -234,6 +235,8 @@ export default function WorkoutPlan() {
   const [addToDayId, setAddToDayId] = useState<string | null>(null);
   const [dupOpen, setDupOpen] = useState(false);
   const [copyingTemplate, setCopyingTemplate] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const [pushOpen, setPushOpen] = useState(false);
 
   const isOwnPlan = !!plan && role === "coach" && plan.coach_id === user?.id;
   const isSeedTemplate = !!plan && role === "coach" && plan.is_template && plan.coach_id === null;
@@ -301,6 +304,7 @@ export default function WorkoutPlan() {
 
   // ----- Plan-level edits -----
   async function updatePlan(patch: Partial<Plan>) {
+    setDirty(true);
     if (!plan) return;
     const next = { ...plan, ...patch };
     setPlan(next);
@@ -313,6 +317,7 @@ export default function WorkoutPlan() {
 
   // ----- Day-level edits -----
   async function addDay() {
+    setDirty(true);
     if (!plan) return;
     const nextIdx = days.length;
     const { data, error } = await supabase
@@ -325,18 +330,21 @@ export default function WorkoutPlan() {
   }
 
   async function renameDay(dayId: string, name: string) {
+    setDirty(true);
     setDays((prev) => prev.map((d) => (d.id === dayId ? { ...d, name } : d)));
     const { error } = await supabase.from("workout_plan_days").update({ name }).eq("id", dayId);
     if (error) toast.error(formatWorkoutPlanMutationError(error), { duration: 8000 });
   }
 
   async function removeDay(dayId: string) {
+    setDirty(true);
     const { error } = await supabase.from("workout_plan_days").delete().eq("id", dayId);
     if (error) return toast.error(formatWorkoutPlanMutationError(error), { duration: 8000 });
     load();
   }
 
   async function persistDayOrder(ordered: Day[]) {
+    setDirty(true);
     // Optimistically update day_index, then persist via two-phase update to
     // avoid violating any unique (plan_id, day_index) constraint.
     const withIdx = ordered.map((d, i) => ({ ...d, day_index: i }));
@@ -366,6 +374,7 @@ export default function WorkoutPlan() {
 
   // ----- Exercise-level edits -----
   async function updateExercise(id: string, patch: Partial<PlanExercise>) {
+    setDirty(true);
     setItems((prev) => prev.map((it) => (it.id === id ? { ...it, ...patch } : it)));
     const { error } = await supabase
       .from("workout_plan_exercises")
@@ -378,12 +387,14 @@ export default function WorkoutPlan() {
   }
 
   async function removeExercise(id: string) {
+    setDirty(true);
     const { error } = await supabase.from("workout_plan_exercises").delete().eq("id", id);
     if (error) return toast.error(formatWorkoutPlanMutationError(error), { duration: 8000 });
     setItems((prev) => prev.filter((it) => it.id !== id));
   }
 
   async function moveExercise(it: PlanExercise, direction: -1 | 1) {
+    setDirty(true);
     const siblings = items.filter((x) => x.day_id === it.day_id).sort((a, b) => a.order_index - b.order_index);
     const idx = siblings.findIndex((s) => s.id === it.id);
     const swapIdx = idx + direction;
@@ -459,7 +470,17 @@ export default function WorkoutPlan() {
                 variant={editMode ? "default" : "outline"}
                 size="sm"
                 className="gap-2"
-                onClick={() => setEditMode((v) => !v)}
+                onClick={() => {
+                  if (editMode) {
+                    setEditMode(false);
+                    if (dirty) {
+                      setDirty(false);
+                      setPushOpen(true);
+                    }
+                  } else {
+                    setEditMode(true);
+                  }
+                }}
               >
                 {editMode ? (
                   <>
@@ -887,6 +908,13 @@ export default function WorkoutPlan() {
           }}
         />
       )}
+
+      <PushTemplateUpdatesDialog
+        open={pushOpen}
+        onOpenChange={setPushOpen}
+        planId={plan?.id ?? null}
+        planName={plan?.name ?? ""}
+      />
 
       <DuplicatePlanDialog
         open={dupOpen}

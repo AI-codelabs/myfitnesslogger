@@ -1,0 +1,2 @@
+ALTER TABLE public.workout_plans ADD COLUMN IF NOT EXISTS source_plan_id uuid REFERENCES public.workout_plans(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_workout_plans_source_plan_id ON public.workout_plans(source_plan_id);
