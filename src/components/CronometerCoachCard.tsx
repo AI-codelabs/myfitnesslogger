@@ -287,7 +287,7 @@ export function CronometerCoachCard({ coachId, clientId, clientEmail, clientName
             )}
           </div>
         )}
-        {webStatus?.connected && webStatus.status !== "needs_reauth" && (
+        {(webStatus?.connected || webStatus?.coach_push) && (
           <div className="flex flex-wrap gap-2">
             <Button size="sm" onClick={() => handlePushTargets(true)} disabled={busy === "push"}>
               {busy === "push" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
@@ -295,6 +295,7 @@ export function CronometerCoachCard({ coachId, clientId, clientEmail, clientName
             </Button>
           </div>
         )}
+
         {webStatus?.status === "needs_reauth" && (
           <p className="text-xs text-amber-700">
             {t(lang,
