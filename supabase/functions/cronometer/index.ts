@@ -577,6 +577,25 @@ Deno.serve(async (req) => {
       return json({ success: true, upstream_count: list.length, reconciled: summary.length, summary });
     }
 
+    // ───── TEMP: endpoint probe (cron-secret protected) ─────
+    if (action === "probe") {
+      if (!requireCronSecret(req)) return json({ error: "Forbidden" }, 403);
+      const paths: string[] = body.paths ?? [];
+      const payload = (body.payload ?? {}) as Record<string, unknown>;
+      const out: any[] = [];
+      for (const p of paths) {
+        try {
+          const r = await callCrono<any>(p, payload, { action: "probe" });
+          out.push({ path: p, ok: true, sample: JSON.stringify(r).slice(0, 1500) });
+        } catch (e) {
+          out.push({ path: p, ok: false, error: e instanceof Error ? e.message.slice(0, 300) : String(e) });
+        }
+      }
+      return json({ success: true, out });
+    }
+
+
+
 
 
     // ───── Client-invoked self sync (no coach role required) ─────
