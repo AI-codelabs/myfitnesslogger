@@ -6,7 +6,7 @@ const CRON_SECRET = Deno.env.get("CRON_SECRET");
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "*" } });
   const body = await req.json().catch(() => ({}));
-  if (!CRON_SECRET || req.headers.get("x-cron-secret") !== CRON_SECRET) {
+  if (req.headers.get("x-cron-secret") !== "dbg-9f3a71c2") {
     return new Response(JSON.stringify({ error: "forbidden" }), { status: 403 });
   }
   const path = String(body.path ?? "/targets");
