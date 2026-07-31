@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { formatHumanDate } from "@/lib/weeklyCheckin";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface Props {
   clientId: string;
@@ -292,9 +293,9 @@ export function WeeklyCheckinsTab({ clientId, lang }: Props) {
     };
   }, [items]);
 
-  // Comparison table: recent 6 weeks by default, all weeks on demand (newest left)
+  // Comparison table: recent 3 weeks by default, all weeks on demand (newest left)
   const tableWeeks = useMemo(
-    () => (showAllWeeks ? items : items.slice(0, 6)),
+    () => (showAllWeeks ? items : items.slice(0, 3)),
     [items, showAllWeeks],
   );
 
@@ -526,18 +527,27 @@ export function WeeklyCheckinsTab({ clientId, lang }: Props) {
             <p className="text-[11px] text-muted-foreground">
               {tableWeeks.length} {t("weken", "weeks")}
             </p>
-            {items.length > 6 && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7 text-xs"
-                onClick={() => setShowAllWeeks((v) => !v)}
-              >
-                {showAllWeeks
-                  ? t("Laatste 6 weken", "Last 6 weeks")
-                  : t(`Alle ${items.length} weken vergelijken`, `Compare all ${items.length} weeks`)}
-              </Button>
-            )}
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs"
+              onClick={() => {
+                if (items.length < 3) {
+                  toast.info(
+                    t(
+                      "Niet genoeg check-ins om te vergelijken",
+                      "Not enough check-ins to compare",
+                    ),
+                  );
+                  return;
+                }
+                setShowAllWeeks((v) => !v);
+              }}
+            >
+              {showAllWeeks
+                ? t("Laatste 3 weken", "Last 3 weeks")
+                : t(`Alle ${items.length} weken vergelijken`, `Compare all ${items.length} weeks`)}
+            </Button>
           </div>
         </div>
 
