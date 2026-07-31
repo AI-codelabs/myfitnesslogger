@@ -7,6 +7,10 @@ export interface CronoWebStatus {
   last_push_at?: string | null;
   last_error?: string | null;
   in_sync?: boolean;
+  /** Verified against Cronometer's own /targets endpoint (null = unknown). */
+  verified?: boolean | null;
+  remote_targets?: { calories: number | null; protein_g: number | null; carbs_g: number | null; fat_g: number | null } | null;
+  app_targets?: { calories: number; protein_g: number; carbs_g: number; fat_g: number } | null;
 }
 
 async function parseInvokeError(error: unknown): Promise<{ error?: string; needsTotp?: boolean } | null> {
