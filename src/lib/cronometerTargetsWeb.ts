@@ -3,6 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 export interface CronoWebStatus {
   connected: boolean;
   status?: "active" | "needs_reauth" | "error" | "disabled";
+  /** "coach" = pushed with the Pro coach session (no client login needed). */
+  mode?: "coach" | "client";
+  coach_push?: boolean;
   email?: string;
   last_push_at?: string | null;
   last_error?: string | null;
@@ -12,6 +15,7 @@ export interface CronoWebStatus {
   remote_targets?: { calories: number | null; protein_g: number | null; carbs_g: number | null; fat_g: number | null } | null;
   app_targets?: { calories: number; protein_g: number; carbs_g: number; fat_g: number } | null;
 }
+
 
 async function parseInvokeError(error: unknown): Promise<{ error?: string; needsTotp?: boolean } | null> {
   const context = (error as { context?: unknown } | null)?.context;

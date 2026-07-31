@@ -832,6 +832,123 @@ Deno.serve(async (req) => {
       return { ok: true };
     }
 
+    // ── Coach-session push (no client password needed) ──
+    // Uses the Pro coach's own Cronometer web session to write the managed
+    // client's targets. The coach session row is stored with client_id = coach_id.
+    const COACH_EMAIL = Deno.env.get("CRONO_COACH_EMAIL") ?? "";
+    const COACH_PASSWORD = Deno.env.get("CRONO_COACH_PASSWORD") ?? "";
+
+    async function findProLink(clientId: string): Promise<
+      { coach_id: string; cronometer_client_id: number } | null
+    > {
+      const { data } = await admin
+        .from("cronometer_clients")
+        .select("coach_id, cronometer_client_id, status")
+        .eq("client_id", clientId)
+        .not("cronometer_client_id", "is", null)
+        .order("invited_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const row = data as { coach_id: string; cronometer_client_id: number } | null;
+      return row?.cronometer_client_id ? row : null;
+    }
+
+    async function loadCoachSessionRow(coachId: string): Promise<WebSessionRow | null> {
+      const { data } = await admin
+        .from("cronometer_web_sessions")
+        .select("*")
+        .eq("coach_id", coachId)
+        .eq("client_id", coachId)
+        .maybeSingle();
+      return (data as WebSessionRow) ?? null;
+    }
+
+    async function ensureCoachSession(
+      coachId: string,
+      log: ReturnType<typeof webLog>,
+    ): Promise<{ cookies: CookieJar; ua: string; rowId: string } | { error: string }> {
+      if (!COACH_EMAIL || !COACH_PASSWORD) return { error: "coach_credentials_missing" };
+      const row = await loadCoachSessionRow(coachId);
+      if (row?.session_cookies) {
+        try {
+          const cookies = await decryptJson<CookieJar>(row.session_cookies);
+          if (cookies["sesnonce"]) {
+            return { cookies, ua: row.user_agent ?? "", rowId: row.id };
+          }
+        } catch { /* fall through to fresh login */ }
+      }
+      const login = await cronoLogin({ email: COACH_EMAIL, password: COACH_PASSWORD, log });
+      if (!login.ok) return { error: login.error || "coach_login_failed" };
+      const payload = {
+        coach_id: coachId,
+        client_id: coachId,
+        cronometer_email: COACH_EMAIL,
+        credentials_ciphertext: await encryptJson({ password: COACH_PASSWORD }),
+        session_cookies: await encryptJson(login.cookies),
+        user_agent: login.userAgent,
+        status: "active",
+        last_login_at: new Date().toISOString(),
+        last_error: null,
+      };
+      const { data: saved } = await admin
+        .from("cronometer_web_sessions")
+        .upsert(payload, { onConflict: "coach_id,client_id" })
+        .select("id")
+        .single();
+      return { cookies: login.cookies, ua: login.userAgent, rowId: (saved as any)?.id ?? "" };
+    }
+
+    async function coachPush(
+      clientId: string,
+      targets: NutritionTargets,
+    ): Promise<{ ok: boolean; error?: string }> {
+      const link = await findProLink(clientId);
+      if (!link) return { ok: false, error: "not_linked" };
+      const log = webLog({ action: "web_push_coach", coach_id: link.coach_id, client_id: clientId });
+
+      let session = await ensureCoachSession(link.coach_id, log);
+      if ("error" in session) return { ok: false, error: session.error };
+
+      let res = await pushTargets({
+        cookies: session.cookies,
+        userAgent: session.ua,
+        targets,
+        targetUserId: link.cronometer_client_id,
+        log,
+      });
+      if (!res.ok && res.error === "session_expired") {
+        // Force a fresh coach login and retry once.
+        if (session.rowId) {
+          await admin.from("cronometer_web_sessions")
+            .update({ session_cookies: null })
+            .eq("id", session.rowId);
+        }
+        session = await ensureCoachSession(link.coach_id, log);
+        if ("error" in session) return { ok: false, error: session.error };
+        res = await pushTargets({
+          cookies: session.cookies,
+          userAgent: session.ua,
+          targets,
+          targetUserId: link.cronometer_client_id,
+          log,
+        });
+      }
+      if (session.rowId) {
+        await admin.from("cronometer_web_sessions").update({
+          session_cookies: await encryptJson(res.cookies),
+          last_push_at: res.ok ? new Date().toISOString() : undefined,
+          status: res.ok ? "active" : "error",
+          last_error: res.ok ? null : (res.error ?? "push_failed"),
+        }).eq("id", session.rowId);
+      }
+      await admin.from("cronometer_clients").update({
+        last_error: res.ok ? null : (res.error ?? "push_failed"),
+      }).eq("client_id", clientId).eq("coach_id", link.coach_id);
+      return res.ok ? { ok: true } : { ok: false, error: res.error };
+    }
+
+
+
     if (action === "web_connect") {
       const { client_id: bodyClientId, email, password, totpCode } = body;
       if (!email || !password) {
@@ -920,26 +1037,50 @@ Deno.serve(async (req) => {
       const { client_id: bodyClientId, force } = body;
       const client_id = (bodyClientId as string | undefined) ?? userId;
 
-      const row = await loadWebSession(client_id);
-      if (!row) return json({ error: "not_connected" }, 404);
-      if (row.status === "needs_reauth") return json({ error: "needs_reauth" }, 409);
       const targets = await loadCurrentTargets(admin, client_id);
       if (!targets) return json({ error: "no_targets" }, 404);
-      if (!force && row.last_pushed_hash === targetsHash(targets)) {
+
+      const row = await loadWebSession(client_id);
+      const useClientSession = !!row && row.status === "active";
+
+      if (!useClientSession) {
+        // No usable client session → push with the Pro coach session.
+        const link = await findProLink(client_id);
+        if (!link) {
+          return json({ error: row ? "needs_reauth" : "not_connected" }, row ? 409 : 404);
+        }
+        const cr = await coachPush(client_id, targets);
+        if (!cr.ok) return json({ error: cr.error, message: cr.error }, 502);
+        const remoteC = await fetchRemoteTargets(admin, client_id, { action: "web_push_targets" });
+        return json({
+          success: true,
+          mode: "coach",
+          verified: remoteMatches(remoteC, targets),
+          remote_targets: remoteC,
+          app_targets: targets,
+        });
+      }
+
+      if (!force && row!.last_pushed_hash === targetsHash(targets)) {
         const remoteSame = await fetchRemoteTargets(admin, client_id, { action: "web_push_targets" });
         const okSame = remoteMatches(remoteSame, targets);
         if (okSame !== false) return json({ success: true, skipped: "unchanged", remote_targets: remoteSame });
         // Cronometer disagrees with what we think we pushed → force a real push.
       }
-      const r = await doPush(row, targets);
-      if (!r.ok) return json({ error: r.error, message: r.error }, 502);
+      let r = await doPush(row!, targets);
+      if (!r.ok) {
+        // Fall back to the coach session before surfacing an error.
+        const fallback = await coachPush(client_id, targets);
+        if (!fallback.ok) return json({ error: r.error, message: r.error }, 502);
+        r = fallback;
+      }
       // Verify against what Cronometer actually serves the client.
       const remote = await fetchRemoteTargets(admin, client_id, { action: "web_push_targets" });
       const verified = remoteMatches(remote, targets);
       if (verified === false) {
         await admin.from("cronometer_web_sessions")
           .update({ last_error: "remote_mismatch" })
-          .eq("id", row.id);
+          .eq("id", row!.id);
       }
       return json({ success: true, verified, remote_targets: remote, app_targets: targets });
     }
@@ -952,23 +1093,33 @@ Deno.serve(async (req) => {
       const targets = await loadCurrentTargets(admin, client_id);
       const remote = await fetchRemoteTargets(admin, client_id, { action: "web_status" });
       const verified = remoteMatches(remote, targets);
+      const proLink = await findProLink(client_id);
+      const coachPushAvailable = !!proLink && !!COACH_EMAIL && !!COACH_PASSWORD;
       if (!row) {
         return json({
           success: true,
-          connected: false,
+          connected: coachPushAvailable,
+          mode: coachPushAvailable ? "coach" : undefined,
+          status: coachPushAvailable ? "active" : undefined,
+          coach_push: coachPushAvailable,
+          in_sync: verified === true,
           remote_targets: remote,
           app_targets: targets,
           verified,
         });
       }
+
       const hashSync = !!targets && row.last_pushed_hash === targetsHash(targets);
       return json({
         success: true,
         connected: true,
-        status: row.status,
+        status: row.status === "needs_reauth" && coachPushAvailable ? "active" : row.status,
+        mode: row.status === "active" ? "client" : (coachPushAvailable ? "coach" : "client"),
+        coach_push: coachPushAvailable,
         email: row.cronometer_email,
         last_push_at: row.last_push_at,
         last_error: row.last_error,
+
         // Prefer Cronometer's own answer over our local bookkeeping.
         in_sync: verified === null ? hashSync : verified,
         verified,
