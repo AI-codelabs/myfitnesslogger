@@ -1037,26 +1037,50 @@ Deno.serve(async (req) => {
       const { client_id: bodyClientId, force } = body;
       const client_id = (bodyClientId as string | undefined) ?? userId;
 
-      const row = await loadWebSession(client_id);
-      if (!row) return json({ error: "not_connected" }, 404);
-      if (row.status === "needs_reauth") return json({ error: "needs_reauth" }, 409);
       const targets = await loadCurrentTargets(admin, client_id);
       if (!targets) return json({ error: "no_targets" }, 404);
-      if (!force && row.last_pushed_hash === targetsHash(targets)) {
+
+      const row = await loadWebSession(client_id);
+      const useClientSession = !!row && row.status === "active";
+
+      if (!useClientSession) {
+        // No usable client session → push with the Pro coach session.
+        const link = await findProLink(client_id);
+        if (!link) {
+          return json({ error: row ? "needs_reauth" : "not_connected" }, row ? 409 : 404);
+        }
+        const cr = await coachPush(client_id, targets);
+        if (!cr.ok) return json({ error: cr.error, message: cr.error }, 502);
+        const remoteC = await fetchRemoteTargets(admin, client_id, { action: "web_push_targets" });
+        return json({
+          success: true,
+          mode: "coach",
+          verified: remoteMatches(remoteC, targets),
+          remote_targets: remoteC,
+          app_targets: targets,
+        });
+      }
+
+      if (!force && row!.last_pushed_hash === targetsHash(targets)) {
         const remoteSame = await fetchRemoteTargets(admin, client_id, { action: "web_push_targets" });
         const okSame = remoteMatches(remoteSame, targets);
         if (okSame !== false) return json({ success: true, skipped: "unchanged", remote_targets: remoteSame });
         // Cronometer disagrees with what we think we pushed → force a real push.
       }
-      const r = await doPush(row, targets);
-      if (!r.ok) return json({ error: r.error, message: r.error }, 502);
+      let r = await doPush(row!, targets);
+      if (!r.ok) {
+        // Fall back to the coach session before surfacing an error.
+        const fallback = await coachPush(client_id, targets);
+        if (!fallback.ok) return json({ error: r.error, message: r.error }, 502);
+        r = fallback;
+      }
       // Verify against what Cronometer actually serves the client.
       const remote = await fetchRemoteTargets(admin, client_id, { action: "web_push_targets" });
       const verified = remoteMatches(remote, targets);
       if (verified === false) {
         await admin.from("cronometer_web_sessions")
           .update({ last_error: "remote_mismatch" })
-          .eq("id", row.id);
+          .eq("id", row!.id);
       }
       return json({ success: true, verified, remote_targets: remote, app_targets: targets });
     }
@@ -1069,15 +1093,22 @@ Deno.serve(async (req) => {
       const targets = await loadCurrentTargets(admin, client_id);
       const remote = await fetchRemoteTargets(admin, client_id, { action: "web_status" });
       const verified = remoteMatches(remote, targets);
+      const proLink = await findProLink(client_id);
+      const coachPushAvailable = !!proLink && !!COACH_EMAIL && !!COACH_PASSWORD;
       if (!row) {
         return json({
           success: true,
-          connected: false,
+          connected: coachPushAvailable,
+          mode: coachPushAvailable ? "coach" : undefined,
+          status: coachPushAvailable ? "active" : undefined,
+          coach_push: coachPushAvailable,
+          in_sync: verified === true,
           remote_targets: remote,
           app_targets: targets,
           verified,
         });
       }
+
       const hashSync = !!targets && row.last_pushed_hash === targetsHash(targets);
       return json({
         success: true,
