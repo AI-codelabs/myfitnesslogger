@@ -272,6 +272,7 @@ export function WeeklyCheckinsTab({ clientId, lang }: Props) {
   const weightNeutral = primaryGoal !== "cut" && primaryGoal !== "muscle" && primaryGoal !== "bulk";
 
 
+  const [showAllWeeks, setShowAllWeeks] = useState(false);
   const latest = items[0];
   const previous = items[1];
 
