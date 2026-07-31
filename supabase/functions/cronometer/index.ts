@@ -154,6 +154,74 @@ async function callCrono<T = any>(
   }
 }
 
+// ───────────────── Remote target verification (source of truth) ─────────────────
+// The Pro API /targets endpoint returns the targets Cronometer ACTUALLY shows the
+// client (coach-assigned targets win over the client's own preference values).
+// We use it to verify a push instead of trusting our own "pushed hash".
+
+export type RemoteTargets = {
+  calories: number | null;
+  protein_g: number | null;
+  carbs_g: number | null;
+  fat_g: number | null;
+};
+
+function pickTarget(raw: Record<string, any>, ...names: string[]): number | null {
+  for (const n of names) {
+    const entry = raw?.[n];
+    if (entry && typeof entry === "object") {
+      const v = entry.min ?? entry.max;
+      if (v !== undefined && v !== null) return Number(v);
+    }
+  }
+  return null;
+}
+
+/** Read the live targets Cronometer shows this client, or null if unavailable. */
+async function fetchRemoteTargets(
+  admin: SupabaseClient,
+  clientId: string,
+  ctx: LogCtx = {},
+): Promise<RemoteTargets | null> {
+  try {
+    const { data: link } = await admin
+      .from("cronometer_clients")
+      .select("cronometer_client_id")
+      .eq("client_id", clientId)
+      .not("cronometer_client_id", "is", null)
+      .maybeSingle();
+    const cronoId = (link as { cronometer_client_id: number | null } | null)?.cronometer_client_id;
+    if (!cronoId) return null;
+    const raw = await callCrono<Record<string, any>>("/targets", {
+      client_id: cronoId,
+      day: ymd(new Date()),
+    }, { ...ctx, action: ctx.action ?? "verify_targets", client_id: clientId, cronometer_client_id: cronoId });
+    if (!raw || typeof raw !== "object") return null;
+    return {
+      calories: pickTarget(raw, "Energy"),
+      protein_g: pickTarget(raw, "Protein"),
+      carbs_g: pickTarget(raw, "Net Carbs", "Carbs"),
+      fat_g: pickTarget(raw, "Fat"),
+    };
+  } catch {
+    return null;
+  }
+}
+
+const near = (a: number | null, b: number, tol = 2) =>
+  a !== null && Math.abs(a - b) <= tol;
+
+function remoteMatches(remote: RemoteTargets | null, targets: NutritionTargets | null): boolean | null {
+  if (!remote || !targets) return null;
+  return (
+    near(remote.calories, targets.calories, 5) &&
+    near(remote.protein_g, targets.protein_g) &&
+    near(remote.carbs_g, targets.carbs_g) &&
+    near(remote.fat_g, targets.fat_g)
+  );
+}
+
+
 // ─────────────────────────── Auth helpers ───────────────────────────
 
 type AuthedCall = {
