@@ -247,8 +247,16 @@ export function CronometerCoachCard({ coachId, clientId, clientEmail, clientName
         </div>
         <p className="text-xs text-muted-foreground">
           {!webStatus?.connected && t(lang,
-            "De client moet zelf inloggen vanuit hun eigen portal (Voeding → Cronometer verbinden). Coaches vragen nooit om wachtwoorden.",
-            "The client must connect from their own portal (Nutrition → Connect Cronometer). Coaches never handle passwords.",
+            "Nog geen pushkanaal. Nodig de client uit in Cronometer Pro; daarna pushen we de doelen automatisch vanuit het coach-account.",
+            "No push channel yet. Invite the client in Cronometer Pro; after that we push targets automatically from the coach account.",
+          )}
+          {webStatus?.mode === "coach" && (
+            <>
+              {t(lang,
+                "Doelen worden vanuit het Pro coach-account gepusht. De client hoeft niets te doen.",
+                "Targets are pushed from the Pro coach account. The client doesn't need to do anything.",
+              )}{" "}
+            </>
           )}
           {webStatus?.connected && webStatus.last_push_at && (
             <>{t(lang, "Laatste push", "Last push")}: {new Date(webStatus.last_push_at).toLocaleString()}</>
@@ -257,6 +265,7 @@ export function CronometerCoachCard({ coachId, clientId, clientEmail, clientName
             <span className="block text-destructive mt-1">{webStatus.last_error}</span>
           )}
         </p>
+
         {webStatus?.remote_targets && webStatus.app_targets && (
           <div className="rounded-md border bg-muted/40 px-3 py-2 text-xs space-y-1">
             <p className="font-medium">
