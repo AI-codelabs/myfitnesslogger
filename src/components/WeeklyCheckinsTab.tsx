@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import {
   Accordion,
   AccordionContent,
@@ -272,6 +273,7 @@ export function WeeklyCheckinsTab({ clientId, lang }: Props) {
   const weightNeutral = primaryGoal !== "cut" && primaryGoal !== "muscle" && primaryGoal !== "bulk";
 
 
+  const [showAllWeeks, setShowAllWeeks] = useState(false);
   const latest = items[0];
   const previous = items[1];
 
@@ -290,8 +292,11 @@ export function WeeklyCheckinsTab({ clientId, lang }: Props) {
     };
   }, [items]);
 
-  // Most recent 6 weeks for the comparison table (newest left)
-  const tableWeeks = useMemo(() => items.slice(0, 6), [items]);
+  // Comparison table: recent 6 weeks by default, all weeks on demand (newest left)
+  const tableWeeks = useMemo(
+    () => (showAllWeeks ? items : items.slice(0, 6)),
+    [items, showAllWeeks],
+  );
 
   if (loading) {
     return (
@@ -509,16 +514,33 @@ export function WeeklyCheckinsTab({ clientId, lang }: Props) {
         </Card>
       )}
 
-      {/* Comparison table — last 6 weeks */}
+      {/* Comparison table — recent weeks or all weeks */}
       <Card className="overflow-hidden">
-        <div className="px-4 py-3 border-b bg-muted/30 flex items-center justify-between">
+        <div className="px-4 py-3 border-b bg-muted/30 flex items-center justify-between gap-3">
           <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">
-            {t("Vergelijking laatste weken", "Recent weeks comparison")}
+            {showAllWeeks
+              ? t("Vergelijking alle weken", "All weeks comparison")
+              : t("Vergelijking laatste weken", "Recent weeks comparison")}
           </p>
-          <p className="text-[11px] text-muted-foreground">
-            {tableWeeks.length} {t("weken", "weeks")}
-          </p>
+          <div className="flex items-center gap-2 shrink-0">
+            <p className="text-[11px] text-muted-foreground">
+              {tableWeeks.length} {t("weken", "weeks")}
+            </p>
+            {items.length > 6 && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => setShowAllWeeks((v) => !v)}
+              >
+                {showAllWeeks
+                  ? t("Laatste 6 weken", "Last 6 weeks")
+                  : t(`Alle ${items.length} weken vergelijken`, `Compare all ${items.length} weeks`)}
+              </Button>
+            )}
+          </div>
         </div>
+
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
