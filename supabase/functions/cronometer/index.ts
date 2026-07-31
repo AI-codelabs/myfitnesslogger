@@ -1113,10 +1113,13 @@ Deno.serve(async (req) => {
       return json({
         success: true,
         connected: true,
-        status: row.status,
+        status: row.status === "needs_reauth" && coachPushAvailable ? "active" : row.status,
+        mode: row.status === "active" ? "client" : (coachPushAvailable ? "coach" : "client"),
+        coach_push: coachPushAvailable,
         email: row.cronometer_email,
         last_push_at: row.last_push_at,
         last_error: row.last_error,
+
         // Prefer Cronometer's own answer over our local bookkeeping.
         in_sync: verified === null ? hashSync : verified,
         verified,
