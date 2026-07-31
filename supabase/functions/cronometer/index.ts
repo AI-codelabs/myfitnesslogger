@@ -926,10 +926,22 @@ Deno.serve(async (req) => {
       const targets = await loadCurrentTargets(admin, client_id);
       if (!targets) return json({ error: "no_targets" }, 404);
       if (!force && row.last_pushed_hash === targetsHash(targets)) {
-        return json({ success: true, skipped: "unchanged" });
+        const remoteSame = await fetchRemoteTargets(admin, client_id, { action: "web_push_targets" });
+        const okSame = remoteMatches(remoteSame, targets);
+        if (okSame !== false) return json({ success: true, skipped: "unchanged", remote_targets: remoteSame });
+        // Cronometer disagrees with what we think we pushed → force a real push.
       }
       const r = await doPush(row, targets);
-      return json(r.ok ? { success: true } : { error: r.error, message: r.error }, r.ok ? 200 : 502);
+      if (!r.ok) return json({ error: r.error, message: r.error }, 502);
+      // Verify against what Cronometer actually serves the client.
+      const remote = await fetchRemoteTargets(admin, client_id, { action: "web_push_targets" });
+      const verified = remoteMatches(remote, targets);
+      if (verified === false) {
+        await admin.from("cronometer_web_sessions")
+          .update({ last_error: "remote_mismatch" })
+          .eq("id", row.id);
+      }
+      return json({ success: true, verified, remote_targets: remote, app_targets: targets });
     }
 
     if (action === "web_status") {
@@ -937,9 +949,19 @@ Deno.serve(async (req) => {
       const client_id = (bodyClientId as string | undefined) ?? userId;
 
       const row = await loadWebSession(client_id);
-      if (!row) return json({ success: true, connected: false });
       const targets = await loadCurrentTargets(admin, client_id);
-      const inSync = !!targets && row.last_pushed_hash === targetsHash(targets);
+      const remote = await fetchRemoteTargets(admin, client_id, { action: "web_status" });
+      const verified = remoteMatches(remote, targets);
+      if (!row) {
+        return json({
+          success: true,
+          connected: false,
+          remote_targets: remote,
+          app_targets: targets,
+          verified,
+        });
+      }
+      const hashSync = !!targets && row.last_pushed_hash === targetsHash(targets);
       return json({
         success: true,
         connected: true,
@@ -947,9 +969,14 @@ Deno.serve(async (req) => {
         email: row.cronometer_email,
         last_push_at: row.last_push_at,
         last_error: row.last_error,
-        in_sync: inSync,
+        // Prefer Cronometer's own answer over our local bookkeeping.
+        in_sync: verified === null ? hashSync : verified,
+        verified,
+        remote_targets: remote,
+        app_targets: targets,
       });
     }
+
 
     // ─────────────────────── Legacy no-ops ───────────────────────
 
