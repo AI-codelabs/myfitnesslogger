@@ -296,7 +296,8 @@ export function CronometerCoachCard({ coachId, clientId, clientEmail, clientName
           </div>
         )}
 
-        {webStatus?.status === "needs_reauth" && (
+        {webStatus?.status === "needs_reauth" && !webStatus?.coach_push && (
+
           <p className="text-xs text-amber-700">
             {t(lang,
               "De Cronometer-sessie van deze client is verlopen. Vraag de client opnieuw in te loggen vanuit hun portal.",
