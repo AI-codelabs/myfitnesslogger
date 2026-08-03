@@ -6,7 +6,13 @@
 export function parseDecimal(input: string | number | null | undefined): number | null {
   if (input == null) return null;
   if (typeof input === "number") return Number.isFinite(input) ? input : null;
-  const raw = input.trim();
+  // Strip unit suffixes ("kg"), invisible/non-breaking spaces and inner spaces
+  // that mobile keyboards sometimes insert ("96 ,5").
+  const raw = String(input)
+    .replace(/[\u00a0\u2007\u202f\u200b\u200e\u200f]/g, " ")
+    .replace(/kg|kilo(gram)?s?/gi, "")
+    .replace(/\s+/g, "")
+    .trim();
   if (!raw) return null;
   // If both separators exist, treat the last one as the decimal separator
   // and strip the other (thousands). Otherwise just swap "," → ".".
