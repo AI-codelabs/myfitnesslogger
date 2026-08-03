@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { parseDecimal } from "@/lib/parseDecimal";
+import { describeWriteError } from "@/lib/writeError";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -355,12 +356,19 @@ export default function WeeklyCheckin() {
       hydration: form.hydration,
       other_notes: form.other_notes || null,
     };
-    const { error } = await supabase
-      .from("weekly_checkins")
-      .upsert(payload, { onConflict: "client_id,week_start" });
+    let error: unknown = null;
+    try {
+      const res = await supabase
+        .from("weekly_checkins")
+        .upsert(payload, { onConflict: "client_id,week_start" });
+      error = res.error;
+    } catch (e) {
+      error = e;
+    }
     setSaving(false);
     if (error) {
-      toast.error(error.message);
+      console.error("[check-in] save failed", error);
+      toast.error(describeWriteError(error, "nl"));
       return;
     }
     localStorage.setItem(`checkin-submitted-${weekStart}`, new Date().toISOString());
