@@ -1,0 +1,1 @@
+DROP TABLE IF EXISTS public.__ci_diag;

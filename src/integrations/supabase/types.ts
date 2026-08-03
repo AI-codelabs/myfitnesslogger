@@ -14,24 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      __ci_diag: {
-        Row: {
-          result: string | null
-          step: string | null
-          ts: string | null
-        }
-        Insert: {
-          result?: string | null
-          step?: string | null
-          ts?: string | null
-        }
-        Update: {
-          result?: string | null
-          step?: string | null
-          ts?: string | null
-        }
-        Relationships: []
-      }
       client_goals: {
         Row: {
           activity_level: Database["public"]["Enums"]["activity_level"] | null
