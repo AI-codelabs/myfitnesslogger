@@ -39,6 +39,14 @@ const t = (lang: "nl" | "en") => ({
   deleted: lang === "nl" ? "Verwijderd" : "Deleted",
   delete: lang === "nl" ? "Verwijderen" : "Delete",
   required: lang === "nl" ? "Vul een gewicht in" : "Enter a weight",
+  invalid:
+    lang === "nl"
+      ? "Gewicht niet herkend. Gebruik cijfers met een komma of punt, bijv. 78,4."
+      : "Weight not recognised. Use digits with a comma or dot, e.g. 78.4.",
+  range:
+    lang === "nl"
+      ? "Controleer je gewicht — vul het in kilogram in (tussen 20 en 400 kg)."
+      : "Check your weight — enter it in kilograms (between 20 and 400 kg).",
 });
 
 export function DailyWeightLogger({ clientId, lang = "nl", onChange }: Props) {
@@ -70,7 +78,11 @@ export function DailyWeightLogger({ clientId, lang = "nl", onChange }: Props) {
   const save = async () => {
     const w = parseDecimal(weight);
     if (w == null || w <= 0) {
-      toast.error(L.required);
+      toast.error(weight.trim() ? L.invalid : L.required);
+      return;
+    }
+    if (w < 20 || w > 400) {
+      toast.error(L.range);
       return;
     }
     setSaving(true);

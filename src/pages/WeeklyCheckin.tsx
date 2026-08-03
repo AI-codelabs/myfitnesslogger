@@ -310,7 +310,16 @@ export default function WeeklyCheckin() {
     if (!user) return;
     const weightNum = parseDecimal(form.weight_kg);
     if (weightNum == null || weightNum <= 0) {
-      toast.error("Vul je gewicht in — dit veld is verplicht.");
+      toast.error(
+        form.weight_kg.trim()
+          ? "Gewicht niet herkend. Gebruik alleen cijfers met een komma of punt, bijv. 78,4."
+          : "Vul je gewicht in — dit veld is verplicht.",
+      );
+      document.getElementById("checkin-weight-input")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+    if (weightNum < 20 || weightNum > 400) {
+      toast.error("Controleer je gewicht — vul het in kilogram in (tussen 20 en 400 kg).");
       document.getElementById("checkin-weight-input")?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
