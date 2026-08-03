@@ -73,20 +73,27 @@ export function DailyWeightLogger({ clientId, lang = "nl", onChange }: Props) {
       return;
     }
     setSaving(true);
-    const { error } = await supabase
-      .from("weight_logs")
-      .upsert(
-        {
-          client_id: clientId,
-          logged_on: date,
-          weight_kg: w,
-          note: note.trim() || null,
-        },
-        { onConflict: "client_id,logged_on" },
-      );
+    let error: unknown = null;
+    try {
+      const res = await supabase
+        .from("weight_logs")
+        .upsert(
+          {
+            client_id: clientId,
+            logged_on: date,
+            weight_kg: w,
+            note: note.trim() || null,
+          },
+          { onConflict: "client_id,logged_on" },
+        );
+      error = res.error;
+    } catch (e) {
+      error = e;
+    }
     setSaving(false);
     if (error) {
-      toast.error(error.message);
+      console.error("[weight-log] save failed", error);
+      toast.error(describeWriteError(error, lang));
       return;
     }
     toast.success(L.saved);
