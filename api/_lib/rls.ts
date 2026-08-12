@@ -1,5 +1,5 @@
-import { getPool, type SqlClient } from "./db";
-import type { AuthUser } from "./auth";
+import { getPool, type SqlClient } from "./db.js";
+import type { AuthUser } from "./auth.js";
 
 /**
  * Runs `fn` inside a transaction where the Postgres session impersonates the

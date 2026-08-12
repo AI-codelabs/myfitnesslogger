@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { endpoint } from "../_lib/handler";
+import { endpoint } from "../_lib/handler.js";
 
 const schema = z.object({
   weekStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),

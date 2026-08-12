@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { endpoint } from "../_lib/handler";
+import { endpoint } from "../_lib/handler.js";
 
 const schema = z.object({ id: z.string().uuid() });
 
