@@ -1,0 +1,19 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "vite",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "rewrites": [
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
+  ],
+  "functions": {
+    "api/**/*.ts": {
+      "runtime": "@vercel/node@5",
+      "maxDuration": 60
+    }
+  },
+  "crons": [
+    { "path": "/api/cron/cronometer-pull", "schedule": "0 * * * *" },
+    { "path": "/api/cron/check-expirations", "schedule": "0 6 * * *" }
+  ]
+}
