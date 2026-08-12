@@ -25,22 +25,61 @@ const ResetPassword = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [ready, setReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Supabase puts recovery tokens in the URL hash and the client picks them
-    // up automatically, firing a PASSWORD_RECOVERY auth event.
+    let active = true;
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") {
-        setReady(true);
+      if (event === "PASSWORD_RECOVERY") {
+        markRecoveryActive();
+        if (active) setReady(true);
       }
     });
 
-    // Also handle the case where the session is already established.
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) setReady(true);
-    });
+    const init = async () => {
+      const query = new URLSearchParams(window.location.search);
+      const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
 
-    return () => subscription.unsubscribe();
+      // PKCE style link: ?code=...
+      const code = query.get("code");
+      // OTP style link: ?token_hash=...&type=recovery
+      const tokenHash = query.get("token_hash") ?? hash.get("token_hash");
+
+      try {
+        if (code) {
+          const { error: exErr } = await supabase.auth.exchangeCodeForSession(code);
+          if (exErr) throw exErr;
+          markRecoveryActive();
+        } else if (tokenHash) {
+          const { error: otpErr } = await supabase.auth.verifyOtp({ type: "recovery", token_hash: tokenHash });
+          if (otpErr) throw otpErr;
+          markRecoveryActive();
+        }
+      } catch (e) {
+        if (active) setError(e instanceof Error ? e.message : "This reset link is invalid or has expired.");
+        return;
+      }
+
+      const { data } = await supabase.auth.getSession();
+      if (!active) return;
+      if (data.session && (isRecoveryActive() || urlHasRecovery())) {
+        markRecoveryActive();
+        setReady(true);
+      } else if (data.session) {
+        // Signed in but not through a recovery link — nothing to verify here.
+        setReady(true);
+      } else {
+        setError("This reset link is invalid or has expired. Request a new one.");
+      }
+    };
+
+    init();
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -51,16 +90,18 @@ const ResetPassword = () => {
       return;
     }
     setLoading(true);
-    const { error } = await supabase.auth.updateUser({ password });
+    const { error: updErr } = await supabase.auth.updateUser({ password });
     setLoading(false);
-    if (error) {
-      toast.error(error.message);
+    if (updErr) {
+      toast.error(updErr.message);
       return;
     }
+    clearRecovery();
     toast.success("Password updated. Please sign in.");
     await supabase.auth.signOut();
-    navigate("/login");
+    navigate("/login", { replace: true });
   };
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4 py-8">
