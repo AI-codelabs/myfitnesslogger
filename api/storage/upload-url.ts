@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { requireUser, HttpError } from "../_lib/auth";
+import { requireUser, HttpError } from "../_lib/auth.js";
 
 const schema = z.object({
   scope: z.enum([

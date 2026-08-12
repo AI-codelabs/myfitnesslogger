@@ -1,5 +1,5 @@
-import { endpoint } from "../_lib/handler";
-import { buildQuery, querySchema } from "../_lib/query";
+import { endpoint } from "../_lib/handler.js";
+import { buildQuery, querySchema } from "../_lib/query.js";
 
 /**
  * Generic, RLS-enforced query endpoint. The frontend shim (src/lib/api/pg.ts)

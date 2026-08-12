@@ -5,8 +5,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ClipboardCheck, CheckCircle2, ArrowRight } from "lucide-react";
-import {
 import { db } from "@/lib/db";
+import {
   getExpectedCheckinWeekStart,
   getWeekEnd,
   isCheckinWindowOpen,

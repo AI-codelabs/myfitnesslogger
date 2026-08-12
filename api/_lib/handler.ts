@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { z } from "zod";
-import { HttpError, requireUser, type AuthUser } from "./auth";
-import { withUser } from "./rls";
-import type { SqlClient } from "./db";
+import { HttpError, requireUser, type AuthUser } from "./auth.js";
+import { withUser } from "./rls.js";
+import type { SqlClient } from "./db.js";
 
 type Ctx<TInput> = {
   user: AuthUser;
