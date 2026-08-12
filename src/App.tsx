@@ -106,6 +106,7 @@ const App = () => (
             <Route path="/signup" element={<Signup />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </RecoveryGate>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
