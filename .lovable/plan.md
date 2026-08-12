@@ -1,104 +1,69 @@
+# Migrate from Lovable Cloud to Neon
 
 ## Goal
+Move the entire application and all current data from Lovable Cloud (Supabase) to a self-managed Neon Postgres database, so the user owns the backend and can connect other tools to it. The migration should be as close to 1:1 as possible and not disrupt existing coaches or clients.
 
-Push the coach's in-app nutrition targets (kcal / protein / carbs / fat) into each client's Cronometer account, keeping them **1:1 in sync**. Reads keep using the Pro API — the scraper is used **only for writing targets**, which drastically reduces the surface area that got accounts flagged before.
+## What this actually involves
+The current project is not just a database. It depends on Lovable Cloud for:
+- Postgres database (tables, RLS, triggers, functions)
+- Authentication (Supabase Auth, users, sessions, roles)
+- File storage (progress photos, nutrition documents, onboarding uploads)
+- Edge functions (Cronometer integration, email, weekly reviews, etc.)
 
-## Design principles (security & reliability)
+Moving to Neon means we must also replace or re-host those three non-database services. A “database-only” migration will break login, file uploads, and background jobs.
 
-1. **Scraper does one thing only**: log in once, POST target updates. No CSV export, no diary scraping, no page navigation loops.
-2. **Human-like cadence**: never more than one push per client per day, jittered delays, realistic User-Agent + Accept-Language, session reused across days.
-3. **Coach-enabled by default**: as soon as the coach saves targets for a client whose Cronometer link is active, we attempt a push. On first push we prompt the coach for the *client's* Cronometer credentials + TOTP (stored encrypted). No client-side password entry.
-4. **Drift guard**: a daily reconcile job compares the last-pushed target hash with what the app currently has. If they match, we only re-verify weekly (cheap `GET /targets` via Pro API). If they don't match (or verification says Cronometer drifted), we re-push. This guarantees "same targets every day" without spamming Cronometer.
-5. **Fail safe**: on 2FA challenge or session expiry, mark the link `needs_reauth`, notify the coach, stop retrying until they re-enter TOTP. Never loop-login (that's what flagged accounts before).
-6. **Auditable**: every push logged in `cronometer_api_logs` with request/response, so we can see exactly what was sent.
+## Phase 1 — Neon account and project
+1. Create a Neon project in the user’s account (or have the user create it and share the connection string).
+2. Choose the region closest to current users (e.g., Amsterdam / Frankfurt for EU customers).
+3. Configure the database role and password. Save the connection string as a secret in the project.
 
-## Data model (new)
+## Phase 2 — Schema migration
+1. Extract the full schema of the `public` schema from the current database (tables, enums, indexes, triggers, functions, extensions).
+2. Clean / adapt it for Neon:
+   - Keep all tables, columns, enums, indexes, and triggers used by the app.
+   - Remove or replace Supabase-only helpers that are no longer available.
+3. Apply the schema to the Neon database.
+4. Verify the two schemas match structurally.
 
-```text
-cronometer_web_sessions
-├── id, coach_id, client_id                  -- FK, unique(coach_id, client_id)
-├── cronometer_email        text
-├── credentials_ciphertext  text             -- AES-GCM(password + totp_secret) using CRONO_WEB_KEY
-├── session_cookies         text             -- encrypted cookie jar
-├── user_agent              text             -- pinned per session
-├── last_login_at           timestamptz
-├── last_push_at            timestamptz
-├── last_pushed_hash        text             -- sha256(kcal|p|c|f)
-├── last_verified_at        timestamptz
-├── status                  text             -- active | needs_reauth | error | disabled
-├── last_error              text
-```
+## Phase 3 — Data migration
+1. Export all rows from the current `public` tables.
+2. Disable triggers that send notifications or call external services during the initial import.
+3. Import data into Neon in the correct order (respecting foreign keys).
+4. Re-enable triggers.
+5. Reconcile sequences (e.g., `gen_random_uuid()` and any serial/sequence state).
 
-RLS: only the owning coach can read/write; service_role full access. GRANTs added.
+## Phase 4 — Replace auth, storage, and functions
+- **Auth:** Replace Supabase Auth with an alternative such as Auth.js / NextAuth or a custom JWT-based solution. This requires building or configuring sign-up, login, password reset, email verification, and role checks.
+- **Storage:** Replace Supabase Storage buckets with an S3-compatible object store (AWS S3, Cloudflare R2, or Tigris). Update all file upload/download paths and migrate existing files.
+- **Edge functions:** Migrate the functions under `supabase/functions/` to a different serverless host (Vercel Functions, Cloudflare Workers, or a small Node/Deno server). Update the frontend to call the new endpoints.
 
-## Edge-function actions (extend `cronometer`)
+## Phase 5 — Application configuration and testing
+1. Update the app to connect to Neon instead of Supabase (e.g., via a Postgres client or an ORM).
+2. Replace all Supabase client queries and RLS logic with server-side checks or a new access layer.
+3. Run end-to-end tests on a staging branch connected to the new backend.
+4. Migrate remaining storage files and sync the final incremental data changes.
 
-- `web_connect` (coach) → email + password + optional TOTP → performs login, stores encrypted session, immediately does first push.
-- `web_disconnect` (coach) → clears the session row.
-- `web_push_targets` (coach) → manual "push now" button.
-- `web_reconcile` (cron, daily 03:30 UTC) → for each `active` row:
-  - Compute current target hash from `nutrition_plans`.
-  - If hash != `last_pushed_hash` → push.
-  - Else if `last_verified_at` older than 7 days → verify via Pro API `/targets`; push only if drifted.
-- Internal `pushOnce(session, targets)` handles: refresh cookie if needed, POST target update, log everything.
+## Phase 6 — Cutover
+1. Put the app in read-only mode briefly to prevent new writes.
+2. Sync the final delta of data.
+3. Update production environment variables to point at Neon and the new auth/storage/function endpoints.
+4. Deploy the refactored app.
+5. Smoke-test login, check-in submission, file uploads, and Cronometer sync.
 
-## Auto-push hooks (in-app)
+## What I need from you now
+To start Phase 1, choose one of these options:
 
-Fire-and-forget from the two places targets change:
-- `NutritionWizard` save (coach sets a new plan).
-- `WeeklyReviewTab` "apply to nutrition" step.
+**Option A — I create the Neon project for you**
+- Create a Neon account and generate a personal API key with permission to create projects.
+- Add the API key as a secret in the project (I will tell you the secret name).
+- Tell me your preferred region and project name.
 
-The client-side call is `supabase.functions.invoke('cronometer', { action: 'web_push_targets', client_id })`. Failures show a subtle toast but never block the coach's save.
+**Option B — You create the project and share the connection string**
+- Create the Neon project yourself and run `CREATE DATABASE` or use the default database.
+- Add the connection string as a secret (or share it securely in chat).
+- I will handle the schema and data migration.
 
-## Frontend
-
-Extend `CronometerCoachCard` with a **"Target sync"** subsection:
-- Status pill: `Not connected` / `Active` / `Needs re-auth` / `Error`.
-- Buttons: `Connect target sync`, `Push now`, `Disconnect`.
-- Dialog for credentials + optional TOTP (masked inputs, warning that data is encrypted at rest).
-
-Client-side UI: no change — this is coach-only.
-
-## Cron
-
-```sql
-select cron.schedule(
-  'cronometer-web-reconcile',
-  '30 3 * * *',
-  $$ select net.http_post(
-      url:='https://<project>.supabase.co/functions/v1/cronometer',
-      headers:=jsonb_build_object('x-cron-secret','<CRON_SECRET>'),
-      body:=jsonb_build_object('action','web_reconcile')
-    ); $$
-);
-```
-
-## Secrets
-
-- New: `CRONO_WEB_KEY` (32-byte, base64) — generated via `generate_secret`. Used for AES-GCM of credentials + cookies.
-- Reused: `CRONOMETER_PRO_TOKEN`, `CRON_SECRET`.
-
-## Reverse-engineering note
-
-Cronometer's target update endpoint (`/user/targets/update` inside their SPA) uses cookie auth + XSRF token from `/login`. First implementation will:
-1. GET `/login` to grab CSRF/session cookie.
-2. POST `/login` with credentials (+ TOTP if requested).
-3. GET `/cronometer/app` to warm session.
-4. POST `/user/targets/update` with `{kcal, protein_g, carbs_g, fat_g}`.
-5. Verify by parsing the response, then also cross-check via Pro API `/targets` on next reconcile.
-
-If Cronometer changes the endpoint shape, only step 4 changes — everything else stays.
-
-## What we're NOT building
-
-- No scraper for diary/food-log reads (Pro API handles that).
-- No push into MyFitnessPal (out of scope per your answer).
-- No client-facing UI (coach-driven only).
-
-## Rollout
-
-1. Migration + secrets.
-2. Edge-function additions + deploy.
-3. UI in `CronometerCoachCard` + auto-push hooks.
-4. Schedule cron.
-5. Test end-to-end on a single client, then enable for others.
+Also confirm:
+- Do you want me to propose and set up a replacement for auth/storage/functions, or will you handle those separately?
+- Which region should the Neon database be in?
+- Do you want to keep the existing app on Lovable as the frontend host, or do you also plan to move hosting elsewhere?
