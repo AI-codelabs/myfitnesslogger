@@ -30,7 +30,21 @@ import Settings from "./pages/Settings.tsx";
 import MyIntake from "./pages/MyIntake.tsx";
 import NutritionTemplates from "./pages/NutritionTemplates.tsx";
 
+import { isRecoveryActive } from "@/lib/recovery";
+
 const queryClient = new QueryClient();
+
+/**
+ * While a password-recovery link is being processed the user must not be able
+ * to reach any authenticated page — force them to set a new password first.
+ */
+const RecoveryGate = ({ children }: { children: JSX.Element }) => {
+  const location = useLocation();
+  if (isRecoveryActive() && location.pathname !== "/reset-password") {
+    return <Navigate to={`/reset-password${location.search}${location.hash}`} replace />;
+  }
+  return children;
+};
 
 const Protected = ({ children, requireOnboarding = true }: { children: JSX.Element; requireOnboarding?: boolean }) => {
   const { session, loading, role, onboardingComplete } = useAuth();
@@ -55,6 +69,7 @@ const PublicOnly = ({ children }: { children: JSX.Element }) => {
   if (session) return <Navigate to="/" replace />;
   return children;
 };
+
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
