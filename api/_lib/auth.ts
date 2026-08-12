@@ -12,10 +12,15 @@ let jwks: ReturnType<typeof createRemoteJWKSet> | null = null;
  * Neon Auth publishes a JWKS endpoint per project, e.g.
  * https://<endpoint>.neonauth.<region>.aws.neon.tech/<db>/auth/.well-known/jwks.json
  */
+export const NEON_AUTH_BASE_URL =
+  process.env.NEON_AUTH_URL ??
+  "https://ep-super-butterfly-b1u1cypj.neonauth.c-5.eu-central-1.aws.neon.tech/neondb/auth";
+
 function getJwks() {
   if (!jwks) {
-    const jwksUrl = process.env.NEON_AUTH_JWKS_URL;
-    if (!jwksUrl) throw new Error("NEON_AUTH_JWKS_URL is not set");
+    const jwksUrl =
+      process.env.NEON_AUTH_JWKS_URL ??
+      `${NEON_AUTH_BASE_URL}/.well-known/jwks.json`;
     jwks = createRemoteJWKSet(new URL(jwksUrl));
   }
   return jwks;
