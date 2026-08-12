@@ -78,6 +78,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
+          <RecoveryGate>
           <Routes>
             <Route path="/" element={<Protected><Index /></Protected>} />
             <Route path="/clients" element={<Protected><AppLayout><Clients /></AppLayout></Protected>} />
