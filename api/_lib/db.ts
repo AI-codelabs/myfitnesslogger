@@ -1,13 +1,22 @@
-import { Pool } from "@neondatabase/serverless";
+import pg from "pg";
 
-let pool: Pool | null = null;
+let pool: pg.Pool | null = null;
 
-/** Shared Neon connection pool (serverless-friendly, reused across warm invocations). */
-export function getPool(): Pool {
+/** Shared Postgres connection pool (serverless-friendly, reused across warm invocations). */
+export function getPool(): pg.Pool {
   if (!pool) {
     const connectionString = process.env.DATABASE_URL;
     if (!connectionString) throw new Error("DATABASE_URL is not set");
-    pool = new Pool({ connectionString });
+    pool = new pg.Pool({
+      connectionString,
+      max: 1,
+      idleTimeoutMillis: 10_000,
+      connectionTimeoutMillis: 10_000,
+      ssl: { rejectUnauthorized: false },
+    });
+    pool.on("error", (err) => {
+      console.error("[api] pg pool error", err.message);
+    });
   }
   return pool;
 }
