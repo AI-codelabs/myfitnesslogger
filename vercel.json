@@ -11,9 +11,5 @@
       "runtime": "@vercel/node@5",
       "maxDuration": 60
     }
-  },
-  "crons": [
-    { "path": "/api/cron/cronometer-pull", "schedule": "0 * * * *" },
-    { "path": "/api/cron/check-expirations", "schedule": "0 6 * * *" }
-  ]
+  }
 }
