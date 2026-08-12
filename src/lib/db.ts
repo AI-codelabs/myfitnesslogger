@@ -49,7 +49,7 @@ const enabledFeatures = new Set(
 );
 
 const neonTables = new Set<string>();
-for (const feature of enabledFeatures) {
+for (const feature of Array.from(enabledFeatures) as string[]) {
   for (const table of FEATURE_TABLES[feature] ?? []) neonTables.add(table);
 }
 
