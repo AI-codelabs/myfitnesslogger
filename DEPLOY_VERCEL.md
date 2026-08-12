@@ -36,3 +36,15 @@ Backend / serverless functions (`api/`):
    `BLOB_READ_WRITE_TOKEN` is injected.
 3. Smoke test: `GET /api/weight/list` with a Neon Auth bearer token should
    return 200, and without a token 401.
+
+## Feature cutover flag
+
+`VITE_NEON_FEATURES` (frontend, comma separated) decides which features read/write
+through the Neon-backed serverless API instead of the legacy backend.
+
+- unset / empty (default): everything stays on the legacy backend
+- `weight`: weight logging uses `/api/weight/list|log|delete` against Neon
+
+The API accepts both Neon Auth tokens and legacy tokens during the transition
+(`api/_lib/auth.ts` dual issuer). Set `LEGACY_AUTH_URL` (or `VITE_SUPABASE_URL`)
+on the functions so the legacy JWKS can be fetched.
