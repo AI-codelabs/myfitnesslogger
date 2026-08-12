@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { listWeightLogs } from "@/lib/api/weight";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -296,14 +297,9 @@ function GoalsSection({ lang }: { lang: Lang }) {
     (async () => {
       const g = await fetchActiveGoal(user.id);
       setGoal(g);
-      const { data } = await supabase
-        .from("weight_logs")
-        .select("weight_kg")
-        .eq("client_id", user.id)
-        .order("logged_on", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      setLatestWeight(data?.weight_kg ?? null);
+      const logs = await listWeightLogs(user.id, { limit: 1 }).catch(() => []);
+      setLatestWeight(logs[0]?.weight_kg ?? null);
+
       setLoaded(true);
     })();
   }, [user]);

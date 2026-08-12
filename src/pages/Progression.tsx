@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { listWeightLogs } from "@/lib/api/weight";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -173,17 +174,19 @@ export default function Progression() {
         .select("id,taken_on,front_path,side_path,back_path,weight_kg")
         .eq("client_id", user.id)
         .order("taken_on", { ascending: false }),
-      supabase
-        .from("weight_logs")
-        .select("id,logged_on,weight_kg,note")
-        .eq("client_id", user.id)
-        .order("logged_on", { ascending: true }),
+      listWeightLogs(user.id, { limit: 500 }).catch((e) => {
+        console.error("[progression] weight logs failed", e);
+        return [];
+      }),
     ]);
     setCheckins((c.data as CheckinRow[]) ?? []);
     setPhotos((p.data as PhotoRow[]) ?? []);
-    setWeightLogs((w.data as WeightLog[]) ?? []);
+    setWeightLogs(
+      [...w].sort((a, b) => a.logged_on.localeCompare(b.logged_on)) as WeightLog[],
+    );
     setLoading(false);
   };
+
 
   useEffect(() => {
     load();

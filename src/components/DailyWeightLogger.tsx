@@ -8,6 +8,7 @@ import { Loader2, Plus, Scale, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { parseDecimal } from "@/lib/parseDecimal";
 import { describeWriteError } from "@/lib/writeError";
+import { deleteWeightLog, listWeightLogs, upsertWeightLog } from "@/lib/api/weight";
 
 export type WeightLog = {
   id: string;
@@ -60,13 +61,12 @@ export function DailyWeightLogger({ clientId, lang = "nl", onChange }: Props) {
   const [loading, setLoading] = useState(true);
 
   const load = async () => {
-    const { data } = await supabase
-      .from("weight_logs")
-      .select("id,logged_on,weight_kg,note")
-      .eq("client_id", clientId)
-      .order("logged_on", { ascending: false })
-      .limit(10);
-    setLogs((data as WeightLog[]) ?? []);
+    try {
+      const data = await listWeightLogs(clientId, { limit: 10 });
+      setLogs(data as WeightLog[]);
+    } catch (e) {
+      console.error("[weight-log] load failed", e);
+    }
     setLoading(false);
   };
 
@@ -88,18 +88,12 @@ export function DailyWeightLogger({ clientId, lang = "nl", onChange }: Props) {
     setSaving(true);
     let error: unknown = null;
     try {
-      const res = await supabase
-        .from("weight_logs")
-        .upsert(
-          {
-            client_id: clientId,
-            logged_on: date,
-            weight_kg: w,
-            note: note.trim() || null,
-          },
-          { onConflict: "client_id,logged_on" },
-        );
-      error = res.error;
+      await upsertWeightLog({
+        clientId,
+        loggedOn: date,
+        weightKg: w,
+        note: note.trim() || null,
+      });
     } catch (e) {
       error = e;
     }
@@ -118,15 +112,17 @@ export function DailyWeightLogger({ clientId, lang = "nl", onChange }: Props) {
   };
 
   const remove = async (id: string) => {
-    const { error } = await supabase.from("weight_logs").delete().eq("id", id);
-    if (error) {
-      toast.error(error.message);
+    try {
+      await deleteWeightLog(id);
+    } catch (e) {
+      toast.error(describeWriteError(e, lang));
       return;
     }
     toast.success(L.deleted);
     await load();
     onChange?.();
   };
+
 
   return (
     <Card className="p-4 sm:p-5 space-y-4">
