@@ -8,6 +8,7 @@ import { Loader2, Plus, Scale, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { parseDecimal } from "@/lib/parseDecimal";
 import { describeWriteError } from "@/lib/writeError";
+import { deleteWeightLog, listWeightLogs, upsertWeightLog } from "@/lib/api/weight";
 
 export type WeightLog = {
   id: string;
