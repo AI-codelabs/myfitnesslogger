@@ -42,8 +42,11 @@ Backend / serverless functions (`api/`):
 `VITE_NEON_FEATURES` (frontend, comma separated) decides which features read/write
 through the Neon-backed serverless API instead of the legacy backend.
 
-- unset / empty (default): everything stays on the legacy backend
+- unset / empty: everything stays on the legacy backend
 - `weight`: weight logging uses `/api/weight/list|log|delete` against Neon
+
+**Current cutover:** `weight` is enabled via `vercel.json` → `env.VITE_NEON_FEATURES`,
+so production and preview builds use the Neon weight path.
 
 The API accepts both Neon Auth tokens and legacy tokens during the transition
 (`api/_lib/auth.ts` dual issuer). Set `LEGACY_AUTH_URL` (or `VITE_SUPABASE_URL`)
