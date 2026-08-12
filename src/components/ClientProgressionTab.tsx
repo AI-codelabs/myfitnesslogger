@@ -18,6 +18,7 @@ import {
   type PhotoRow,
 } from "@/components/ProgressPhotoTimeline";
 import { StrengthProgressChart } from "@/components/StrengthProgressChart";
+import { db } from "@/lib/db";
 
 interface Props {
   clientId: string;
@@ -86,8 +87,7 @@ export function ClientProgressionTab({ clientId, lang }: Props) {
     (async () => {
       setLoading(true);
       const [c, p] = await Promise.all([
-        supabase
-          .from("weekly_checkins")
+        db.from("weekly_checkins")
           .select(
             "week_start,weight_kg,body_fat_pct,energy,soreness,hydration,nutrition_stars,intensity_rpe,progression",
           )

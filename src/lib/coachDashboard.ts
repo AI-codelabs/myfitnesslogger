@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getExpectedCheckinWeekStart, getWeekStart } from "./weeklyCheckin";
 import type { GoalType } from "./clientGoal";
+import { db } from "@/lib/db";
 
 
 export type DashCheckin = {
@@ -127,8 +128,7 @@ export function useCoachDashboardData(coachId: string | undefined) {
           .select("client_id, goal_type, goal_weight_kg, weekly_drift_tolerance_kg, is_active, created_at")
           .in("client_id", clientIds)
           .eq("is_active", true),
-        supabase
-          .from("weekly_checkins")
+        db.from("weekly_checkins")
           .select(
             "id, client_id, week_start, submitted_at, feeling, energy, progression, nutrition_stars, supplements_consistency, weight_kg, obstacles, progress_feeling, cravings, other_notes",
           )
@@ -140,8 +140,7 @@ export function useCoachDashboardData(coachId: string | undefined) {
           .select("client_id, published_at, generated_at")
           .eq("coach_id", coachId)
           .in("client_id", clientIds),
-        supabase
-          .from("weekly_review_drafts")
+        db.from("weekly_review_drafts")
           .select("client_id, week_start, published_at")
           .eq("coach_id", coachId)
           .in("client_id", clientIds),

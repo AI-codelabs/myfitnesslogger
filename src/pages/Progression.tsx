@@ -39,6 +39,7 @@ import {
 import { ProgressPhotoUploader } from "@/components/ProgressPhotoUploader";
 import { DailyWeightLogger, type WeightLog } from "@/components/DailyWeightLogger";
 import { StrengthProgressChart } from "@/components/StrengthProgressChart";
+import { db } from "@/lib/db";
 
 type CheckinRow = {
   id: string;
@@ -162,8 +163,7 @@ export default function Progression() {
   const load = async () => {
     if (!user) return;
     const [c, p, w] = await Promise.all([
-      supabase
-        .from("weekly_checkins")
+      db.from("weekly_checkins")
         .select(
           "id,week_start,weight_kg,body_fat_pct,energy,sleep_cycle,soreness,hydration,feeling,nutrition_stars,intensity_rpe,progression,supplements_consistency",
         )

@@ -27,6 +27,7 @@ import { Lang } from "@/lib/onboardingSchema";
 import { fetchActiveGoal, ClientGoal, GOAL_TYPE_LABELS } from "@/lib/clientGoal";
 import { NutritionTodayCard } from "@/components/client-home/NutritionTodayCard";
 import { ComplianceCard } from "@/components/client-home/ComplianceCard";
+import { db } from "@/lib/db";
 
 const tx = (lang: Lang, nl: string, en: string) => (lang === "nl" ? nl : en);
 
@@ -67,8 +68,7 @@ function HeroCheckinCard({ lang }: { lang: Lang }) {
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const { data } = await supabase
-        .from("weekly_checkins")
+      const { data } = await db.from("weekly_checkins")
         .select("submitted_at")
         .eq("client_id", user.id)
         .eq("week_start", weekStart)

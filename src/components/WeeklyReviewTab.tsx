@@ -34,6 +34,7 @@ import { toast } from "sonner";
 import { Lang } from "@/lib/onboardingSchema";
 import { formatHumanDate } from "@/lib/weeklyCheckin";
 import { pushTargetsToCronometer } from "@/lib/cronometerTargets";
+import { db } from "@/lib/db";
 
 interface Props {
   clientId: string;
@@ -138,8 +139,7 @@ export function WeeklyReviewTab({ clientId, coachId, lang }: Props) {
 
   const loadDrafts = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from("weekly_review_drafts")
+    const { data } = await db.from("weekly_review_drafts")
       .select("*")
       .eq("client_id", clientId)
       .eq("coach_id", coachId)
@@ -199,8 +199,7 @@ export function WeeklyReviewTab({ clientId, coachId, lang }: Props) {
         client_actions: actions.filter((s) => s.trim()),
         suggested_adjustments: adjustments,
       };
-      const { error } = await supabase
-        .from("weekly_review_drafts")
+      const { error } = await db.from("weekly_review_drafts")
         .update(payload)
         .eq("id", selected.id);
       if (!error) setAutoSavedAt(new Date().toISOString());
@@ -248,8 +247,7 @@ export function WeeklyReviewTab({ clientId, coachId, lang }: Props) {
         insights: data.insights ?? {},
         generated_at: new Date().toISOString(),
       };
-      await supabase
-        .from("weekly_review_drafts")
+      await db.from("weekly_review_drafts")
         .update(persistPayload)
         .eq("id", selected.id);
       toast.success(tx(lang, "Review gegenereerd", "Review generated"));
@@ -280,8 +278,7 @@ export function WeeklyReviewTab({ clientId, coachId, lang }: Props) {
         payload.voice_memo_recorded_at = new Date().toISOString();
       }
     }
-    const { error } = await supabase
-      .from("weekly_review_drafts")
+    const { error } = await db.from("weekly_review_drafts")
       .update(payload)
       .eq("id", selected.id);
     setSaving(false);
@@ -329,8 +326,7 @@ export function WeeklyReviewTab({ clientId, coachId, lang }: Props) {
       .update({ details: next })
       .eq("id", plan.id);
     if (!error) {
-      await supabase
-        .from("weekly_review_drafts")
+      await db.from("weekly_review_drafts")
         .update({ applied_to_nutrition_at: new Date().toISOString() })
         .eq("id", selected.id);
     }
@@ -497,8 +493,7 @@ export function WeeklyReviewTab({ clientId, coachId, lang }: Props) {
                   size="sm"
                   onClick={async () => {
                     const value = selected.voice_memo_recorded_at ? null : new Date().toISOString();
-                    const { error } = await supabase
-                      .from("weekly_review_drafts")
+                    const { error } = await db.from("weekly_review_drafts")
                       .update({ voice_memo_recorded_at: value })
                       .eq("id", selected.id);
                     if (error) return toast.error(error.message);
