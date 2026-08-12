@@ -6,7 +6,8 @@ export type AuthUser = {
   email: string | null;
 };
 
-let jwks: ReturnType<typeof createRemoteJWKSet> | null = null;
+let neonJwks: ReturnType<typeof createRemoteJWKSet> | null = null;
+let supabaseJwks: ReturnType<typeof createRemoteJWKSet> | null = null;
 
 /**
  * Neon Auth publishes a JWKS endpoint per project, e.g.
@@ -16,15 +17,34 @@ export const NEON_AUTH_BASE_URL =
   process.env.NEON_AUTH_URL ??
   "https://ep-super-butterfly-b1u1cypj.neonauth.c-5.eu-central-1.aws.neon.tech/neondb/auth";
 
-function getJwks() {
-  if (!jwks) {
+/**
+ * Bridge issuer: while the app is migrated feature by feature the frontend is
+ * still signed in through the legacy auth provider, so its tokens must keep
+ * working against the Neon-backed API. Remove once auth itself is cut over.
+ */
+export const LEGACY_AUTH_URL =
+  process.env.LEGACY_AUTH_URL ?? process.env.VITE_SUPABASE_URL ?? "";
+
+function getNeonJwks() {
+  if (!neonJwks) {
     const jwksUrl =
       process.env.NEON_AUTH_JWKS_URL ??
       `${NEON_AUTH_BASE_URL}/.well-known/jwks.json`;
-    jwks = createRemoteJWKSet(new URL(jwksUrl));
+    neonJwks = createRemoteJWKSet(new URL(jwksUrl));
   }
-  return jwks;
+  return neonJwks;
 }
+
+function getLegacyJwks() {
+  if (!LEGACY_AUTH_URL) return null;
+  if (!supabaseJwks) {
+    supabaseJwks = createRemoteJWKSet(
+      new URL(`${LEGACY_AUTH_URL.replace(/\/$/, "")}/auth/v1/.well-known/jwks.json`),
+    );
+  }
+  return supabaseJwks;
+}
+
 
 export class HttpError extends Error {
   constructor(public status: number, message: string) {
