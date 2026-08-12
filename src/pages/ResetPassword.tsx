@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { clearRecovery, isRecoveryActive, markRecoveryActive, urlHasRecovery } from "@/lib/recovery";
 
 const schema = z
   .object({
