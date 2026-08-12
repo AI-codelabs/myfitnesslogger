@@ -27,7 +27,7 @@ interface Props {
   onInvited: () => void;
 }
 
-const PUBLIC_APP_URL = "https://myfitnesslogger.lovable.app";
+const PUBLIC_APP_URL = window.location.origin;
 
 export function InviteClientDialog({ open, onOpenChange, onInvited }: Props) {
   const { user } = useAuth();

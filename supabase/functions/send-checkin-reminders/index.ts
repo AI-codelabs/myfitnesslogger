@@ -283,7 +283,8 @@ function json(data: unknown, status = 200) {
 // to "Hi" when we don't have a display name.
 // =====================================================================
 
-const CHECKIN_URL = "https://myfitnesslogger.lovable.app/check-in";
+const APP_URL = (Deno.env.get("PUBLIC_APP_URL") ?? "https://my-fitness-logger.vercel.app").replace(/\/$/, "");
+const CHECKIN_URL = `${APP_URL}/check-in`;
 
 function renderCustomTemplate(
   tpl: { subject: string; body: string; header_image_url: string | null },
@@ -333,7 +334,7 @@ const TEMPLATES: Record<"sunday" | "monday", TemplateFn> = {
   <p>${greeting},</p>
   <p>Je <strong>weekly check-in</strong> staat klaar. Neem 5 minuten de tijd om je gewicht, training en gevoel van afgelopen week door te geven — zo kunnen we samen kijken wat goed ging en waar we kunnen bijsturen.</p>
   <p style="margin:28px 0;">
-    <a href="https://myfitnesslogger.lovable.app/weekly-checkin"
+    <a href="${APP_URL}/weekly-checkin"
        style="display:inline-block;padding:12px 22px;background:#0070f3;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;">
       Vul je check-in in
     </a>
@@ -352,7 +353,7 @@ const TEMPLATES: Record<"sunday" | "monday", TemplateFn> = {
   <p>${greeting},</p>
   <p>Kleine herinnering — je hebt je <strong>weekly check-in</strong> van afgelopen week nog niet ingevuld. Het kost je maar een paar minuten en het helpt me enorm om je optimaal te begeleiden.</p>
   <p style="margin:28px 0;">
-    <a href="https://myfitnesslogger.lovable.app/weekly-checkin"
+    <a href="${APP_URL}/weekly-checkin"
        style="display:inline-block;padding:12px 22px;background:#0070f3;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;">
       Vul je check-in nu in
     </a>

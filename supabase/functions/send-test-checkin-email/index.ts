@@ -154,7 +154,8 @@ function json(data: unknown, status = 200) {
   });
 }
 
-const CHECKIN_URL = "https://myfitnesslogger.lovable.app/check-in";
+const APP_URL = (Deno.env.get("PUBLIC_APP_URL") ?? "https://my-fitness-logger.vercel.app").replace(/\/$/, "");
+const CHECKIN_URL = `${APP_URL}/check-in`;
 
 function renderCustomTemplate(
   tpl: { subject: string; body: string; header_image_url: string | null },
