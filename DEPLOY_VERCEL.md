@@ -45,8 +45,10 @@ through the Neon-backed serverless API instead of the legacy backend.
 - unset / empty: everything stays on the legacy backend
 - `weight`: weight logging uses `/api/weight/list|log|delete` against Neon
 
-**Current cutover:** `weight` is enabled via `vercel.json` → `env.VITE_NEON_FEATURES`,
-so production and preview builds use the Neon weight path.
+**Current cutover:** `weight` is enabled via `.env.production`
+(`VITE_NEON_FEATURES=weight`), so production Vite builds use the Neon weight path.
+Override in the Vercel project env UI (same key) if you need to turn it off without
+a code change.
 
 The API accepts both Neon Auth tokens and legacy tokens during the transition
 (`api/_lib/auth.ts` dual issuer). Set `LEGACY_AUTH_URL` (or `VITE_SUPABASE_URL`)

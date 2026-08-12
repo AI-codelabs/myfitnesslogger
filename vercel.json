@@ -4,9 +4,6 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "installCommand": "npm install --legacy-peer-deps",
-  "env": {
-    "VITE_NEON_FEATURES": "weight"
-  },
   "functions": {
     "api/**/*.ts": {
       "maxDuration": 60
