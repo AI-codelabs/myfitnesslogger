@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { CheckCircle2, AlertTriangle, Target, ChevronDown, LucideIcon } from "lucide-react";
+import { db } from "@/lib/db";
 
 interface Msg {
   voice_memo: string;
@@ -76,8 +77,7 @@ export function ClientStartMessageCard({ lang }: { lang: "nl" | "en" }) {
     (async () => {
       // Prefer the most recent published weekly review; fall back to the
       // one-time start message if no weekly review has been published yet.
-      const { data: weekly } = await supabase
-        .from("weekly_review_drafts")
+      const { data: weekly } = await db.from("weekly_review_drafts")
         .select("voice_memo, client_positive, client_attention, client_actions, published_at, week_start")
         .eq("client_id", user.id)
         .not("published_at", "is", null)

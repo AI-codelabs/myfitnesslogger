@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Flame, TrendingDown, TrendingUp, Minus, Target } from "lucide-react";
 import { fetchActiveGoal, judgeWeightChange, type ClientGoal, GOAL_TYPE_LABELS } from "@/lib/clientGoal";
+import { db } from "@/lib/db";
 
 interface Props {
   lang: "nl" | "en";
@@ -25,8 +26,7 @@ export function ProgressionSummary({ lang }: Props) {
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const { data } = await supabase
-        .from("weekly_checkins")
+      const { data } = await db.from("weekly_checkins")
         .select("week_start,weight_kg,body_fat_pct")
         .eq("client_id", user.id)
         .order("week_start", { ascending: true });

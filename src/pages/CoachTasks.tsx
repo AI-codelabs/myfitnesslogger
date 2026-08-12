@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import { formatHumanDate, getExpectedCheckinWeekStart } from "@/lib/weeklyCheckin";
 
 import { clientFullName } from "@/lib/clientName";
+import { db } from "@/lib/db";
 
 type Client = {
   user_id: string;
@@ -113,13 +114,11 @@ export default function CoachTasks() {
         .select("client_id, voice_memo, published_at, voice_memo_recorded_at")
         .eq("coach_id", user.id)
         .in("client_id", clientIds),
-      supabase
-        .from("weekly_checkins")
+      db.from("weekly_checkins")
         .select("client_id, submitted_at")
         .eq("week_start", weekStart)
         .in("client_id", clientIds),
-      supabase
-        .from("weekly_review_drafts")
+      db.from("weekly_review_drafts")
         .select("client_id, week_start, generated_at, published_at, voice_memo_recorded_at")
         .eq("coach_id", user.id)
         .eq("week_start", weekStart)
@@ -265,8 +264,7 @@ export default function CoachTasks() {
   const markWeeklyVoiceRecorded = async (clientId: string, current: boolean) => {
     if (!user) return;
     const value = current ? null : new Date().toISOString();
-    const { error } = await supabase
-      .from("weekly_review_drafts")
+    const { error } = await db.from("weekly_review_drafts")
       .update({ voice_memo_recorded_at: value })
       .eq("client_id", clientId)
       .eq("coach_id", user.id)

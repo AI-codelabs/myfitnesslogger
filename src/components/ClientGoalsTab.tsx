@@ -22,6 +22,7 @@ import {
   GoalType,
 } from "@/lib/clientGoal";
 import { Lang } from "@/lib/onboardingSchema";
+import { db } from "@/lib/db";
 
 type DraftGoal = {
   goal_type: GoalType;
@@ -100,8 +101,7 @@ export function ClientGoalsTab({
         .select("*")
         .eq("client_id", clientId)
         .order("created_at", { ascending: false }),
-      supabase
-        .from("weekly_checkins")
+      db.from("weekly_checkins")
         .select("week_start, weight_kg, intensity_rpe, energy, nutrition_stars, hydration")
         .eq("client_id", clientId)
         .order("week_start", { ascending: false })

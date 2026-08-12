@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ClipboardCheck, CheckCircle2, ArrowRight } from "lucide-react";
 import {
+import { db } from "@/lib/db";
   getExpectedCheckinWeekStart,
   getWeekEnd,
   isCheckinWindowOpen,
@@ -25,8 +26,7 @@ export function WeeklyCheckinCard({ lang }: { lang: "nl" | "en" }) {
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const { data } = await supabase
-        .from("weekly_checkins")
+      const { data } = await db.from("weekly_checkins")
         .select("submitted_at")
         .eq("client_id", user.id)
         .eq("week_start", weekStart)

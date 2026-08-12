@@ -19,6 +19,7 @@ import {
 } from "@/lib/weeklyCheckin";
 import { CronometerConnectDialog } from "@/components/CronometerConnectDialog";
 import { syncCronometer } from "@/lib/cronometer";
+import { db } from "@/lib/db";
 
 type Form = {
   training_count: string;
@@ -259,8 +260,7 @@ export default function WeeklyCheckin() {
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const { data } = await supabase
-        .from("weekly_checkins")
+      const { data } = await db.from("weekly_checkins")
         .select("*")
         .eq("client_id", user.id)
         .eq("week_start", weekStart)
@@ -367,8 +367,7 @@ export default function WeeklyCheckin() {
     };
     let error: unknown = null;
     try {
-      const res = await supabase
-        .from("weekly_checkins")
+      const res = await db.from("weekly_checkins")
         .upsert(payload, { onConflict: "client_id,week_start" });
       error = res.error;
     } catch (e) {

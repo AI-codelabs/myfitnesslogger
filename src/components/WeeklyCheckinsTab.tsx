@@ -26,6 +26,7 @@ import {
 import { formatHumanDate } from "@/lib/weeklyCheckin";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { db } from "@/lib/db";
 
 interface Props {
   clientId: string;
@@ -239,8 +240,7 @@ export function WeeklyCheckinsTab({ clientId, lang }: Props) {
   useEffect(() => {
     (async () => {
       const [{ data: checkins }, { data: onboarding }, { data: goal }] = await Promise.all([
-        supabase
-          .from("weekly_checkins")
+        db.from("weekly_checkins")
           .select("*")
           .eq("client_id", clientId)
           .order("week_start", { ascending: false }),
