@@ -110,11 +110,19 @@ const ResetPassword = () => {
         <div className="text-center space-y-2">
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Set a new password</h1>
           <p className="text-sm text-muted-foreground">
-            {ready
-              ? "Choose a new password for your account."
-              : "Verifying your reset link…"}
+            {error
+              ? error
+              : ready
+                ? "Choose a new password for your account."
+                : "Verifying your reset link…"}
           </p>
+          {error && (
+            <Button variant="outline" className="mt-2" onClick={() => navigate("/forgot-password", { replace: true })}>
+              Request a new link
+            </Button>
+          )}
         </div>
+
 
         {ready && (
           <form onSubmit={handleSubmit} className="space-y-4">
