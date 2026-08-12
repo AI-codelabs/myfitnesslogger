@@ -52,25 +52,38 @@ export class HttpError extends Error {
   }
 }
 
-/** Verifies the Neon Auth access token on the Authorization header. */
+/**
+ * Verifies the access token on the Authorization header. Neon Auth tokens are
+ * tried first; legacy tokens are accepted while the cutover is in progress.
+ */
 export async function requireUser(req: VercelRequest): Promise<AuthUser> {
   const header = req.headers.authorization ?? "";
   const token = header.startsWith("Bearer ") ? header.slice(7).trim() : "";
   if (!token) throw new HttpError(401, "Missing access token");
 
-  try {
-    const { payload } = await jwtVerify(token, getJwks(), {
-      issuer: process.env.NEON_AUTH_ISSUER || undefined,
-    });
-    const id = typeof payload.sub === "string" ? payload.sub : null;
-    if (!id) throw new HttpError(401, "Token has no subject");
-    const email =
-      typeof (payload as Record<string, unknown>).email === "string"
-        ? ((payload as Record<string, unknown>).email as string)
-        : null;
-    return { id, email };
-  } catch (err) {
-    if (err instanceof HttpError) throw err;
-    throw new HttpError(401, "Invalid or expired access token");
+  const candidates: Array<{ keys: ReturnType<typeof createRemoteJWKSet>; issuer?: string }> = [
+    { keys: getNeonJwks(), issuer: process.env.NEON_AUTH_ISSUER || undefined },
+  ];
+  const legacy = getLegacyJwks();
+  if (legacy) candidates.push({ keys: legacy });
+
+  for (const candidate of candidates) {
+    try {
+      const { payload } = await jwtVerify(token, candidate.keys, {
+        issuer: candidate.issuer,
+      });
+      const id = typeof payload.sub === "string" ? payload.sub : null;
+      if (!id) throw new HttpError(401, "Token has no subject");
+      const email =
+        typeof (payload as Record<string, unknown>).email === "string"
+          ? ((payload as Record<string, unknown>).email as string)
+          : null;
+      return { id, email };
+    } catch {
+      /* try the next issuer */
+    }
   }
+
+  throw new HttpError(401, "Invalid or expired access token");
 }
+
