@@ -8,15 +8,15 @@ export type AuthUser = {
 
 let jwks: ReturnType<typeof createRemoteJWKSet> | null = null;
 
+/**
+ * Neon Auth publishes a JWKS endpoint per project, e.g.
+ * https://<endpoint>.neonauth.<region>.aws.neon.tech/<db>/auth/.well-known/jwks.json
+ */
 function getJwks() {
   if (!jwks) {
-    const projectId = process.env.NEON_AUTH_PROJECT_ID;
-    if (!projectId) throw new Error("NEON_AUTH_PROJECT_ID is not set");
-    jwks = createRemoteJWKSet(
-      new URL(
-        `https://api.stack-auth.com/api/v1/projects/${projectId}/.well-known/jwks.json`,
-      ),
-    );
+    const jwksUrl = process.env.NEON_AUTH_JWKS_URL;
+    if (!jwksUrl) throw new Error("NEON_AUTH_JWKS_URL is not set");
+    jwks = createRemoteJWKSet(new URL(jwksUrl));
   }
   return jwks;
 }
@@ -27,14 +27,16 @@ export class HttpError extends Error {
   }
 }
 
-/** Verifies the Neon Auth (Stack Auth) access token on the Authorization header. */
+/** Verifies the Neon Auth access token on the Authorization header. */
 export async function requireUser(req: VercelRequest): Promise<AuthUser> {
   const header = req.headers.authorization ?? "";
   const token = header.startsWith("Bearer ") ? header.slice(7).trim() : "";
   if (!token) throw new HttpError(401, "Missing access token");
 
   try {
-    const { payload } = await jwtVerify(token, getJwks());
+    const { payload } = await jwtVerify(token, getJwks(), {
+      issuer: process.env.NEON_AUTH_ISSUER || undefined,
+    });
     const id = typeof payload.sub === "string" ? payload.sub : null;
     if (!id) throw new HttpError(401, "Token has no subject");
     const email =
