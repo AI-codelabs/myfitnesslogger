@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { db } from "@/lib/db";
 
 const schema = z.object({
   email: z.string().trim().email("Invalid email").max(255),
@@ -41,7 +42,7 @@ const Login = () => {
     }
 
     // Verify the role matches the selected tab
-    const { data: roleData } = await supabase
+    const { data: roleData } = await db
       .from("user_roles")
       .select("role")
       .eq("user_id", data.user.id)

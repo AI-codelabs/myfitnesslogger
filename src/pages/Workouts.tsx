@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +21,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
+import { db } from "@/lib/db";
 
 interface Plan {
   id: string;
@@ -61,7 +61,7 @@ export default function Workouts() {
     if (!deleting) return;
     setDeleteBusy(true);
     try {
-      const { count } = await supabase
+      const { count } = await db
         .from("workout_plan_exercises")
         .select("id", { count: "exact", head: true })
         .eq("exercise_id", deleting.id);
@@ -74,7 +74,7 @@ export default function Workouts() {
         setDeleting(null);
         return;
       }
-      const { error } = await supabase.from("exercises").delete().eq("id", deleting.id);
+      const { error } = await db.from("exercises").delete().eq("id", deleting.id);
       if (error) throw error;
       toast({ title: "Exercise deleted", description: deleting.name });
       setDeleting(null);
@@ -91,7 +91,7 @@ export default function Workouts() {
   }
 
   async function reloadExercises() {
-    const { data } = await supabase
+    const { data } = await db
       .from("exercises")
       .select("*")
       .order("muscle_group")
@@ -99,7 +99,7 @@ export default function Workouts() {
     setExercises(data ?? []);
   }
   async function loadPlans() {
-    const { data: p } = await supabase
+    const { data: p } = await db
       .from("workout_plans")
       .select("*")
       .order("is_template", { ascending: false })
@@ -111,7 +111,7 @@ export default function Workouts() {
     (async () => {
       const [, { data: e }] = await Promise.all([
         loadPlans(),
-        supabase.from("exercises").select("*").order("muscle_group").order("name"),
+        db.from("exercises").select("*").order("muscle_group").order("name"),
       ]);
       setExercises(e ?? []);
       setLoading(false);

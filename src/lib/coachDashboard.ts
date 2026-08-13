@@ -1,5 +1,4 @@
 import { useEffect, useState, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { getExpectedCheckinWeekStart, getWeekStart } from "./weeklyCheckin";
 import type { GoalType } from "./clientGoal";
 import { db } from "@/lib/db";
@@ -77,7 +76,7 @@ export function useCoachDashboardData(coachId: string | undefined) {
     setLoading(true);
     const weekStart = getExpectedCheckinWeekStart();
 
-    const { data: invs } = await supabase
+    const { data: invs } = await db
       .from("invitations")
       .select(
         "id, email, status, accepted_user_id, accepted_at, created_at, coaching_start_date, coaching_end_date",
@@ -115,15 +114,15 @@ export function useCoachDashboardData(coachId: string | undefined) {
 
     const [profilesRes, onboardingRes, goalsRes, checkinsRes, msgsRes, reviewsRes] =
       await Promise.all([
-        supabase
+        db
           .from("profiles")
           .select("user_id, display_name, first_name, last_name")
           .in("user_id", clientIds),
-        supabase
+        db
           .from("onboarding_responses")
           .select("user_id, completed_at, primary_goal")
           .in("user_id", clientIds),
-        supabase
+        db
           .from("client_goals")
           .select("client_id, goal_type, goal_weight_kg, weekly_drift_tolerance_kg, is_active, created_at")
           .in("client_id", clientIds)
@@ -135,7 +134,7 @@ export function useCoachDashboardData(coachId: string | undefined) {
           .in("client_id", clientIds)
           .gte("week_start", lookbackIso)
           .order("week_start", { ascending: false }),
-        supabase
+        db
           .from("coach_messages")
           .select("client_id, published_at, generated_at")
           .eq("coach_id", coachId)

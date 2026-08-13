@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { db } from "@/lib/db";
 
 export type DerivedClientPlan = {
   assignmentId: string;
@@ -18,7 +18,7 @@ export type DerivedClientPlan = {
  *    (workout_plans.source_plan_id = planId); those can optionally be re-synced.
  */
 export async function listDerivedClientPlans(planId: string): Promise<DerivedClientPlan[]> {
-  const { data: copies } = await supabase
+  const { data: copies } = await db
     .from("workout_plans")
     .select("id, name")
     .eq("source_plan_id", planId);
@@ -26,7 +26,7 @@ export async function listDerivedClientPlans(planId: string): Promise<DerivedCli
   const planIds = [planId, ...((copies ?? []).map((p: any) => p.id) as string[])];
   const nameById = new Map<string, string>((copies ?? []).map((p: any) => [p.id, p.name]));
 
-  const { data: assignments } = await supabase
+  const { data: assignments } = await db
     .from("client_workout_assignments")
     .select("id, client_id, plan_id")
     .in("plan_id", planIds);
@@ -35,7 +35,7 @@ export async function listDerivedClientPlans(planId: string): Promise<DerivedCli
   if (rows.length === 0) return [];
 
   const clientIds = Array.from(new Set(rows.map((a: any) => a.client_id)));
-  const { data: profiles } = await supabase
+  const { data: profiles } = await db
     .from("profiles")
     .select("user_id, display_name, first_name, last_name")
     .in("user_id", clientIds);
@@ -66,12 +66,12 @@ export async function syncPlanContent(sourcePlanId: string, targetPlanId: string
   if (sourcePlanId === targetPlanId) return;
 
   const [{ data: src }, { data: srcDays }] = await Promise.all([
-    supabase
+    db
       .from("workout_plans")
       .select("description, category, frequency_per_week")
       .eq("id", sourcePlanId)
       .single(),
-    supabase
+    db
       .from("workout_plan_days")
       .select("id, name, day_index")
       .eq("plan_id", sourcePlanId)
@@ -79,7 +79,7 @@ export async function syncPlanContent(sourcePlanId: string, targetPlanId: string
   ]);
 
   if (src) {
-    await supabase
+    await db
       .from("workout_plans")
       .update({
         description: src.description,
@@ -90,7 +90,7 @@ export async function syncPlanContent(sourcePlanId: string, targetPlanId: string
   }
 
   // Wipe existing content (exercises cascade with their day)
-  const { error: delErr } = await supabase
+  const { error: delErr } = await db
     .from("workout_plan_days")
     .delete()
     .eq("plan_id", targetPlanId);
@@ -98,7 +98,7 @@ export async function syncPlanContent(sourcePlanId: string, targetPlanId: string
 
   if (!srcDays || srcDays.length === 0) return;
 
-  const { data: newDays, error: dayErr } = await supabase
+  const { data: newDays, error: dayErr } = await db
     .from("workout_plan_days")
     .insert(
       srcDays.map((d: any) => ({
@@ -116,7 +116,7 @@ export async function syncPlanContent(sourcePlanId: string, targetPlanId: string
     if (nd) dayMap.set(od.id, nd.id);
   }
 
-  const { data: srcEx, error: exErr } = await supabase
+  const { data: srcEx, error: exErr } = await db
     .from("workout_plan_exercises")
     .select("day_id, exercise_id, order_index, sets_reps, notes")
     .in(
@@ -136,7 +136,7 @@ export async function syncPlanContent(sourcePlanId: string, targetPlanId: string
     .filter((r) => !!r.day_id);
 
   if (rows.length) {
-    const { error } = await supabase.from("workout_plan_exercises").insert(rows as any);
+    const { error } = await db.from("workout_plan_exercises").insert(rows as any);
     if (error) throw error;
   }
 }

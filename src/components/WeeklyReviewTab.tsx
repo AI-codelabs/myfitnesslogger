@@ -304,7 +304,7 @@ export function WeeklyReviewTab({ clientId, coachId, lang }: Props) {
       return;
     }
     setApplying(true);
-    const { data: plan } = await supabase
+    const { data: plan } = await db
       .from("nutrition_plans")
       .select("id, details")
       .eq("client_id", clientId)
@@ -321,7 +321,7 @@ export function WeeklyReviewTab({ clientId, coachId, lang }: Props) {
       carbs_g: Math.max(0, Number(det.carbs_g ?? 0) + delta.carbs_delta),
       fat_g: Math.max(0, Number(det.fat_g ?? 0) + delta.fat_delta),
     };
-    const { error } = await supabase
+    const { error } = await db
       .from("nutrition_plans")
       .update({ details: next })
       .eq("id", plan.id);

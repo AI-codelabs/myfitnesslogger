@@ -11,6 +11,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
+import { db } from "@/lib/db";
 
 interface Notification {
   id: string;
@@ -29,7 +30,7 @@ export function NotificationsDropdown() {
 
   const load = async () => {
     if (!user) return;
-    const { data } = await supabase
+    const { data } = await db
       .from("notifications")
       .select("id, type, title, body, link, read_at, created_at")
       .eq("user_id", user.id)
@@ -64,7 +65,7 @@ export function NotificationsDropdown() {
 
   const markAllRead = async () => {
     if (!user || unread === 0) return;
-    await supabase
+    await db
       .from("notifications")
       .update({ read_at: new Date().toISOString() })
       .eq("user_id", user.id)
@@ -73,7 +74,7 @@ export function NotificationsDropdown() {
   };
 
   const markRead = async (id: string) => {
-    await supabase
+    await db
       .from("notifications")
       .update({ read_at: new Date().toISOString() })
       .eq("id", id);

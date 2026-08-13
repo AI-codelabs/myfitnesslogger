@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { parseDecimal } from "@/lib/parseDecimal";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
@@ -12,6 +11,7 @@ import { ChevronLeft, Loader2, Plus, Trash2, Check, Dumbbell, ChevronRight, List
 import { toast } from "@/hooks/use-toast";
 import { Lang } from "@/lib/onboardingSchema";
 import { formatSetsRepsForDisplay } from "@/lib/setsReps";
+import { db } from "@/lib/db";
 
 interface PlanExercise {
   id: string;
@@ -118,7 +118,7 @@ const LogWorkout = () => {
       let session: any = null;
 
       if (sid) {
-        const { data } = await supabase
+        const { data } = await db
           .from("workout_sessions")
           .select("id, plan_id, day_id, scheduled_date, completed_at")
           .eq("id", sid)
@@ -142,7 +142,7 @@ const LogWorkout = () => {
         // session the client already started/completed for that date,
         // instead of creating a new empty placeholder and making the
         // previous completion look lost.
-        let existingQuery = supabase
+        let existingQuery = db
           .from("workout_sessions")
           .select("id, plan_id, day_id, scheduled_date, completed_at")
           .eq("client_id", user.id)
@@ -163,7 +163,7 @@ const LogWorkout = () => {
           sid = existing.id;
           navigate(`/training/log/${sid}`, { replace: true });
         } else {
-          const { data, error } = await supabase
+          const { data, error } = await db
             .from("workout_sessions")
             .insert({
               client_id: user.id,
@@ -192,9 +192,9 @@ const LogWorkout = () => {
       setCompletedAt(session.completed_at);
 
       const [{ data: plan }, dayRes] = await Promise.all([
-        supabase.from("workout_plans").select("name").eq("id", session.plan_id).maybeSingle(),
+        db.from("workout_plans").select("name").eq("id", session.plan_id).maybeSingle(),
         session.day_id
-          ? supabase.from("workout_plan_days").select("name").eq("id", session.day_id).maybeSingle()
+          ? db.from("workout_plan_days").select("name").eq("id", session.day_id).maybeSingle()
           : Promise.resolve({ data: null } as any),
       ]);
       setPlanName(plan?.name ?? "");
@@ -202,16 +202,26 @@ const LogWorkout = () => {
 
       let ex: PlanExercise[] = [];
       if (session.day_id) {
-        const { data } = await supabase
+        const { data } = await db
           .from("workout_plan_exercises")
-          .select("id, order_index, sets_reps, notes, exercise:exercises(name, muscle_group, video_url, exercise_type)")
+          .select("id, order_index, sets_reps, notes, exercise_id")
           .eq("day_id", session.day_id)
           .order("order_index");
-        ex = (data ?? []) as any;
+        const rows = (data ?? []) as any[];
+        const exIds = Array.from(new Set(rows.map((r) => r.exercise_id).filter(Boolean)));
+        let exMap: Record<string, any> = {};
+        if (exIds.length) {
+          const { data: exRows } = await db
+            .from("exercises")
+            .select("id, name, muscle_group, video_url, exercise_type")
+            .in("id", exIds as string[]);
+          for (const e of (exRows ?? []) as any[]) exMap[e.id] = e;
+        }
+        ex = rows.map((r) => ({ ...r, exercise: exMap[r.exercise_id] ?? null })) as any;
       }
       setExercises(ex);
 
-      const { data: logs } = await supabase
+      const { data: logs } = await db
         .from("workout_set_logs")
         .select("id, plan_exercise_id, set_number, reps, weight_kg, duration_seconds, distance_m, intensity, notes, speed_kmh, incline_pct" as any)
         .eq("session_id", sid!)
@@ -313,7 +323,7 @@ const LogWorkout = () => {
     if (!activeExercise) return;
     const row = (setsByExercise[activeExercise.id] ?? [])[idx];
     if (row?.id) {
-      await supabase.from("workout_set_logs").delete().eq("id", row.id);
+      await db.from("workout_set_logs").delete().eq("id", row.id);
     }
     setSetsByExercise((prev) => {
       const arr = (prev[activeExercise.id] ?? []).filter((_, i) => i !== idx);
@@ -368,10 +378,10 @@ const LogWorkout = () => {
       };
 
       if (row.id) {
-        await supabase.from("workout_set_logs").update(payload).eq("id", row.id);
+        await db.from("workout_set_logs").update(payload).eq("id", row.id);
         updated.push({ ...row, saved: true });
       } else {
-        const { data } = await supabase
+        const { data } = await db
           .from("workout_set_logs")
           .insert(payload)
           .select("id")
@@ -406,7 +416,7 @@ const LogWorkout = () => {
     if (!sessionId) return;
     setSaving(true);
     await saveAll();
-    const { error } = await supabase
+    const { error } = await db
       .from("workout_sessions")
       .update({ completed_at: new Date().toISOString() })
       .eq("id", sessionId);

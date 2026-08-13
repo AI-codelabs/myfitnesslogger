@@ -44,6 +44,22 @@ through the Neon-backed serverless API instead of the legacy backend.
 
 - unset / empty (default): everything stays on the legacy backend
 - `weight`: weight logging uses `/api/weight/list|log|delete` against Neon
+- `checkins`: weekly check-ins + review drafts
+- `workouts`: exercises, plans, days, plan exercises, assignments, schedule
+  overrides, sessions, set logs
+- `nutrition`: meal plans/selections, nutrition documents/templates/plans,
+  Cronometer client + log tables
+- `clients`: profiles, invitations, notifications, roles, coach messages,
+  onboarding, goals, progress photos
+
+All table access in the frontend now goes through `db.from(...)` (`src/lib/db.ts`),
+so enabling a group is a flag change only — no code edits.
+
+**Before flipping a group**: re-copy that group's tables from the legacy
+database into Neon (the initial copy is a point-in-time snapshot), and make sure
+nothing else still writes those tables. `nutrition` and `clients` are still
+written by legacy edge functions and database triggers, so they must wait until
+those functions are migrated.
 
 The API accepts both Neon Auth tokens and legacy tokens during the transition
 (`api/_lib/auth.ts` dual issuer). Set `LEGACY_AUTH_URL` (or `VITE_SUPABASE_URL`)

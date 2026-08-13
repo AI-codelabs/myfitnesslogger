@@ -1,3 +1,4 @@
+import { db } from "@/lib/db";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -111,7 +112,7 @@ export default function NutritionTemplates() {
   async function saveMeals() {
     if (!mealsTarget) return;
     setMealsSaving(true);
-    const { error } = await supabase
+    const { error } = await db
       .from("nutrition_plan_templates")
       .update({ structure: mealsDraft as unknown as never })
       .eq("id", mealsTarget.id);
@@ -125,7 +126,7 @@ export default function NutritionTemplates() {
   async function load() {
     if (!user) return;
     setLoading(true);
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from("nutrition_plan_templates")
       .select("*")
       .order("created_at", { ascending: false });
@@ -221,11 +222,11 @@ export default function NutritionTemplates() {
     };
 
     const { error } = form.id
-      ? await supabase
+      ? await db
           .from("nutrition_plan_templates")
           .update(payload)
           .eq("id", form.id)
-      : await supabase.from("nutrition_plan_templates").insert(payload);
+      : await db.from("nutrition_plan_templates").insert(payload);
 
     setSaving(false);
     if (error) {
@@ -242,7 +243,7 @@ export default function NutritionTemplates() {
     if (t.pdf_path) {
       await supabase.storage.from(BUCKET).remove([t.pdf_path]);
     }
-    const { error } = await supabase
+    const { error } = await db
       .from("nutrition_plan_templates")
       .delete()
       .eq("id", t.id);

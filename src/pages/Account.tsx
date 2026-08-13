@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { LogOut, User as UserIcon, Mail, Shield, KeyRound, FileText } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { supabase } from "@/integrations/supabase/client";
+import { db } from "@/lib/db";
 
 type PersonalInfo = {
   full_name: string | null;
@@ -26,7 +26,7 @@ const Account = () => {
   useEffect(() => {
     if (!isClient || !user) return;
     setLoadingInfo(true);
-    supabase
+    db
       .from("onboarding_responses")
       .select("full_name, age, height_cm, weight_kg, occupation, primary_goal")
       .eq("user_id", user.id)

@@ -1,3 +1,4 @@
+import { db } from "@/lib/db";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -148,7 +149,7 @@ const Onboarding = () => {
     }
     row.details = details;
 
-    const { error } = await supabase
+    const { error } = await db
       .from("onboarding_responses")
       .upsert(row as any, { onConflict: "user_id" });
 
@@ -160,7 +161,7 @@ const Onboarding = () => {
 
     // Write first/last name to profiles (used by all coach UI)
     if (firstName || lastName) {
-      await supabase
+      await db
         .from("profiles")
         .update({
           first_name: firstName,
@@ -174,7 +175,7 @@ const Onboarding = () => {
     if (goalType) {
       const gw = values.goal_weight_kg ? Number(values.goal_weight_kg) : null;
       const sw = values.weight_kg ? Number(values.weight_kg) : null;
-      await supabase.from("client_goals").insert({
+      await db.from("client_goals").insert({
         client_id: user.id,
         goal_type: goalType as any,
         goal_label: values.goal_reason || values.target_outcome || null,

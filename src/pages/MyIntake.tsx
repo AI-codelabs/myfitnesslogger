@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { Lang, onboardingSections, t } from "@/lib/onboardingSchema";
+import { db } from "@/lib/db";
 
 // Read-only view of the client's own completed onboarding.
 // Coaches asked to let clients revisit what they submitted after signup.
@@ -21,7 +21,7 @@ export default function MyIntake() {
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const { data } = await supabase
+      const { data } = await db
         .from("onboarding_responses")
         .select("*")
         .eq("user_id", user.id)

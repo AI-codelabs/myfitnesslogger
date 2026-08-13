@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Plus, Trash2, ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { db } from "@/lib/db";
 
 interface Exercise {
   id: string;
@@ -62,7 +63,7 @@ export function CreatePlanDialog({ onCreated }: { onCreated?: () => void }) {
 
   useEffect(() => {
     if (!open) return;
-    supabase
+    db
       .from("exercises")
       .select("id,name,muscle_group,equipment")
       .order("muscle_group")
@@ -142,7 +143,7 @@ export function CreatePlanDialog({ onCreated }: { onCreated?: () => void }) {
       const uid = userData.user?.id;
       if (!uid) throw new Error("Not authenticated");
 
-      const { data: plan, error: planErr } = await supabase
+      const { data: plan, error: planErr } = await db
         .from("workout_plans")
         .insert({
           name: name.trim(),
@@ -158,7 +159,7 @@ export function CreatePlanDialog({ onCreated }: { onCreated?: () => void }) {
 
       for (let i = 0; i < days.length; i++) {
         const d = days[i];
-        const { data: dayRow, error: dayErr } = await supabase
+        const { data: dayRow, error: dayErr } = await db
           .from("workout_plan_days")
           .insert({ plan_id: plan.id, name: d.name, day_index: i })
           .select()
@@ -173,7 +174,7 @@ export function CreatePlanDialog({ onCreated }: { onCreated?: () => void }) {
             sets_reps: e.sets_reps || null,
             notes: e.notes || null,
           }));
-          const { error: exErr } = await supabase.from("workout_plan_exercises").insert(rows);
+          const { error: exErr } = await db.from("workout_plan_exercises").insert(rows);
           if (exErr) throw exErr;
         }
       }

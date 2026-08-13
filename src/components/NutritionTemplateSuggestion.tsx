@@ -1,3 +1,4 @@
+import { db } from "@/lib/db";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
@@ -51,7 +52,7 @@ async function attachTemplateToClient(
     });
   if (upErr) throw new Error(upErr.message);
 
-  const { error: dbErr } = await supabase
+  const { error: dbErr } = await db
     .from("client_nutrition_documents")
     .insert({
       coach_id: coachId,
@@ -79,16 +80,16 @@ export function NutritionTemplateSuggestion({
     (async () => {
       setLoading(true);
       const [tplRes, nutRes, goalRes] = await Promise.all([
-        supabase
+        db
           .from("nutrition_plan_templates")
           .select("id, name, goal_type, target_kcal, protein_g, carbs_g, fat_g, pdf_path, pdf_name")
           .eq("coach_id", coachId),
-        supabase
+        db
           .from("nutrition_plans")
           .select("details")
           .eq("client_id", clientId)
           .maybeSingle(),
-        supabase
+        db
           .from("client_goals")
           .select("goal_type")
           .eq("client_id", clientId)

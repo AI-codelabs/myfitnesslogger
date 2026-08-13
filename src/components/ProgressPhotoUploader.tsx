@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Camera, Loader2, Upload } from "lucide-react";
 import { toast } from "sonner";
+import { db } from "@/lib/db";
 
 type Slot = "front" | "side" | "back";
 
@@ -53,7 +54,7 @@ export function ProgressPhotoUploader({ clientId, onUploaded }: Props) {
         if (error) throw error;
         paths[slot] = path;
       }
-      const { error: insErr } = await supabase.from("progress_photos").insert({
+      const { error: insErr } = await db.from("progress_photos").insert({
         client_id: clientId,
         taken_on: today,
         front_path: paths.front ?? null,

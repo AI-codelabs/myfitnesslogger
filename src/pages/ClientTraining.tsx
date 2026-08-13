@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,6 +25,7 @@ import {
   formatDateKey,
 } from "@/lib/workoutSchedule";
 import { WorkoutInstanceActions } from "@/components/WorkoutInstanceActions";
+import { db } from "@/lib/db";
 
 type Assignment = AssignmentLike;
 
@@ -97,11 +97,11 @@ const ClientTraining = () => {
     (async () => {
       setLoading(true);
       const [{ data: a }, { data: ovs }] = await Promise.all([
-        supabase
+        db
           .from("client_workout_assignments")
           .select("id, plan_id, is_active, start_date, weeks, days")
           .eq("client_id", user.id),
-        supabase
+        db
           .from("workout_schedule_overrides")
           .select(
             "id, client_id, assignment_id, plan_id, action, original_date, scheduled_date, occurrence_index, source_override_id",
@@ -127,8 +127,8 @@ const ClientTraining = () => {
       }
 
       const [{ data: p }, { data: days }] = await Promise.all([
-        supabase.from("workout_plans").select("id, name").in("id", planIds),
-        supabase
+        db.from("workout_plans").select("id, name").in("id", planIds),
+        db
           .from("workout_plan_days")
           .select("id, name, day_index, plan_id")
           .in("plan_id", planIds)
@@ -139,7 +139,7 @@ const ClientTraining = () => {
       const dayIds = (days ?? []).map((d: any) => d.id);
       let exByDay: Record<string, any[]> = {};
       if (dayIds.length) {
-        const { data: ex } = await supabase
+        const { data: ex } = await db
           .from("workout_plan_exercises")
           .select(
             "id, day_id, order_index, sets_reps, notes, exercise:exercises(name, muscle_group)"
@@ -163,7 +163,7 @@ const ClientTraining = () => {
       setPlanDays(grouped);
 
       // Load completed workout sessions for this client
-      const { data: sessions } = await supabase
+      const { data: sessions } = await db
         .from("workout_sessions")
         .select("plan_id, day_id, scheduled_date, completed_at")
         .eq("client_id", user.id)

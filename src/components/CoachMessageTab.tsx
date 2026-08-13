@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, Sparkles, Plus, Trash2, Send, Save, Mic, MessageSquare, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { Lang } from "@/lib/onboardingSchema";
+import { db } from "@/lib/db";
 
 interface Props {
   clientId: string;
@@ -41,7 +42,7 @@ export function CoachMessageTab({ clientId, coachId, lang }: Props) {
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const { data } = await supabase
+      const { data } = await db
         .from("coach_messages")
         .select("*")
         .eq("client_id", clientId)
@@ -89,7 +90,7 @@ export function CoachMessageTab({ clientId, coachId, lang }: Props) {
       generated_at: new Date().toISOString(),
       ...(publish ? { published_at: new Date().toISOString() } : {}),
     };
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from("coach_messages")
       .upsert(payload, { onConflict: "client_id" })
       .select()

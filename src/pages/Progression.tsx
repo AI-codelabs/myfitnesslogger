@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { listWeightLogs } from "@/lib/api/weight";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
@@ -169,7 +168,7 @@ export default function Progression() {
         )
         .eq("client_id", user.id)
         .order("week_start", { ascending: true }),
-      supabase
+      db
         .from("progress_photos")
         .select("id,taken_on,front_path,side_path,back_path,weight_kg")
         .eq("client_id", user.id)

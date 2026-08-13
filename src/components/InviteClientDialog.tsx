@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Loader2, Mail, AlertCircle, CheckCircle2, Copy, Link2 } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
+import { db } from "@/lib/db";
 
 const schema = z.object({
   email: z.string().trim().email("Enter a valid email").max(255),
@@ -67,7 +68,7 @@ export function InviteClientDialog({ open, onOpenChange, onInvited }: Props) {
       return null;
     }
     if (!user) return null;
-    const { data: invite, error: inviteErr } = await supabase
+    const { data: invite, error: inviteErr } = await db
       .from("invitations")
       .insert({ coach_id: user.id, email: parsed.data.email.toLowerCase() })
       .select("token")
