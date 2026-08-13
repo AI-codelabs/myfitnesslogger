@@ -12,7 +12,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const report = await withService(async (sql) => {
-      const tables = await sql<{ table_schema: string; table_name: string }>(
+      const tables = await sql.query<{ table_schema: string; table_name: string }>(
         `SELECT table_schema, table_name
            FROM information_schema.tables
           WHERE table_schema IN ('public', 'auth')
@@ -28,7 +28,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }> = [];
 
       for (const t of tables.rows) {
-        const hasCreatedAt = await sql<{ ok: boolean }>(
+        const hasCreatedAt = await sql.query<{ ok: boolean }>(
           `SELECT EXISTS (
              SELECT 1 FROM information_schema.columns
               WHERE table_schema = $1 AND table_name = $2 AND column_name = 'created_at'
@@ -38,7 +38,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const select = hasCreatedAt.rows[0]?.ok
           ? `SELECT count(*)::int AS count, max(created_at)::text AS latest`
           : `SELECT count(*)::int AS count, NULL::text AS latest`;
-        const r = await sql<{ count: number; latest: string | null }>(
+        const r = await sql.query<{ count: number; latest: string | null }>(
           `${select} FROM "${t.table_schema}"."${t.table_name}"`,
         );
         rows.push({
