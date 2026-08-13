@@ -1,7 +1,6 @@
 import { db } from "@/lib/db";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +22,7 @@ import {
   onboardingSections,
   t,
 } from "@/lib/onboardingSchema";
+import { uploadToBlob } from "@/lib/blobStorage";
 
 type Values = Record<string, any>;
 
@@ -103,17 +103,15 @@ const Onboarding = () => {
     if (!user) return;
     setUploading(fieldName);
     const ext = file.name.split(".").pop() || "jpg";
-    const path = `${user.id}/${fieldName}-${Date.now()}.${ext}`;
-    const { error } = await supabase.storage
-      .from("onboarding-uploads")
-      .upload(path, file, { upsert: true });
-    setUploading(null);
-    if (error) {
-      toast.error(error.message);
-      return;
+    try {
+      const uploaded = await uploadToBlob(file, "onboarding-uploads", `${fieldName}.${ext}`);
+      setField(fieldName, uploaded.url);
+      toast.success(lang === "nl" ? "Geüpload" : "Uploaded");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Upload failed");
+    } finally {
+      setUploading(null);
     }
-    setField(fieldName, path);
-    toast.success(lang === "nl" ? "Geüpload" : "Uploaded");
   };
 
   const submit = async () => {

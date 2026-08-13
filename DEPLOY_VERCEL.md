@@ -56,7 +56,16 @@ through the Neon-backed serverless API instead of the legacy backend.
 - `nutrition`: meal plans/selections, nutrition documents/templates/plans,
   Cronometer client + log tables
 - `clients`: profiles, invitations, notifications, roles, coach messages,
-  onboarding, goals, progress photos
+  onboarding, goals, progress photos, Gmail connections, email templates
+- `functions`: all ported `/api/...` endpoints instead of legacy edge functions
+
+Production build flag (`.env.production` and `VITE_NEON_FEATURES` on Vercel):
+
+`weight,checkins,workouts,nutrition,clients,functions`
+
+Login/signup still uses the legacy auth client. New uploads go to Vercel Blob.
+The Supabase manager still needs to delta-copy Postgres and Storage objects
+(this environment has no service-role key).
 
 All table access in the frontend now goes through `db.from(...)` (`src/lib/db.ts`),
 so enabling a group is a flag change only — no code edits.

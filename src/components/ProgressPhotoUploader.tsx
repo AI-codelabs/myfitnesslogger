@@ -1,5 +1,4 @@
 import { useRef, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { parseDecimal } from "@/lib/parseDecimal";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -8,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Camera, Loader2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { db } from "@/lib/db";
+import { uploadToBlob } from "@/lib/blobStorage";
 
 type Slot = "front" | "side" | "back";
 
@@ -47,12 +47,8 @@ export function ProgressPhotoUploader({ clientId, onUploaded }: Props) {
         const f = files[slot];
         if (!f) continue;
         const ext = f.name.split(".").pop() || "jpg";
-        const path = `${clientId}/progress/${today}-${slot}-${Date.now()}.${ext}`;
-        const { error } = await supabase.storage
-          .from("onboarding-uploads")
-          .upload(path, f, { upsert: true, contentType: f.type });
-        if (error) throw error;
-        paths[slot] = path;
+        const uploaded = await uploadToBlob(f, "progress-photos", `${today}-${slot}.${ext}`);
+        paths[slot] = uploaded.url;
       }
       const { error: insErr } = await db.from("progress_photos").insert({
         client_id: clientId,

@@ -38,6 +38,8 @@ export const FEATURE_TABLES: Record<string, string[]> = {
     "onboarding_responses",
     "client_goals",
     "progress_photos",
+    "coach_email_connections",
+    "email_templates",
   ],
 };
 

@@ -2,19 +2,21 @@ import { z } from "zod";
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { requireUser, HttpError } from "../../_lib/auth.js";
+import { isOwnedBlobPathname } from "../../_lib/blobUrls.js";
 
 const schema = z.object({
   scope: z.enum([
     "progress-photos",
     "nutrition-documents",
+    "nutrition-templates",
     "onboarding-uploads",
     "email-assets",
   ]),
 });
 
 /**
- * Issues a client upload token for Vercel Blob. Files are namespaced per user
- * and per scope so the old bucket layout carries over 1:1.
+ * Issues a client upload token for Vercel Blob. Files are namespaced
+ * `{scope}/{userId}/...` so callers cannot write into another user's prefix.
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") return res.status(405).json({ error: "method_not_allowed" });
@@ -23,27 +25,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const result = await handleUpload({
       request: req as unknown as Request,
       body: req.body as HandleUploadBody,
-      onBeforeGenerateToken: async (_pathname, clientPayload) => {
+      onBeforeGenerateToken: async (pathname, clientPayload) => {
         const parsed = schema.safeParse(
           clientPayload ? JSON.parse(clientPayload) : {},
         );
         if (!parsed.success) throw new HttpError(400, "invalid_scope");
+        if (!isOwnedBlobPathname(pathname, parsed.data.scope, user.id)) {
+          throw new HttpError(400, "invalid_pathname");
+        }
         return {
           allowedContentTypes: [
             "image/jpeg",
             "image/png",
             "image/webp",
             "image/heic",
+            "image/heif",
+            "image/gif",
             "application/pdf",
           ],
           maximumSizeInBytes: 25 * 1024 * 1024,
           addRandomSuffix: true,
-          pathname: `${parsed.data.scope}/${user.id}`,
           tokenPayload: JSON.stringify({ userId: user.id, scope: parsed.data.scope }),
         };
       },
       onUploadCompleted: async () => {
-        /* nothing to reconcile: paths are stored by the calling feature endpoint */
+        /* paths are stored by the calling feature */
       },
     });
     return res.status(200).json(result);

@@ -7,6 +7,7 @@ export const ALLOWED_TABLES = new Set([
   "client_meal_selections",
   "client_nutrition_documents",
   "client_workout_assignments",
+  "coach_email_connections",
   "coach_messages",
   "cronometer_clients",
   "cronometer_nutrition_logs",

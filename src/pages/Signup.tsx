@@ -33,11 +33,17 @@ const Signup = () => {
   );
   const [inviteId, setInviteId] = useState<string | null>(null);
 
-  // Validate invitation token via SECURITY DEFINER RPC (works for unauthenticated invitees)
+  // Validate invitation token (public Neon endpoint; invitees are not signed in yet)
   useEffect(() => {
     if (!token) return;
     (async () => {
-      const { data, error } = await supabase.rpc("get_invitation_by_token", { _token: token });
+      const { data, error } = await fetch(
+        `/api/invitations/by-token?token=${encodeURIComponent(token)}`,
+      ).then(async (res) => {
+        const body = await res.json().catch(() => null);
+        if (!res.ok) return { data: null, error: true as const };
+        return { data: body, error: false as const };
+      });
       const row = Array.isArray(data) ? data[0] : data;
       if (error || !row || row.status !== "pending") {
         setInviteState("invalid");

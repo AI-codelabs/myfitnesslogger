@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Camera } from "lucide-react";
 import { formatHumanDate } from "@/lib/weeklyCheckin";
+import { resolveStorageUrl } from "@/lib/blobStorage";
 
 export type PhotoRow = {
   id: string;
@@ -20,11 +20,7 @@ interface Props {
 }
 
 async function signUrl(path: string | null): Promise<string | null> {
-  if (!path) return null;
-  const { data } = await supabase.storage
-    .from("onboarding-uploads")
-    .createSignedUrl(path, 60 * 60);
-  return data?.signedUrl ?? null;
+  return resolveStorageUrl(path, "onboarding-uploads");
 }
 
 export function ProgressPhotoTimeline({ photos, lang = "nl" }: Props) {

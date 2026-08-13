@@ -1,6 +1,5 @@
 import { db } from "@/lib/db";
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +10,7 @@ import {
   type TemplateMacros,
   type ClientTargets,
 } from "@/lib/nutritionTemplateMatch";
+import { downloadStorageFile, uploadToBlob } from "@/lib/blobStorage";
 
 interface Props {
   coachId: string;
@@ -36,21 +36,12 @@ async function attachTemplateToClient(
   if (!t.pdf_path || !t.pdf_name) {
     throw new Error("Template has no PDF attached");
   }
-  const { data: dl, error: dlErr } = await supabase.storage
-    .from("nutrition-templates")
-    .download(t.pdf_path);
-  if (dlErr || !dl) throw new Error(dlErr?.message || "Download failed");
+  const dl = await downloadStorageFile(t.pdf_path, "nutrition-templates");
 
   const safe = t.pdf_name.replace(/[^a-zA-Z0-9._-]+/g, "_");
-  const newPath = `${clientId}/${Date.now()}_tpl_${safe}`;
-
-  const { error: upErr } = await supabase.storage
-    .from("nutrition-documents")
-    .upload(newPath, dl, {
-      contentType: "application/pdf",
-      upsert: false,
-    });
-  if (upErr) throw new Error(upErr.message);
+  const file = new File([dl], t.pdf_name, { type: "application/pdf" });
+  const uploaded = await uploadToBlob(file, "nutrition-documents", `tpl_${safe}`);
+  const newPath = uploaded.url;
 
   const { error: dbErr } = await db
     .from("client_nutrition_documents")
