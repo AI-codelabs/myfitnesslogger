@@ -57,7 +57,7 @@ export default function Settings() {
       return;
     }
     setSendingTest(key);
-    const { data, error } = await supabase.functions.invoke("send-test-checkin-email", {
+    const { data, error } = await invokeFn("send-test-checkin-email", {
       body: { mode: key, recipientEmail: testEmail.trim() },
     });
     setSendingTest(null);

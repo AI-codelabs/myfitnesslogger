@@ -46,7 +46,7 @@ async function parseInvokeError(error: unknown): Promise<{ error?: string; needs
 }
 
 async function invoke<T = any>(body: Record<string, unknown>): Promise<{ data?: T; error?: string; needsTotp?: boolean }> {
-  const { data, error } = await supabase.functions.invoke("cronometer", { body });
+  const { data, error } = await invokeFn("cronometer", { body });
   if (error) {
     const parsed = await parseInvokeError(error);
     if (parsed?.error) return parsed;

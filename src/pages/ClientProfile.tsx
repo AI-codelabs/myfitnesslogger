@@ -103,7 +103,7 @@ const ClientProfile = () => {
   const deleteClient = async () => {
     if (!clientId) return;
     setActionLoading(true);
-    const { data, error } = await supabase.functions.invoke("delete-client", {
+    const { data, error } = await invokeFn("delete-client", {
       body: { clientId },
     });
     setActionLoading(false);

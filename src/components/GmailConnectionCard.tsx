@@ -44,7 +44,7 @@ export function GmailConnectionCard() {
 
   const handleConnect = async () => {
     setConnecting(true);
-    const { data, error } = await supabase.functions.invoke("gmail-oauth-start", {
+    const { data, error } = await invokeFn("gmail-oauth-start", {
       body: { returnTo: window.location.origin + "/account" },
     });
     if (error || !data?.url) {

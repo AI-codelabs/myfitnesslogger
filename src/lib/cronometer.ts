@@ -51,7 +51,7 @@ export async function connectCronometerServer(
   password: string,
   totpCode?: string,
 ): Promise<CronometerConnectResult> {
-  const { data, error } = await supabase.functions.invoke("cronometer", {
+  const { data, error } = await invokeFn("cronometer", {
     body: { action: "connect_and_save", username, password, totpCode },
   });
   if (error) {
@@ -100,7 +100,7 @@ export interface SyncResult {
 
 /** Sync nutrition data from last logged day -> today. */
 export async function syncCronometer(): Promise<SyncResult> {
-  const { data, error } = await supabase.functions.invoke("cronometer", {
+  const { data, error } = await invokeFn("cronometer", {
     body: { action: "sync" },
   });
   if (error) {
