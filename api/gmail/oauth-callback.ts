@@ -5,12 +5,41 @@ import { withService } from "../_lib/rls.js";
 import { googleCredentials } from "../_lib/gmail.js";
 import { apiBaseUrl } from "./oauth-start.js";
 
+function allowedReturnTo(returnTo: string, host: string | undefined): string {
+  const fallback = process.env.PUBLIC_APP_URL?.replace(/\/$/, "") || "/";
+  if (!returnTo) return fallback;
+  if (returnTo.startsWith("/") && !returnTo.startsWith("//")) return returnTo;
+  try {
+    const url = new URL(returnTo);
+    if (url.protocol !== "https:" && url.protocol !== "http:") return fallback;
+    const allowed = new Set<string>([
+      "myfitnesslogger.vercel.app",
+      "myfitnesslogger-ai-codelab.vercel.app",
+    ]);
+    for (const envName of ["PUBLIC_APP_URL", "PUBLIC_API_URL"] as const) {
+      const raw = process.env[envName];
+      if (!raw) continue;
+      try {
+        allowed.add(new URL(raw).host);
+      } catch {
+        /* ignore */
+      }
+    }
+    if (host) allowed.add(host.split(":")[0]);
+    if (allowed.has(url.host)) return url.toString();
+  } catch {
+    /* fall through */
+  }
+  return fallback;
+}
+
 function redirect(
   res: VercelResponse,
   returnTo: string,
   errorCode: string | null,
+  host?: string,
 ) {
-  const safe = returnTo && /^https?:\/\//.test(returnTo) ? returnTo : "/";
+  const safe = allowedReturnTo(returnTo, host);
   const sep = safe.includes("?") ? "&" : "?";
   const target = errorCode
     ? `${safe}${sep}gmail_error=${encodeURIComponent(errorCode)}`
@@ -36,11 +65,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     stateValue = decoded.s ?? "";
     returnTo = decoded.r ?? "";
   } catch {
-    return redirect(res, "", "invalid_state");
+    return redirect(res, "", "invalid_state", req.headers.host);
   }
 
-  if (oauthError) return redirect(res, returnTo, oauthError);
-  if (!code || !stateValue) return redirect(res, returnTo, "missing_code");
+  if (oauthError) return redirect(res, returnTo, oauthError, req.headers.host);
+  if (!code || !stateValue) return redirect(res, returnTo, "missing_code", req.headers.host);
 
   try {
     const { clientId, clientSecret } = googleCredentials();
@@ -117,9 +146,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return null;
     });
 
-    return redirect(res, returnTo, outcome);
+    return redirect(res, returnTo, outcome, req.headers.host);
   } catch (err) {
     console.error("[gmail] callback failed", err);
-    return redirect(res, returnTo, "save_failed");
+    return redirect(res, returnTo, "save_failed", req.headers.host);
   }
 }

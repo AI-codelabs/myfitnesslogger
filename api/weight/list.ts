@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { endpoint } from "../_lib/handler.js";
+import { requireOwnClient } from "../_lib/fn.js";
 
 const schema = z.object({
   clientId: z.string().uuid().optional(),
@@ -10,6 +11,7 @@ const schema = z.object({
 
 export default endpoint({ method: "GET", schema }, async ({ sql, user, input }) => {
   const clientId = input.clientId ?? user.id;
+  await requireOwnClient(sql, user, clientId);
   const { rows } = await sql.query(
     `SELECT id, client_id, logged_on, weight_kg, note, created_at
        FROM public.weight_logs

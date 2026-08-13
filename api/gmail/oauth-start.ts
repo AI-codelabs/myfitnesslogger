@@ -15,7 +15,33 @@ export function apiBaseUrl(host: string | undefined): string {
 export default serviceEndpoint({ auth: "user" }, async ({ req, sql, user }) => {
   const parsed = schema.safeParse(req.body ?? {});
   if (!parsed.success) throw new HttpError(400, "Invalid input");
-  const returnTo = parsed.data.returnTo ?? "";
+  const rawReturnTo = parsed.data.returnTo ?? "";
+  const returnTo =
+    rawReturnTo.startsWith("/") && !rawReturnTo.startsWith("//")
+      ? rawReturnTo
+      : (() => {
+          try {
+            const url = new URL(rawReturnTo);
+            const host = req.headers.host?.split(":")[0];
+            const allowed = new Set([
+              "myfitnesslogger.vercel.app",
+              "myfitnesslogger-ai-codelab.vercel.app",
+              ...(host ? [host] : []),
+            ]);
+            for (const envName of ["PUBLIC_APP_URL", "PUBLIC_API_URL"] as const) {
+              const raw = process.env[envName];
+              if (!raw) continue;
+              try {
+                allowed.add(new URL(raw).host);
+              } catch {
+                /* ignore */
+              }
+            }
+            return allowed.has(url.host) ? url.toString() : "";
+          } catch {
+            return "";
+          }
+        })();
 
   const { clientId } = googleCredentials();
 

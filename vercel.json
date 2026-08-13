@@ -18,7 +18,7 @@
   "crons": [
     {
       "path": "/api/cron/cronometer-pull",
-      "schedule": "0 * * * *"
+      "schedule": "0 5 * * *"
     },
     {
       "path": "/api/cron/check-expirations",

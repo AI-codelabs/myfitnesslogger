@@ -17,7 +17,7 @@ const schema = z.object({
 
 type InviteRow = { coach_id: string; email: string | null };
 
-export default serviceEndpoint({ auth: "user" }, async ({ req, sql }) => {
+export default serviceEndpoint({ auth: "user" }, async ({ req, sql, user }) => {
   const parsed = schema.safeParse(req.body ?? {});
   if (!parsed.success) {
     throw new HttpError(
@@ -34,6 +34,10 @@ export default serviceEndpoint({ auth: "user" }, async ({ req, sql }) => {
   const invite = inviteRes.rows[0];
   if (!invite) {
     throw new HttpError(404, "Invitation not found");
+  }
+
+  if (!user || invite.coach_id !== user.id) {
+    throw new HttpError(403, "Not your invitation");
   }
 
   if ((invite.email || "").toLowerCase() !== recipientEmail.toLowerCase()) {

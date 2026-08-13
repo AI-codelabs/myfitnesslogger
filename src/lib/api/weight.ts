@@ -46,6 +46,7 @@ export async function upsertWeightLog(input: {
 }): Promise<void> {
   if (usesNeon("weight")) {
     await apiPost("weight/log", {
+      clientId: input.clientId,
       loggedOn: input.loggedOn,
       weightKg: input.weightKg,
       note: input.note ?? null,
