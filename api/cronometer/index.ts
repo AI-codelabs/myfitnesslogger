@@ -331,9 +331,11 @@ async function fetchRemoteTargets(
 // ─────────────────────────── Handler ───────────────────────────
 
 export default serviceEndpoint({ auth: "either", methods: CORS_METHODS }, async ({ req, res, sql, user }) => {
+ try {
   const body = (req.body ?? {}) as Record<string, unknown>;
   const action = typeof body.action === "string" ? body.action : undefined;
   const callCrono = makeCallCrono(sql);
+
 
   // ───── Cron entry point ─────
   if (action === "sync_all") {
