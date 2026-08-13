@@ -30,7 +30,7 @@ const enabledFeatures = new Set(
     .filter(Boolean),
 );
 
-export const useNeonFunctions = () => enabledFeatures.has("functions");
+export const neonFunctionsEnabled = () => enabledFeatures.has("functions");
 
 export type InvokeResult<T> = { data: T | null; error: { message: string } | null };
 
@@ -39,7 +39,7 @@ export async function invokeFn<T = unknown>(
   options?: { body?: unknown; headers?: Record<string, string> },
 ): Promise<InvokeResult<T>> {
   const path = FUNCTION_ROUTES[name];
-  if (!useNeonFunctions() || !path) {
+  if (!neonFunctionsEnabled() || !path) {
     const res = await supabase.functions.invoke(name, {
       body: options?.body,
       headers: options?.headers,
