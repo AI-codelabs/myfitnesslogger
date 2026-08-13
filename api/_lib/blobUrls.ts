@@ -23,6 +23,10 @@ export function isOwnedBlobPathname(
 }
 
 export function isSafeBlobPathname(pathname: string): boolean {
-  if (!pathname || pathname.includes("..") || pathname.includes("\\")) return false;
-  return /^[a-z0-9._/-]+$/i.test(pathname);
+  if (!pathname || pathname.includes("..") || pathname.includes("\\") || pathname.includes("\0")) {
+    return false;
+  }
+  if (pathname.startsWith("/") || pathname.includes("//")) return false;
+  if (pathname.length > 1024) return false;
+  return /^[a-z0-9._(),\s+/-]+$/i.test(pathname);
 }

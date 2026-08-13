@@ -1,6 +1,6 @@
-// Client helpers for Vercel Blob during the storage cutover.
-// New uploads go to Blob. Existing relative paths keep working via the
-// legacy signed-URL fallback until the manager copies those files over.
+// Client helpers for Vercel Blob.
+// New uploads go to Blob. Copied legacy objects live at `{bucket}/{original_path}`.
+// Relative DB paths are resolved from Blob first, then the legacy signed-URL fallback.
 
 import { upload } from "@vercel/blob/client";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,6 +9,7 @@ import {
   isHttpUrl,
   isPrivateBlobUrl,
   isPublicBlobUrl,
+  legacyCopiedPathname,
   safeBlobFilename,
 } from "@/lib/blobUrls";
 
@@ -41,37 +42,12 @@ async function currentUserId(): Promise<string> {
   return id;
 }
 
-/** Upload a file to Vercel Blob. Returns the stored URL to persist in Postgres. */
-export async function uploadToBlob(
-  file: File | Blob,
-  scope: StorageScope,
-  filename?: string,
-): Promise<{ url: string; pathname: string }> {
-  const userId = await currentUserId();
-  const name =
-    filename || (file instanceof File && file.name ? file.name : "file");
-  const pathname = `${scope}/${userId}/${safeBlobFilename(name)}`;
-  const access = "private";
-  const result = await upload(pathname, file, {
-    access,
-    handleUploadUrl: "/api/storage/upload-url",
-    clientPayload: JSON.stringify({ scope }),
-    headers: await authHeader(),
-    multipart: file.size > 4 * 1024 * 1024,
-  });
-  return { url: result.url, pathname: result.pathname };
-}
-
-async function fetchPrivateBlobObjectUrl(
-  url: string,
-  downloadName?: string,
+async function fetchBlobObjectUrl(
+  qs: URLSearchParams,
+  cacheKey: string,
 ): Promise<string | null> {
-  const cacheKey = `${url}::${downloadName ?? ""}`;
   const cached = objectUrlCache.get(cacheKey);
   if (cached) return cached;
-
-  const qs = new URLSearchParams({ url });
-  if (downloadName) qs.set("download", downloadName);
   const res = await fetch(`/api/storage/file?${qs}`, {
     headers: await authHeader(),
   });
@@ -82,10 +58,30 @@ async function fetchPrivateBlobObjectUrl(
   return objectUrl;
 }
 
+/** Upload a file to Vercel Blob. Returns the stored URL to persist in Postgres. */
+export async function uploadToBlob(
+  file: File | Blob,
+  scope: StorageScope,
+  filename?: string,
+): Promise<{ url: string; pathname: string }> {
+  const userId = await currentUserId();
+  const name =
+    filename || (file instanceof File && file.name ? file.name : "file");
+  const pathname = `${scope}/${userId}/${safeBlobFilename(name)}`;
+  const result = await upload(pathname, file, {
+    access: "private",
+    handleUploadUrl: "/api/storage/upload-url",
+    clientPayload: JSON.stringify({ scope }),
+    headers: await authHeader(),
+    multipart: file.size > 4 * 1024 * 1024,
+  });
+  return { url: result.url, pathname: result.pathname };
+}
+
 /**
  * Turn a stored path (Blob URL or legacy relative path) into something an
- * <img> or <a href> can use. Private blobs are fetched with the user JWT and
- * exposed as object URLs.
+ * <img> or <a href> can use. Copied legacy files are read from Blob at
+ * `{bucket}/{original_path}`; Supabase signed URLs are the fallback only.
  */
 export async function resolveStorageUrl(
   path: string | null | undefined,
@@ -97,8 +93,19 @@ export async function resolveStorageUrl(
     return path;
   }
   if (isPrivateBlobUrl(path)) {
-    return fetchPrivateBlobObjectUrl(path, opts?.downloadName);
+    const qs = new URLSearchParams({ url: path });
+    if (opts?.downloadName) qs.set("download", opts.downloadName);
+    return fetchBlobObjectUrl(qs, `${path}::${opts?.downloadName ?? ""}`);
   }
+
+  const pathname = legacyCopiedPathname(bucket, path);
+  const blobQs = new URLSearchParams({ pathname });
+  if (opts?.downloadName) blobQs.set("download", opts.downloadName);
+  const fromBlob = await fetchBlobObjectUrl(
+    blobQs,
+    `${pathname}::${opts?.downloadName ?? ""}`,
+  );
+  if (fromBlob) return fromBlob;
 
   const { data } = await supabase.storage
     .from(bucket)
@@ -107,19 +114,7 @@ export async function resolveStorageUrl(
       60 * 60,
       opts?.downloadName ? { download: opts.downloadName } : undefined,
     );
-  if (data?.signedUrl) return data.signedUrl;
-
-  // Manager may have copied the object to Blob at `{bucket}/{oldPath}`.
-  const qs = new URLSearchParams({ pathname: `${bucket}/${path}` });
-  if (opts?.downloadName) qs.set("download", opts.downloadName);
-  const res = await fetch(`/api/storage/file?${qs}`, {
-    headers: await authHeader(),
-  });
-  if (!res.ok) return null;
-  const blob = await res.blob();
-  const objectUrl = URL.createObjectURL(blob);
-  objectUrlCache.set(`${bucket}/${path}::${opts?.downloadName ?? ""}`, objectUrl);
-  return objectUrl;
+  return data?.signedUrl ?? null;
 }
 
 /** Download the raw bytes of a stored file (template attach, etc.). */
@@ -140,12 +135,23 @@ export async function downloadStorageFile(
     if (!res.ok) throw new Error("Download failed");
     return res.blob();
   }
+
+  const pathname = legacyCopiedPathname(bucket, path);
+  const copied = await fetch(`/api/storage/file?${new URLSearchParams({ pathname })}`, {
+    headers: await authHeader(),
+  });
+  if (copied.ok) return copied.blob();
+
   const { data, error } = await supabase.storage.from(bucket).download(path);
   if (error || !data) throw new Error(error?.message || "Download failed");
   return data;
 }
 
-/** Best-effort delete. Blob URLs go to /api/storage/delete; relative paths to the legacy bucket. */
+/**
+ * Best-effort delete. Blob URLs and copied `{bucket}/{path}` objects are
+ * removed from Blob; relative paths are also removed from the legacy bucket
+ * so the signed-URL fallback cannot resurrect a deleted file.
+ */
 export async function deleteStorageObject(
   path: string | null | undefined,
   bucket: string,
@@ -159,7 +165,12 @@ export async function deleteStorageObject(
     });
     return;
   }
-  if (!isHttpUrl(path)) {
-    await supabase.storage.from(bucket).remove([path]);
-  }
+  if (isHttpUrl(path)) return;
+
+  await fetch("/api/storage/delete", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...(await authHeader()) },
+    body: JSON.stringify({ pathname: legacyCopiedPathname(bucket, path) }),
+  });
+  await supabase.storage.from(bucket).remove([path]);
 }

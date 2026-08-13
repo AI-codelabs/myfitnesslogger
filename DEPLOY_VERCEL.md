@@ -64,8 +64,8 @@ Production build flag (`.env.production` and `VITE_NEON_FEATURES` on Vercel):
 `weight,checkins,workouts,nutrition,clients,functions`
 
 Login/signup still uses the legacy auth client. New uploads go to Vercel Blob.
-The Supabase manager still needs to delta-copy Postgres and Storage objects
-(this environment has no service-role key).
+Copied legacy files are read from Blob at `{bucket}/{original_path}`; Supabase
+signed URLs remain a fallback only.
 
 All table access in the frontend now goes through `db.from(...)` (`src/lib/db.ts`),
 so enabling a group is a flag change only — no code edits.

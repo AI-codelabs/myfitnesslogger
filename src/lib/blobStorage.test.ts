@@ -7,6 +7,7 @@ import {
   isPrivateBlobUrl,
   isPublicBlobUrl,
   isSafeBlobPathname,
+  legacyCopiedPathname,
   safeBlobFilename,
 } from "./blobUrls";
 
@@ -57,5 +58,13 @@ describe("blob URL helpers", () => {
     expect(safeBlobFilename("My Plan (v2).pdf")).toBe("My_Plan_v2_.pdf");
     expect(isSafeBlobPathname("onboarding-uploads/a/b.jpg")).toBe(true);
     expect(isSafeBlobPathname("onboarding-uploads/../b.jpg")).toBe(false);
+    expect(
+      isSafeBlobPathname(
+        "nutrition-documents/cc88f3cd-9664-4658-be3c-d7b48a404275/1780148608088_Persoonlijk_voedingsschema_Yannick_2300.pdf",
+      ),
+    ).toBe(true);
+    expect(legacyCopiedPathname("nutrition-documents", "user/file.pdf")).toBe(
+      "nutrition-documents/user/file.pdf",
+    );
   });
 });
