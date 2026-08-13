@@ -1,5 +1,5 @@
+import { db } from "@/lib/db";
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Loader2, Dumbbell } from "lucide-react";
 import {
@@ -58,7 +58,7 @@ export function StrengthProgressChart({ clientId, lang = "nl" }: Props) {
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const { data } = await supabase
+      const { data } = await db
         .from("workout_set_logs")
         .select(
           `reps, weight_kg, set_number, plan_exercise_id, session_id, created_at,

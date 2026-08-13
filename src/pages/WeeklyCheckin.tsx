@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { parseDecimal } from "@/lib/parseDecimal";
 import { describeWriteError } from "@/lib/writeError";
 import { useAuth } from "@/hooks/useAuth";
@@ -241,7 +240,7 @@ export default function WeeklyCheckin() {
   };
 
   const checkCrono = async (uid: string) => {
-    const { data } = await supabase
+    const { data } = await db
       .from("cronometer_clients")
       .select("id")
       .eq("client_id", uid)

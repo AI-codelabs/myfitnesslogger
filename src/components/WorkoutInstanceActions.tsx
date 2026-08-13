@@ -2,7 +2,6 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Calendar as CalendarIcon, Copy, MoreVertical, Move, Trash2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -26,6 +25,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { Lang } from "@/lib/onboardingSchema";
 import { ComputedOccurrence, formatDateKey } from "@/lib/workoutSchedule";
+import { db } from "@/lib/db";
 
 type Action = "move" | "copy" | "delete";
 type Scope = "single" | "future";
@@ -362,7 +362,7 @@ async function clearExistingInstanceOverrides(
   assignmentId: string,
   occurrenceIndex: number,
 ) {
-  await supabase
+  await db
     .from("workout_schedule_overrides")
     .delete()
     .eq("client_id", clientId)
@@ -378,7 +378,7 @@ async function applyMove(
 ) {
   // Copied instance: just update the existing copy override's date.
   if (occ.origin === "copied" && occ.overrideId) {
-    const { error } = await supabase
+    const { error } = await db
       .from("workout_schedule_overrides")
       .update({ scheduled_date: newDate })
       .eq("id", occ.overrideId);
@@ -389,7 +389,7 @@ async function applyMove(
     throw new Error("Cannot move this workout instance.");
   }
   await clearExistingInstanceOverrides(clientId, occ.assignmentId, occ.occurrenceIndex);
-  const { error } = await supabase.from("workout_schedule_overrides").insert({
+  const { error } = await db.from("workout_schedule_overrides").insert({
     client_id: clientId,
     assignment_id: occ.assignmentId,
     plan_id: occ.planId,
@@ -406,7 +406,7 @@ async function applyCopy(
   occ: ComputedOccurrence,
   newDate: string,
 ) {
-  const { error } = await supabase.from("workout_schedule_overrides").insert({
+  const { error } = await db.from("workout_schedule_overrides").insert({
     client_id: clientId,
     assignment_id: occ.assignmentId,
     plan_id: occ.planId,
@@ -425,7 +425,7 @@ async function applyDelete(
   scope: Scope,
 ) {
   if (occ.origin === "copied" && occ.overrideId) {
-    const { error } = await supabase
+    const { error } = await db
       .from("workout_schedule_overrides")
       .delete()
       .eq("id", occ.overrideId);
@@ -439,7 +439,7 @@ async function applyDelete(
   if (scope === "future") {
     // Delete future instances by inserting "delete" overrides from this
     // occurrence onward. Also clear any prior move/delete for this instance.
-    const { data: assignment } = await supabase
+    const { data: assignment } = await db
       .from("client_workout_assignments")
       .select("days, weeks, start_date")
       .eq("id", occ.assignmentId)
@@ -470,7 +470,7 @@ async function applyDelete(
       });
     }
     // Clear any prior move/delete overrides for those occurrences.
-    await supabase
+    await db
       .from("workout_schedule_overrides")
       .delete()
       .eq("client_id", clientId)
@@ -478,14 +478,14 @@ async function applyDelete(
       .gte("occurrence_index", occ.occurrenceIndex)
       .in("action", ["move", "delete"]);
     if (toInsert.length) {
-      const { error } = await supabase.from("workout_schedule_overrides").insert(toInsert);
+      const { error } = await db.from("workout_schedule_overrides").insert(toInsert);
       if (error) throw error;
     }
     return;
   }
 
   await clearExistingInstanceOverrides(clientId, occ.assignmentId, occ.occurrenceIndex);
-  const { error } = await supabase.from("workout_schedule_overrides").insert({
+  const { error } = await db.from("workout_schedule_overrides").insert({
     client_id: clientId,
     assignment_id: occ.assignmentId,
     plan_id: occ.planId,

@@ -1,8 +1,8 @@
 // Weight logging data access. Routes to the Neon-backed API when the "weight"
 // feature is cut over, otherwise to the legacy client. Call sites stay the same.
 
-import { supabase } from "@/integrations/supabase/client";
 import { apiGet, apiPost, usesNeon } from "@/lib/dataApi";
+import { db } from "@/lib/db";
 
 export type WeightLogRow = {
   id: string;
@@ -24,7 +24,7 @@ export async function listWeightLogs(
     });
   }
 
-  let q = supabase
+  let q = db
     .from("weight_logs")
     .select("id,logged_on,weight_kg,note")
     .eq("client_id", clientId)
@@ -53,7 +53,7 @@ export async function upsertWeightLog(input: {
     return;
   }
 
-  const { error } = await supabase.from("weight_logs").upsert(
+  const { error } = await db.from("weight_logs").upsert(
     {
       client_id: input.clientId,
       logged_on: input.loggedOn,
@@ -70,6 +70,6 @@ export async function deleteWeightLog(id: string): Promise<void> {
     await apiPost("weight/delete", { id });
     return;
   }
-  const { error } = await supabase.from("weight_logs").delete().eq("id", id);
+  const { error } = await db.from("weight_logs").delete().eq("id", id);
   if (error) throw error;
 }

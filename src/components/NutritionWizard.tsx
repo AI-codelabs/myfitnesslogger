@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,6 +16,7 @@ import { toast } from "sonner";
 import { parseDecimal } from "@/lib/parseDecimal";
 import { Lang } from "@/lib/onboardingSchema";
 import { pushTargetsToCronometer } from "@/lib/cronometerTargets";
+import { db } from "@/lib/db";
 
 type Props = {
   clientId: string;
@@ -82,7 +82,7 @@ export const NutritionWizard = ({
       details: rest,
     };
     if (markCompleted) row.completed_at = new Date().toISOString();
-    const { error } = await supabase
+    const { error } = await db
       .from("nutrition_plans")
       .upsert(row, { onConflict: "client_id" });
     setSaving(false);

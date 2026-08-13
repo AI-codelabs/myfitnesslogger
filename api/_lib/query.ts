@@ -71,6 +71,8 @@ export const querySchema = z.object({
   onConflict: z.string().optional(),
   ignoreDuplicates: z.boolean().optional(),
   count: z.boolean().optional(),
+  /** count only, no rows */
+  head: z.boolean().optional(),
   /** "one" -> exactly one row, "maybe" -> zero or one row */
   single: z.enum(["one", "maybe"]).optional(),
   /** false for writes that don't need the row back */
@@ -133,6 +135,18 @@ function whereClause(filters: QueryInput["filters"], params: unknown[]): string 
 }
 
 /** Translates the request into a single parameterised statement. */
+/** Count-only variant of a select, used for `{ count: "exact" }` requests. */
+export function buildCountQuery(input: QueryInput): Built {
+  const table = ident(input.table);
+  if (!ALLOWED_TABLES.has(table)) throw new Error(`table not allowed: ${table}`);
+  const params: unknown[] = [];
+  const text = `SELECT count(*)::int AS count FROM public.${table}${whereClause(
+    input.filters,
+    params,
+  )}`;
+  return { text, params };
+}
+
 export function buildQuery(input: QueryInput): Built {
   const table = ident(input.table);
   if (!ALLOWED_TABLES.has(table)) throw new Error(`table not allowed: ${table}`);

@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { CheckCircle2, AlertTriangle, Target, ChevronDown, LucideIcon } from "lucide-react";
@@ -89,7 +88,7 @@ export function ClientStartMessageCard({ lang }: { lang: "nl" | "en" }) {
         setSource("weekly");
         return;
       }
-      const { data: start } = await supabase
+      const { data: start } = await db
         .from("coach_messages")
         .select("voice_memo, client_positive, client_attention, client_actions, published_at")
         .eq("client_id", user.id)

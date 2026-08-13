@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -96,7 +95,7 @@ export function ClientGoalsTab({
   const load = async () => {
     setLoading(true);
     const [{ data: gs }, { data: checkins }, { data: nutritionLogs }] = await Promise.all([
-      supabase
+      db
         .from("client_goals")
         .select("*")
         .eq("client_id", clientId)
@@ -106,7 +105,7 @@ export function ClientGoalsTab({
         .eq("client_id", clientId)
         .order("week_start", { ascending: false })
         .limit(4),
-      supabase
+      db
         .from("cronometer_nutrition_logs")
         .select("log_date, calories")
         .eq("client_id", clientId)
@@ -175,10 +174,10 @@ export function ClientGoalsTab({
 
     let error: any = null;
     if (creatingNew || !editingId) {
-      const r = await supabase.from("client_goals").insert(payload);
+      const r = await db.from("client_goals").insert(payload);
       error = r.error;
     } else {
-      const r = await supabase.from("client_goals").update(payload).eq("id", editingId);
+      const r = await db.from("client_goals").update(payload).eq("id", editingId);
       error = r.error;
     }
     setSaving(false);
@@ -189,7 +188,7 @@ export function ClientGoalsTab({
   };
 
   const activateHistorical = async (goalId: string) => {
-    const { error } = await supabase
+    const { error } = await db
       .from("client_goals")
       .update({ is_active: true })
       .eq("id", goalId);

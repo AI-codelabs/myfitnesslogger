@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { db } from "@/lib/db";
 
 /**
  * Deep-clone a workout plan (including its days and exercises) into a new
@@ -14,7 +14,7 @@ export async function duplicateWorkoutPlan(opts: {
   const { sourcePlanId, coachId, newName, isTemplate = false } = opts;
 
   // 1. Load source plan
-  const { data: src, error: srcErr } = await supabase
+  const { data: src, error: srcErr } = await db
     .from("workout_plans")
     .select("name, description, category, frequency_per_week")
     .eq("id", sourcePlanId)
@@ -22,7 +22,7 @@ export async function duplicateWorkoutPlan(opts: {
   if (srcErr || !src) throw srcErr ?? new Error("Plan not found");
 
   // 2. Create new plan/template owned by the coach.
-  const { data: created, error: insErr } = await supabase
+  const { data: created, error: insErr } = await db
     .from("workout_plans")
     .insert({
       name: newName.trim() || `${src.name} (copy)`,
@@ -38,7 +38,7 @@ export async function duplicateWorkoutPlan(opts: {
   if (insErr || !created) throw insErr ?? new Error("Could not create plan");
 
   // 3. Load source days
-  const { data: srcDays, error: daysErr } = await supabase
+  const { data: srcDays, error: daysErr } = await db
     .from("workout_plan_days")
     .select("id, name, day_index")
     .eq("plan_id", sourcePlanId)
@@ -48,7 +48,7 @@ export async function duplicateWorkoutPlan(opts: {
   if (!srcDays || srcDays.length === 0) return created.id;
 
   // 4. Insert new days
-  const { data: newDays, error: newDaysErr } = await supabase
+  const { data: newDays, error: newDaysErr } = await db
     .from("workout_plan_days")
     .insert(
       srcDays.map((d) => ({
@@ -68,7 +68,7 @@ export async function duplicateWorkoutPlan(opts: {
   }
 
   // 5. Load source exercises
-  const { data: srcEx, error: exErr } = await supabase
+  const { data: srcEx, error: exErr } = await db
     .from("workout_plan_exercises")
     .select("day_id, exercise_id, order_index, sets_reps, notes")
     .in(
@@ -98,7 +98,7 @@ export async function duplicateWorkoutPlan(opts: {
         notes: string | null;
       }>;
     if (rows.length > 0) {
-      const { error: insExErr } = await supabase
+      const { error: insExErr } = await db
         .from("workout_plan_exercises")
         .insert(rows);
       if (insExErr) throw insExErr;

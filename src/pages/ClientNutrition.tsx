@@ -1,5 +1,4 @@
 import { useEffect, useState, useCallback, type ReactNode } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,6 +17,7 @@ import {
   type CronoWebStatus,
 } from "@/lib/cronometerTargetsWeb";
 import { toast } from "sonner";
+import { db } from "@/lib/db";
 
 
 
@@ -75,14 +75,14 @@ const ClientNutrition = () => {
     if (!user?.id) return;
     setLoading(true);
     const [planRes, sessionRes, logsRes] = await Promise.all([
-      supabase.from("nutrition_plans").select("*").eq("client_id", user.id).maybeSingle(),
-      supabase
+      db.from("nutrition_plans").select("*").eq("client_id", user.id).maybeSingle(),
+      db
         .from("cronometer_clients")
         .select("id")
         .eq("client_id", user.id)
         .eq("status", "active")
         .maybeSingle(),
-      supabase
+      db
         .from("cronometer_nutrition_logs")
         .select("id, log_date, calories, protein_g, carbs_g, fat_g, fiber_g, sugar_g, sodium_mg, synced_at, entries")
         .eq("client_id", user.id)

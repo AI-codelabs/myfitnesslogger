@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { db } from "@/lib/db";
 
 export type GoalType = "cut" | "bulk" | "maintain" | "custom";
 
@@ -29,7 +29,7 @@ export const GOAL_TYPE_LABELS: Record<GoalType, { nl: string; en: string }> = {
 
 /** Fetch the currently-active goal for a client (single source of truth for AI + UI). */
 export async function fetchActiveGoal(clientId: string): Promise<ClientGoal | null> {
-  const { data } = await supabase
+  const { data } = await db
     .from("client_goals")
     .select("*")
     .eq("client_id", clientId)

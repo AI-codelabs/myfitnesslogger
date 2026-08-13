@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -76,7 +75,7 @@ export default function CoachTasks() {
 
     // Clients via profiles linked through user_roles? Use existing pattern: coach_id assignments + invitations
     // Simplest: pull all clients this coach is_coach_of via invitations accepted
-    const { data: inv } = await supabase
+    const { data: inv } = await db
       .from("invitations")
       .select("accepted_user_id")
       .eq("coach_id", user.id)
@@ -93,23 +92,23 @@ export default function CoachTasks() {
     }
 
     const [profilesRes, onboardingRes, nutritionRes, assignRes, msgRes, checkinsRes, reviewsRes] = await Promise.all([
-      supabase.from("profiles").select("user_id, display_name, first_name, last_name").in("user_id", clientIds),
-      supabase
+      db.from("profiles").select("user_id, display_name, first_name, last_name").in("user_id", clientIds),
+      db
         .from("onboarding_responses")
         .select("user_id, completed_at")
         .in("user_id", clientIds),
-      supabase
+      db
         .from("nutrition_plans")
         .select("client_id")
         .eq("coach_id", user.id)
         .in("client_id", clientIds),
-      supabase
+      db
         .from("client_workout_assignments")
         .select("client_id")
         .eq("coach_id", user.id)
         .eq("is_active", true)
         .in("client_id", clientIds),
-      supabase
+      db
         .from("coach_messages")
         .select("client_id, voice_memo, published_at, voice_memo_recorded_at")
         .eq("coach_id", user.id)
@@ -280,7 +279,7 @@ export default function CoachTasks() {
   const markVoiceRecorded = async (clientId: string, current: boolean) => {
     if (!user) return;
     const value = current ? null : new Date().toISOString();
-    const { error } = await supabase
+    const { error } = await db
       .from("coach_messages")
       .update({ voice_memo_recorded_at: value })
       .eq("client_id", clientId)

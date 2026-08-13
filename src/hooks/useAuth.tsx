@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { db } from "@/lib/db";
 
 type Role = "user" | "coach" | null;
 
@@ -24,7 +25,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   const fetchRole = async (uid: string) => {
-    const { data } = await supabase
+    const { data } = await db
       .from("user_roles")
       .select("role")
       .eq("user_id", uid)
@@ -33,7 +34,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const fetchOnboarding = useCallback(async (uid: string) => {
-    const { data } = await supabase
+    const { data } = await db
       .from("onboarding_responses")
       .select("completed_at")
       .eq("user_id", uid)

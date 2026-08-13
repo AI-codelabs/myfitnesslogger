@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { ComputedOccurrence } from "@/lib/workoutSchedule";
 import { WorkoutInstanceActions } from "@/components/WorkoutInstanceActions";
 import { formatSetsRepsForDisplay } from "@/lib/setsReps";
+import { db } from "@/lib/db";
 
 export type ScheduledOccurrence = ComputedOccurrence;
 
@@ -67,7 +67,7 @@ export function WorkoutDayDetailsDialog({
     const planIds = Array.from(new Set(occurrences.map((o) => o.planId)));
     (async () => {
       setLoading(true);
-      const { data: days } = await supabase
+      const { data: days } = await db
         .from("workout_plan_days")
         .select("id, name, day_index, plan_id")
         .in("plan_id", planIds)
@@ -75,13 +75,25 @@ export function WorkoutDayDetailsDialog({
       const dayIds = (days ?? []).map((d: any) => d.id);
       let exByDay: Record<string, any[]> = {};
       if (dayIds.length) {
-        const { data: ex } = await supabase
+        const { data: ex } = await db
           .from("workout_plan_exercises")
-          .select("id, day_id, order_index, sets_reps, notes, exercise:exercises(name, muscle_group)")
+          .select("id, day_id, order_index, sets_reps, notes, exercise_id")
           .in("day_id", dayIds)
           .order("order_index");
-        for (const e of ex ?? []) {
-          (exByDay[(e as any).day_id] ||= []).push(e);
+        const exRowsRaw = (ex ?? []) as any[];
+        const exerciseIds = Array.from(
+          new Set(exRowsRaw.map((e) => e.exercise_id).filter(Boolean)),
+        );
+        const exMap: Record<string, any> = {};
+        if (exerciseIds.length) {
+          const { data: exerciseRows } = await db
+            .from("exercises")
+            .select("id, name, muscle_group")
+            .in("id", exerciseIds as string[]);
+          for (const e of (exerciseRows ?? []) as any[]) exMap[e.id] = e;
+        }
+        for (const e of exRowsRaw) {
+          (exByDay[e.day_id] ||= []).push({ ...e, exercise: exMap[e.exercise_id] ?? null });
         }
       }
       const grouped: Record<string, DayWithExercises[]> = {};

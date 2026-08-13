@@ -35,6 +35,7 @@ import { CoachClientMealPlanCard } from "@/components/CoachClientMealPlanCard";
 import { ClientGoalsTab } from "@/components/ClientGoalsTab";
 import { CronometerCoachCard } from "@/components/CronometerCoachCard";
 import { clientFullName } from "@/lib/clientName";
+import { db } from "@/lib/db";
 
 
 
@@ -58,7 +59,7 @@ const ClientProfile = () => {
   const saveCoachingPeriod = async () => {
     if (!invite) return;
     setSavingPeriod(true);
-    const { error } = await supabase
+    const { error } = await db
       .from("invitations")
       .update({
         coaching_start_date: coachingStart || null,
@@ -89,7 +90,7 @@ const ClientProfile = () => {
   const updateStatus = async (status: "active" | "inactive") => {
     if (!invite) return;
     setActionLoading(true);
-    const { error } = await supabase
+    const { error } = await db
       .from("invitations")
       .update({ status })
       .eq("id", invite.id);
@@ -115,7 +116,7 @@ const ClientProfile = () => {
 
   const loadNutrition = async () => {
     if (!clientId) return;
-    const { data } = await supabase
+    const { data } = await db
       .from("nutrition_plans")
       .select("*")
       .eq("client_id", clientId)
@@ -130,28 +131,28 @@ const ClientProfile = () => {
       const { data: u } = await supabase.auth.getUser();
       setCoachId(u.user?.id ?? null);
       const [invQ, respQ, nutQ, logsQ, profQ] = await Promise.all([
-        supabase
+        db
           .from("invitations")
           .select("id, email, status, accepted_at, created_at, coaching_start_date, coaching_end_date")
           .eq("accepted_user_id", clientId)
           .maybeSingle(),
-        supabase
+        db
           .from("onboarding_responses")
           .select("*")
           .eq("user_id", clientId)
           .maybeSingle(),
-        supabase
+        db
           .from("nutrition_plans")
           .select("*")
           .eq("client_id", clientId)
           .maybeSingle(),
-        supabase
+        db
           .from("cronometer_nutrition_logs")
           .select("log_date, calories, protein_g, carbs_g, fat_g, fiber_g, sugar_g, sodium_mg, entries")
           .eq("client_id", clientId)
           .order("log_date", { ascending: false })
           .limit(60),
-        supabase
+        db
           .from("profiles")
           .select("first_name, last_name, display_name")
           .eq("user_id", clientId)

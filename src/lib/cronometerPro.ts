@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { db } from "@/lib/db";
 
 export type CronoStatus = "pending" | "active" | "revoked" | "error";
 
@@ -39,7 +40,7 @@ export async function getCronometerLink(
   coachId: string,
   clientId: string,
 ): Promise<CronometerClientLink | null> {
-  const { data } = await supabase
+  const { data } = await db
     .from("cronometer_clients")
     .select("*")
     .eq("coach_id", coachId)

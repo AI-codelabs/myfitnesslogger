@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { db } from "@/lib/db";
 
 export function toKey(d: Date) {
   const y = d.getFullYear();
@@ -36,7 +36,7 @@ function computeStreak(daysSet: Set<string>): number {
 
 export async function fetchCompliance(clientId: string, days = 30): Promise<ComplianceStats> {
   const since = daysAgoKey(days - 1);
-  const { data } = await supabase
+  const { data } = await db
     .from("cronometer_nutrition_logs")
     .select("log_date")
     .eq("client_id", clientId)
@@ -62,7 +62,7 @@ export async function fetchLoggedLast7Batch(
   const out: Record<string, number> = {};
   if (clientIds.length === 0) return out;
   const since = daysAgoKey(6);
-  const { data } = await supabase
+  const { data } = await db
     .from("cronometer_nutrition_logs")
     .select("client_id, log_date")
     .in("client_id", clientIds)

@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 type Filter = { op: string; column: string; value: unknown };
 type Order = { column: string; ascending: boolean };
-export type Result<T> = { data: T; error: { message: string } | null };
+export type Result<T> = { data: T; error: { message: string } | null; count?: number | null };
 
 type Action = "select" | "insert" | "upsert" | "update" | "delete";
 
@@ -27,15 +27,19 @@ class PgQuery<T = unknown> implements PromiseLike<Result<T>> {
   private values?: unknown;
   private onConflict?: string;
   private ignoreDuplicates?: boolean;
+  private countMode = false;
+  private headMode = false;
 
   constructor(
     private table: string,
     private action: Action = "select",
   ) {}
 
-  select(columns = "*") {
+  select(columns = "*", options?: { count?: "exact" | "planned" | "estimated"; head?: boolean }) {
     this.columns = columns;
     this.returning = true;
+    if (options?.count) this.countMode = true;
+    if (options?.head) this.headMode = true;
     return this;
   }
   insert(values: unknown) {
@@ -118,6 +122,8 @@ class PgQuery<T = unknown> implements PromiseLike<Result<T>> {
       onConflict: this.onConflict,
       ignoreDuplicates: this.ignoreDuplicates,
       single: this.singleMode,
+      count: this.countMode || undefined,
+      head: this.headMode || undefined,
       returning: this.action === "select" ? true : this.returning,
     };
 
@@ -134,7 +140,12 @@ class PgQuery<T = unknown> implements PromiseLike<Result<T>> {
           error: { message: payload.message ?? payload.error ?? `Request failed (${res.status})` },
         };
       }
-      return { data: (payload.data ?? null) as T, error: null };
+      const result = payload.data ?? null;
+      if (this.countMode && result && typeof result === "object" && "count" in result) {
+        const wrapped = result as { rows: unknown; count: number };
+        return { data: (wrapped.rows ?? null) as T, error: null, count: wrapped.count };
+      }
+      return { data: result as T, error: null, count: null };
     } catch (err) {
       const message = err instanceof Error ? err.message : "network_error";
       return { data: null as T, error: { message } };
@@ -151,4 +162,25 @@ class PgQuery<T = unknown> implements PromiseLike<Result<T>> {
 
 export function pgFrom<T = unknown>(table: string) {
   return new PgQuery<T>(table);
+}
+
+/** Calls an allow-listed database function through the RLS-scoped endpoint. */
+export async function pgRpc<T = unknown>(fn: string, args: Record<string, unknown> = {}): Promise<Result<T>> {
+  try {
+    const res = await fetch("/api/pg/rpc", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(await authHeader()) },
+      body: JSON.stringify({ fn, args }),
+    });
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return {
+        data: null as T,
+        error: { message: payload.message ?? payload.error ?? `Request failed (${res.status})` },
+      };
+    }
+    return { data: (payload.data ?? null) as T, error: null };
+  } catch (err) {
+    return { data: null as T, error: { message: err instanceof Error ? err.message : "network_error" } };
+  }
 }

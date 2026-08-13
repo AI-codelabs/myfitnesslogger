@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { db } from "@/lib/db";
 
 type CronometerFunctionError = {
   error?: string;
@@ -143,7 +144,7 @@ export async function syncCronometer(): Promise<SyncResult> {
 
 /** Check if this client already has a Cronometer link (via Pro API). */
 export async function hasCronometerSession(clientId: string): Promise<boolean> {
-  const { data } = await supabase
+  const { data } = await db
     .from("cronometer_clients")
     .select("id")
     .eq("client_id", clientId)
@@ -154,7 +155,7 @@ export async function hasCronometerSession(clientId: string): Promise<boolean> {
 
 /** Disconnect: remove the Cronometer client link for this client. */
 export async function disconnectCronometer(clientId: string): Promise<{ success: boolean; error?: string }> {
-  const { error } = await supabase
+  const { error } = await db
     .from("cronometer_clients")
     .delete()
     .eq("client_id", clientId);

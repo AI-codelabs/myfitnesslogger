@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -45,6 +44,7 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { db } from "@/lib/db";
 
 interface Plan {
   id: string;
@@ -265,15 +265,15 @@ export default function WorkoutPlan() {
   async function load() {
     if (!planId) return;
     const [{ data: p }, { data: d }] = await Promise.all([
-      supabase.from("workout_plans").select("*").eq("id", planId).maybeSingle(),
-      supabase.from("workout_plan_days").select("*").eq("plan_id", planId).order("day_index"),
+      db.from("workout_plans").select("*").eq("id", planId).maybeSingle(),
+      db.from("workout_plan_days").select("*").eq("plan_id", planId).order("day_index"),
     ]);
     const loadedDays = (d ?? []) as Day[];
     setPlan(p as Plan | null);
     setDays(loadedDays);
     const dayIds = loadedDays.map((x) => x.id);
     if (dayIds.length) {
-      const { data: ex } = await supabase
+      const { data: ex } = await db
         .from("workout_plan_exercises")
         .select(
           "id, day_id, order_index, sets_reps, notes, exercise_id, exercise:exercises(name, is_pro, muscle_group, video_url)",
@@ -285,7 +285,7 @@ export default function WorkoutPlan() {
       setItems([]);
     }
     // load all distinct categories so coaches can reuse custom ones
-    const { data: allCats } = await supabase.from("workout_plans").select("category");
+    const { data: allCats } = await db.from("workout_plans").select("category");
     const extras = Array.from(
       new Set(
         (allCats ?? [])
@@ -308,7 +308,7 @@ export default function WorkoutPlan() {
     if (!plan) return;
     const next = { ...plan, ...patch };
     setPlan(next);
-    const { error } = await supabase.from("workout_plans").update(patch).eq("id", plan.id);
+    const { error } = await db.from("workout_plans").update(patch).eq("id", plan.id);
     if (error) {
       toast.error(formatWorkoutPlanMutationError(error), { duration: 8000 });
       load();
@@ -320,7 +320,7 @@ export default function WorkoutPlan() {
     setDirty(true);
     if (!plan) return;
     const nextIdx = days.length;
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from("workout_plan_days")
       .insert({ plan_id: plan.id, name: `Day ${nextIdx + 1}`, day_index: nextIdx })
       .select()
@@ -332,13 +332,13 @@ export default function WorkoutPlan() {
   async function renameDay(dayId: string, name: string) {
     setDirty(true);
     setDays((prev) => prev.map((d) => (d.id === dayId ? { ...d, name } : d)));
-    const { error } = await supabase.from("workout_plan_days").update({ name }).eq("id", dayId);
+    const { error } = await db.from("workout_plan_days").update({ name }).eq("id", dayId);
     if (error) toast.error(formatWorkoutPlanMutationError(error), { duration: 8000 });
   }
 
   async function removeDay(dayId: string) {
     setDirty(true);
-    const { error } = await supabase.from("workout_plan_days").delete().eq("id", dayId);
+    const { error } = await db.from("workout_plan_days").delete().eq("id", dayId);
     if (error) return toast.error(formatWorkoutPlanMutationError(error), { duration: 8000 });
     load();
   }
@@ -353,7 +353,7 @@ export default function WorkoutPlan() {
     // Phase 1: shift to high indexes (offset by 1000) to avoid collisions.
     await Promise.all(
       withIdx.map((d, i) =>
-        supabase
+        db
           .from("workout_plan_days")
           .update({ day_index: 1000 + i })
           .eq("id", d.id),
@@ -362,7 +362,7 @@ export default function WorkoutPlan() {
     // Phase 2: assign final indexes.
     const results = await Promise.all(
       withIdx.map((d, i) =>
-        supabase.from("workout_plan_days").update({ day_index: i }).eq("id", d.id),
+        db.from("workout_plan_days").update({ day_index: i }).eq("id", d.id),
       ),
     );
     const failed = results.find((r) => r.error);
@@ -376,7 +376,7 @@ export default function WorkoutPlan() {
   async function updateExercise(id: string, patch: Partial<PlanExercise>) {
     setDirty(true);
     setItems((prev) => prev.map((it) => (it.id === id ? { ...it, ...patch } : it)));
-    const { error } = await supabase
+    const { error } = await db
       .from("workout_plan_exercises")
       .update({
         sets_reps: patch.sets_reps ?? undefined,
@@ -388,7 +388,7 @@ export default function WorkoutPlan() {
 
   async function removeExercise(id: string) {
     setDirty(true);
-    const { error } = await supabase.from("workout_plan_exercises").delete().eq("id", id);
+    const { error } = await db.from("workout_plan_exercises").delete().eq("id", id);
     if (error) return toast.error(formatWorkoutPlanMutationError(error), { duration: 8000 });
     setItems((prev) => prev.filter((it) => it.id !== id));
   }
@@ -409,8 +409,8 @@ export default function WorkoutPlan() {
       ),
     );
     const results = await Promise.all([
-      supabase.from("workout_plan_exercises").update({ order_index: b }).eq("id", it.id),
-      supabase.from("workout_plan_exercises").update({ order_index: a }).eq("id", other.id),
+      db.from("workout_plan_exercises").update({ order_index: b }).eq("id", it.id),
+      db.from("workout_plan_exercises").update({ order_index: a }).eq("id", other.id),
     ]);
     const failed = results.find((r) => r.error);
     if (failed?.error) {

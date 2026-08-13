@@ -1,6 +1,6 @@
+import { db } from "@/lib/db";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -101,7 +101,7 @@ const ClientWorkoutSession = () => {
     if (initial) setLoading(true);
     else setRefreshing(true);
 
-    const { data: s } = await supabase
+    const { data: s } = await db
       .from("workout_sessions")
       .select(
         "id, client_id, plan_id, day_id, scheduled_date, started_at, completed_at, notes"
@@ -115,15 +115,15 @@ const ClientWorkoutSession = () => {
     setSession(s as any);
 
     const [{ data: plan }, dayRes, { data: profile }] = await Promise.all([
-      supabase.from("workout_plans").select("name").eq("id", s.plan_id).maybeSingle(),
+      db.from("workout_plans").select("name").eq("id", s.plan_id).maybeSingle(),
       s.day_id
-        ? supabase
+        ? db
             .from("workout_plan_days")
             .select("name")
             .eq("id", s.day_id)
             .maybeSingle()
         : Promise.resolve({ data: null } as any),
-      supabase
+      db
         .from("profiles")
         .select("display_name, first_name, last_name")
         .eq("user_id", clientId)
@@ -138,7 +138,7 @@ const ClientWorkoutSession = () => {
 
     let ex: PlanExerciseRow[] = [];
     if (s.day_id) {
-      const { data } = await supabase
+      const { data } = await db
         .from("workout_plan_exercises")
         .select(
           "id, order_index, sets_reps, notes, exercise_id, exercise:exercises(name, muscle_group)"
@@ -149,7 +149,7 @@ const ClientWorkoutSession = () => {
     }
     setExercises(ex);
 
-    const { data: logs } = await supabase
+    const { data: logs } = await db
       .from("workout_set_logs")
       .select("id, plan_exercise_id, set_number, reps, weight_kg, notes")
       .eq("session_id", sessionId)
@@ -196,7 +196,7 @@ const ClientWorkoutSession = () => {
     setHistoryLoading((p) => ({ ...p, [planExerciseId]: true }));
 
     // Find all plan_exercises that point to the same underlying exercise (across plans)
-    const { data: peers } = await supabase
+    const { data: peers } = await db
       .from("workout_plan_exercises")
       .select("id")
       .eq("exercise_id", exerciseId);
@@ -208,7 +208,7 @@ const ClientWorkoutSession = () => {
     }
 
     // All sessions for this client
-    const { data: sessions } = await supabase
+    const { data: sessions } = await db
       .from("workout_sessions")
       .select("id, scheduled_date, started_at")
       .eq("client_id", clientId);
@@ -227,7 +227,7 @@ const ClientWorkoutSession = () => {
       );
     }
 
-    const { data: allLogs } = await supabase
+    const { data: allLogs } = await db
       .from("workout_set_logs")
       .select("session_id, plan_exercise_id, reps, weight_kg")
       .in("plan_exercise_id", peerIds)

@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -17,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { db } from "@/lib/db";
 
 const MUSCLE_GROUPS = [
   "chest", "back", "shoulders", "biceps", "triceps",
@@ -113,11 +113,11 @@ export function ExerciseDialog({ exercise, open: controlledOpen, onOpenChange, t
       };
 
       if (isEdit && exercise) {
-        const { error } = await supabase.from("exercises").update(payload).eq("id", exercise.id);
+        const { error } = await db.from("exercises").update(payload).eq("id", exercise.id);
         if (error) throw error;
         toast.success("Exercise updated");
       } else {
-        const { error } = await supabase.from("exercises").insert(payload);
+        const { error } = await db.from("exercises").insert(payload);
         if (error) throw error;
         toast.success("Exercise added to library");
       }

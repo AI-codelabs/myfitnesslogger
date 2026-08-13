@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,6 +12,7 @@ import {
   optionTotals,
 } from "@/lib/mealPlan";
 import { cn } from "@/lib/utils";
+import { db } from "@/lib/db";
 
 interface Plan {
   id: string;
@@ -54,7 +54,7 @@ export default function ClientMealPlanView() {
     if (!user) return;
     (async () => {
       setLoading(true);
-      const { data: p } = await supabase
+      const { data: p } = await db
         .from("client_meal_plans")
         .select("*")
         .eq("client_id", user.id)
@@ -64,7 +64,7 @@ export default function ClientMealPlanView() {
         .maybeSingle();
       setPlan((p as Plan) ?? null);
       if (p) {
-        const { data: sels } = await supabase
+        const { data: sels } = await db
           .from("client_meal_selections")
           .select("id, category_id, option_id")
           .eq("client_id", user.id)
@@ -104,7 +104,7 @@ export default function ClientMealPlanView() {
     if (!user || !plan) return;
     setSavingKey(catId);
     // Upsert on unique key (client, plan, date, category)
-    const { error, data } = await supabase
+    const { error, data } = await db
       .from("client_meal_selections")
       .upsert(
         {
@@ -255,7 +255,7 @@ export default function ClientMealPlanView() {
                   size="sm"
                   variant="ghost"
                   onClick={async () => {
-                    const { error } = await supabase
+                    const { error } = await db
                       .from("client_meal_selections")
                       .delete()
                       .eq("client_id", user!.id)

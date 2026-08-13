@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +26,7 @@ import {
   coerceStructure,
 } from "@/lib/mealPlan";
 import { MealPlanEditor } from "@/components/MealPlanEditor";
+import { db } from "@/lib/db";
 
 interface Props {
   coachId: string;
@@ -88,12 +88,12 @@ export function CoachClientMealPlanCard({ coachId, clientId }: Props) {
   async function load() {
     setLoading(true);
     const [tRes, pRes] = await Promise.all([
-      supabase
+      db
         .from("nutrition_plan_templates")
         .select("id, name, goal_type, target_kcal, protein_g, carbs_g, fat_g, structure")
         .eq("coach_id", coachId)
         .order("created_at", { ascending: false }),
-      supabase
+      db
         .from("client_meal_plans")
         .select("*")
         .eq("coach_id", coachId)
@@ -177,8 +177,8 @@ export function CoachClientMealPlanCard({ coachId, clientId }: Props) {
     };
 
     const { error } = plan
-      ? await supabase.from("client_meal_plans").update(payload).eq("id", plan.id)
-      : await supabase.from("client_meal_plans").insert([payload]);
+      ? await db.from("client_meal_plans").update(payload).eq("id", plan.id)
+      : await db.from("client_meal_plans").insert([payload]);
 
     setSaving(false);
     if (error) {
@@ -197,7 +197,7 @@ export function CoachClientMealPlanCard({ coachId, clientId }: Props) {
       toast.error("Enter a template name");
       return;
     }
-    const { error } = await supabase.from("nutrition_plan_templates").insert([
+    const { error } = await db.from("nutrition_plan_templates").insert([
       {
         coach_id: coachId,
         name,
@@ -219,7 +219,7 @@ export function CoachClientMealPlanCard({ coachId, clientId }: Props) {
   async function deletePlan() {
     if (!plan) return;
     if (!confirm(`Remove "${plan.name}" from this client?`)) return;
-    const { error } = await supabase
+    const { error } = await db
       .from("client_meal_plans")
       .delete()
       .eq("id", plan.id);

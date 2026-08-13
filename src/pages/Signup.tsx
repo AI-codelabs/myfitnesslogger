@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { db } from "@/lib/db";
 
 const schema = z.object({
   displayName: z.string().trim().min(1, "Name is required").max(100),
@@ -76,7 +77,7 @@ const Signup = () => {
 
     // Mark invite accepted
     if (token && inviteId && data.user) {
-      await supabase
+      await db
         .from("invitations")
         .update({
           status: "accepted",

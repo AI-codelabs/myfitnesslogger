@@ -23,6 +23,7 @@ import {
 
 import { clientFullName } from "@/lib/clientName";
 import { fetchLoggedLast7Batch } from "@/lib/nutritionCompliance";
+import { db } from "@/lib/db";
 
 interface Invitation {
   id: string;
@@ -68,7 +69,7 @@ const Clients = () => {
     if (!user) return;
     setLoading(true);
     const [{ data: invs }, { data: la }] = await Promise.all([
-      supabase
+      db
         .from("invitations")
         .select("id, email, status, accepted_user_id, created_at, accepted_at, coaching_end_date")
         .eq("coach_id", user.id)
@@ -79,7 +80,7 @@ const Clients = () => {
     const acceptedIds = baseInvs.map((i) => i.accepted_user_id).filter(Boolean) as string[];
     let profileMap: Record<string, { first_name: string | null; last_name: string | null; display_name: string | null }> = {};
     if (acceptedIds.length > 0) {
-      const { data: profs } = await supabase
+      const { data: profs } = await db
         .from("profiles")
         .select("user_id, first_name, last_name, display_name")
         .in("user_id", acceptedIds);
@@ -146,7 +147,7 @@ const Clients = () => {
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction
             onClick={async () => {
-              const { error } = await supabase.from("invitations").delete().eq("id", inv.id);
+              const { error } = await db.from("invitations").delete().eq("id", inv.id);
               if (error) toast.error(error.message);
               else {
                 toast.success("Invitation deleted");

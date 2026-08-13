@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog,
   DialogContent,
@@ -17,6 +16,7 @@ import { Loader2, Search, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { ExerciseDialog } from "@/components/ExerciseDialog";
 import { formatWorkoutPlanMutationError } from "@/lib/workoutPlanErrors";
+import { db } from "@/lib/db";
 
 interface Exercise {
   id: string;
@@ -53,7 +53,7 @@ export function AddExerciseToDayDialog({
 
   async function loadExercises(selectNewest = false) {
     setLoading(true);
-    const { data } = await supabase
+    const { data } = await db
       .from("exercises")
       .select("id,name,muscle_group,equipment,created_at")
       .order("muscle_group")
@@ -113,7 +113,7 @@ export function AddExerciseToDayDialog({
       sets_reps: null,
       notes: null,
     }));
-    const { error } = await supabase.from("workout_plan_exercises").insert(rows);
+    const { error } = await db.from("workout_plan_exercises").insert(rows);
     setSaving(false);
     if (error) {
       // Log full context so we can diagnose which plan/day triggered the RLS block.

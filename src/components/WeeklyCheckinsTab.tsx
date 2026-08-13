@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -244,12 +243,12 @@ export function WeeklyCheckinsTab({ clientId, lang }: Props) {
           .select("*")
           .eq("client_id", clientId)
           .order("week_start", { ascending: false }),
-        supabase
+        db
           .from("onboarding_responses")
           .select("primary_goal")
           .eq("user_id", clientId)
           .maybeSingle(),
-        supabase
+        db
           .from("client_goals")
           .select("goal_type")
           .eq("client_id", clientId)

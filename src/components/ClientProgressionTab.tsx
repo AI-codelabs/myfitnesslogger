@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Loader2, TrendingDown, TrendingUp, Minus } from "lucide-react";
 import {
@@ -93,7 +92,7 @@ export function ClientProgressionTab({ clientId, lang }: Props) {
           )
           .eq("client_id", clientId)
           .order("week_start", { ascending: true }),
-        supabase
+        db
           .from("progress_photos")
           .select("id,taken_on,front_path,side_path,back_path,weight_kg")
           .eq("client_id", clientId)

@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { ArrowRight, Flame } from "lucide-react";
 import { Lang } from "@/lib/onboardingSchema";
 import { cn } from "@/lib/utils";
+import { db } from "@/lib/db";
 
 const tx = (lang: Lang, nl: string, en: string) => (lang === "nl" ? nl : en);
 
@@ -79,14 +79,14 @@ export function NutritionTodayCard({ lang }: { lang: Lang }) {
     if (!user) return;
     (async () => {
       const [{ data: plan }, { data: log }] = await Promise.all([
-        supabase
+        db
           .from("nutrition_plans")
           .select("details")
           .eq("client_id", user.id)
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle(),
-        supabase
+        db
           .from("cronometer_nutrition_logs")
           .select("calories, protein_g, carbs_g, fat_g")
           .eq("client_id", user.id)

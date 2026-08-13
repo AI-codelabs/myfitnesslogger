@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { FileText, Upload, Trash2, ExternalLink, Download, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Lang } from "@/lib/onboardingSchema";
+import { db } from "@/lib/db";
 
 interface Doc {
   id: string;
@@ -35,7 +36,7 @@ export function ClientNutritionDocuments({ clientId, coachId, canUpload, lang }:
 
   async function load() {
     setLoading(true);
-    const { data } = await supabase
+    const { data } = await db
       .from("client_nutrition_documents")
       .select("id, file_path, file_name, mime_type, size_bytes, created_at")
       .eq("client_id", clientId)
@@ -86,7 +87,7 @@ export function ClientNutritionDocuments({ clientId, coachId, canUpload, lang }:
       toast.error(upErr.message);
       return;
     }
-    const { error: dbErr } = await supabase.from("client_nutrition_documents").insert({
+    const { error: dbErr } = await db.from("client_nutrition_documents").insert({
       coach_id: coachId,
       client_id: clientId,
       file_path: path,
@@ -109,7 +110,7 @@ export function ClientNutritionDocuments({ clientId, coachId, canUpload, lang }:
     if (!confirm(tx("Document verwijderen?", "Delete this document?"))) return;
     setBusyId(d.id);
     await supabase.storage.from(BUCKET).remove([d.file_path]);
-    await supabase.from("client_nutrition_documents").delete().eq("id", d.id);
+    await db.from("client_nutrition_documents").delete().eq("id", d.id);
     setBusyId(null);
     load();
   }

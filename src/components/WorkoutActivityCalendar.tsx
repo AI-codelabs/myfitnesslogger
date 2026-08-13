@@ -1,10 +1,10 @@
+import { db } from "@/lib/db";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Dumbbell, CheckCircle2 } from "lucide-react";
 import { Lang } from "@/lib/onboardingSchema";
 import { cn } from "@/lib/utils";
-import { supabase } from "@/integrations/supabase/client";
 import {
   WorkoutDayDetailsDialog,
   LoggedSession,
@@ -76,7 +76,7 @@ export function WorkoutActivityCalendar({ assignments, plans, lang, clientId }: 
   useEffect(() => {
     if (!clientId) return;
     (async () => {
-      const { data: sessions } = await supabase
+      const { data: sessions } = await db
         .from("workout_sessions")
         .select("id, plan_id, day_id, scheduled_date, started_at, completed_at")
         .eq("client_id", clientId);
@@ -85,7 +85,7 @@ export function WorkoutActivityCalendar({ assignments, plans, lang, clientId }: 
         return;
       }
       const sessionIds = sessions.map((s) => s.id);
-      const { data: setCounts } = await supabase
+      const { data: setCounts } = await db
         .from("workout_set_logs")
         .select("session_id")
         .in("session_id", sessionIds);
@@ -99,7 +99,7 @@ export function WorkoutActivityCalendar({ assignments, plans, lang, clientId }: 
       ) as string[];
       let dayNames = new Map<string, string>();
       if (dayNameIds.length) {
-        const { data: dn } = await supabase
+        const { data: dn } = await db
           .from("workout_plan_days")
           .select("id, name")
           .in("id", dayNameIds);
@@ -133,7 +133,7 @@ export function WorkoutActivityCalendar({ assignments, plans, lang, clientId }: 
   useEffect(() => {
     if (!clientId) return;
     (async () => {
-      const { data } = await supabase
+      const { data } = await db
         .from("workout_schedule_overrides")
         .select(
           "id, client_id, assignment_id, plan_id, action, original_date, scheduled_date, occurrence_index, source_override_id",

@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { listWeightLogs } from "@/lib/api/weight";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
@@ -199,7 +198,7 @@ function TodayTodos({ lang }: { lang: Lang }) {
       const list: Todo[] = [];
 
       const todayKey = toKey(new Date());
-      const { data: todaySessions } = await supabase
+      const { data: todaySessions } = await db
         .from("workout_sessions")
         .select("id, completed_at")
         .eq("client_id", user.id)
@@ -409,7 +408,7 @@ export function ClientHomeView({ lang }: { lang: Lang }) {
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const { data } = await supabase
+      const { data } = await db
         .from("profiles")
         .select("first_name, display_name")
         .eq("user_id", user.id)

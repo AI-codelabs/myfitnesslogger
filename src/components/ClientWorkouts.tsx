@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +12,7 @@ import { toast } from "sonner";
 import { Lang } from "@/lib/onboardingSchema";
 import { ScheduleWorkoutDialog, ScheduleData } from "@/components/ScheduleWorkoutDialog";
 import { WorkoutActivityCalendar } from "@/components/WorkoutActivityCalendar";
+import { db } from "@/lib/db";
 
 interface Plan {
   id: string;
@@ -56,8 +56,8 @@ export function ClientWorkouts({ clientId, coachId, preferredFrequency, preferre
 
   async function load() {
     const [{ data: p }, { data: a }] = await Promise.all([
-      supabase.from("workout_plans").select("*").order("name"),
-      supabase
+      db.from("workout_plans").select("*").order("name"),
+      db
         .from("client_workout_assignments")
         .select("*")
         .eq("client_id", clientId)
@@ -78,7 +78,7 @@ export function ClientWorkouts({ clientId, coachId, preferredFrequency, preferre
   const confirmSchedule = async (data: ScheduleData) => {
     if (!scheduling) return;
     setBusyId(scheduling.id);
-    const { error } = await supabase.from("client_workout_assignments").insert({
+    const { error } = await db.from("client_workout_assignments").insert({
       coach_id: coachId,
       client_id: clientId,
       plan_id: scheduling.id,
@@ -96,7 +96,7 @@ export function ClientWorkouts({ clientId, coachId, preferredFrequency, preferre
 
   const setActive = async (assignmentId: string, active: boolean) => {
     setBusyId(assignmentId);
-    const { error } = await supabase
+    const { error } = await db
       .from("client_workout_assignments")
       .update({ is_active: active, unassigned_at: active ? null : new Date().toISOString() })
       .eq("id", assignmentId);
@@ -107,7 +107,7 @@ export function ClientWorkouts({ clientId, coachId, preferredFrequency, preferre
 
   const removeAssignment = async (assignmentId: string) => {
     setBusyId(assignmentId);
-    const { error } = await supabase
+    const { error } = await db
       .from("client_workout_assignments")
       .delete()
       .eq("id", assignmentId);
@@ -125,7 +125,7 @@ export function ClientWorkouts({ clientId, coachId, preferredFrequency, preferre
     if (!plan) return;
     setBusyId(a.id);
     try {
-      const { count } = await supabase
+      const { count } = await db
         .from("client_workout_assignments")
         .select("id", { count: "exact", head: true })
         .eq("plan_id", plan.id)
@@ -134,7 +134,7 @@ export function ClientWorkouts({ clientId, coachId, preferredFrequency, preferre
 
       let targetPlanId = plan.id;
       if (shared) {
-        const { data: newPlan, error: planErr } = await supabase
+        const { data: newPlan, error: planErr } = await db
           .from("workout_plans")
           .insert({
             name: `${plan.name} (custom)`,
@@ -149,7 +149,7 @@ export function ClientWorkouts({ clientId, coachId, preferredFrequency, preferre
           .single();
         if (planErr || !newPlan) throw planErr || new Error("Failed to clone plan");
 
-        const { data: srcDays } = await supabase
+        const { data: srcDays } = await db
           .from("workout_plan_days")
           .select("*")
           .eq("plan_id", plan.id)
@@ -157,7 +157,7 @@ export function ClientWorkouts({ clientId, coachId, preferredFrequency, preferre
 
         const dayIdMap: Record<string, string> = {};
         if (srcDays && srcDays.length) {
-          const { data: insertedDays, error: dErr } = await supabase
+          const { data: insertedDays, error: dErr } = await db
             .from("workout_plan_days")
             .insert(
               srcDays.map((d: any) => ({
@@ -173,7 +173,7 @@ export function ClientWorkouts({ clientId, coachId, preferredFrequency, preferre
             if (m) dayIdMap[s.id] = m.id;
           });
 
-          const { data: srcEx } = await supabase
+          const { data: srcEx } = await db
             .from("workout_plan_exercises")
             .select("*")
             .in(
@@ -181,7 +181,7 @@ export function ClientWorkouts({ clientId, coachId, preferredFrequency, preferre
               srcDays.map((d: any) => d.id),
             );
           if (srcEx && srcEx.length) {
-            const { error: eErr } = await supabase.from("workout_plan_exercises").insert(
+            const { error: eErr } = await db.from("workout_plan_exercises").insert(
               srcEx.map((e: any) => ({
                 day_id: dayIdMap[e.day_id],
                 exercise_id: e.exercise_id,
@@ -194,7 +194,7 @@ export function ClientWorkouts({ clientId, coachId, preferredFrequency, preferre
           }
         }
 
-        const { error: aErr } = await supabase
+        const { error: aErr } = await db
           .from("client_workout_assignments")
           .update({ plan_id: newPlan.id })
           .eq("id", a.id);
