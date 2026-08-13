@@ -10,7 +10,7 @@ import type { SqlClient } from "./db.js";
 export const CORS_HEADERS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-cron-secret, x-admin-secret",
+    "authorization, x-client-info, apikey, content-type, x-cron-secret, x-admin-secret, x-ingest-token",
   "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
 };
 
