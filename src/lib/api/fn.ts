@@ -87,9 +87,8 @@ export async function invokeFn<T = unknown>(
     return { data: parsed as T, error: null };
   } catch (e) {
     return {
-      message: undefined,
       data: null,
       error: { message: e instanceof Error ? e.message : "Network error" },
-    } as InvokeResult<T>;
+    };
   }
 }
