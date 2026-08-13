@@ -1,6 +1,5 @@
 import { db } from "@/lib/db";
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -39,6 +38,7 @@ import {
   coerceStructure,
   EMPTY_STRUCTURE,
 } from "@/lib/mealPlan";
+import { deleteStorageObject, resolveStorageUrl, uploadToBlob } from "@/lib/blobStorage";
 
 const BUCKET = "nutrition-templates";
 
@@ -188,24 +188,18 @@ export default function NutritionTemplates() {
         return;
       }
       const safe = form.file.name.replace(/[^a-zA-Z0-9._-]+/g, "_");
-      const newPath = `${user.id}/${Date.now()}_${safe}`;
-      const { error: upErr } = await supabase.storage
-        .from(BUCKET)
-        .upload(newPath, form.file, {
-          contentType: form.file.type || "application/pdf",
-          upsert: false,
-        });
-      if (upErr) {
+      try {
+        const uploaded = await uploadToBlob(form.file, "nutrition-templates", safe);
+        if (pdf_path) {
+          await deleteStorageObject(pdf_path, BUCKET);
+        }
+        pdf_path = uploaded.url;
+        pdf_name = form.file.name;
+      } catch (e) {
         setSaving(false);
-        toast.error(upErr.message);
+        toast.error(e instanceof Error ? e.message : "Upload failed");
         return;
       }
-      // Remove previous file if we're replacing
-      if (pdf_path) {
-        await supabase.storage.from(BUCKET).remove([pdf_path]);
-      }
-      pdf_path = newPath;
-      pdf_name = form.file.name;
     }
 
     const payload = {
@@ -241,7 +235,7 @@ export default function NutritionTemplates() {
   async function remove(t: Template) {
     if (!confirm(`Delete template "${t.name}"?`)) return;
     if (t.pdf_path) {
-      await supabase.storage.from(BUCKET).remove([t.pdf_path]);
+      await deleteStorageObject(t.pdf_path, BUCKET);
     }
     const { error } = await db
       .from("nutrition_plan_templates")
@@ -254,14 +248,14 @@ export default function NutritionTemplates() {
 
   async function downloadPdf(t: Template) {
     if (!t.pdf_path) return;
-    const { data, error } = await supabase.storage
-      .from(BUCKET)
-      .createSignedUrl(t.pdf_path, 60 * 5, { download: t.pdf_name || "template.pdf" });
-    if (error || !data?.signedUrl) {
-      toast.error(error?.message || "Couldn't generate link");
+    const signed = await resolveStorageUrl(t.pdf_path, BUCKET, {
+      downloadName: t.pdf_name || "template.pdf",
+    });
+    if (!signed) {
+      toast.error("Couldn't generate link");
       return;
     }
-    window.open(data.signedUrl, "_blank");
+    window.open(signed, "_blank");
   }
 
   return (

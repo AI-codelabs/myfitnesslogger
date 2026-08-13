@@ -6,7 +6,13 @@
 
 import { supabase } from "@/integrations/supabase/client";
 
-export type NeonFeature = "weight" | "checkins";
+export type NeonFeature =
+  | "weight"
+  | "checkins"
+  | "workouts"
+  | "nutrition"
+  | "clients"
+  | "functions";
 
 const enabled = new Set(
   (import.meta.env.VITE_NEON_FEATURES ?? "")

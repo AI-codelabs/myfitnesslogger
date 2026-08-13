@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FileText, Upload, Trash2, ExternalLink, Download, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Lang } from "@/lib/onboardingSchema";
 import { db } from "@/lib/db";
+import { deleteStorageObject, resolveStorageUrl, uploadToBlob } from "@/lib/blobStorage";
 
 interface Doc {
   id: string;
@@ -47,16 +47,14 @@ export function ClientNutritionDocuments({ clientId, coachId, canUpload, lang }:
     // with a real href — window.open / programmatic downloads silently fail.
     const enriched = await Promise.all(
       base.map(async (d) => {
-        const [viewRes, dlRes] = await Promise.all([
-          supabase.storage.from(BUCKET).createSignedUrl(d.file_path, 60 * 60),
-          supabase.storage
-            .from(BUCKET)
-            .createSignedUrl(d.file_path, 60 * 60, { download: d.file_name }),
+        const [viewUrl, downloadUrl] = await Promise.all([
+          resolveStorageUrl(d.file_path, BUCKET),
+          resolveStorageUrl(d.file_path, BUCKET, { downloadName: d.file_name }),
         ]);
         return {
           ...d,
-          view_url: viewRes.data?.signedUrl,
-          download_url: dlRes.data?.signedUrl,
+          view_url: viewUrl ?? undefined,
+          download_url: downloadUrl ?? undefined,
         };
       }),
     );
@@ -77,20 +75,19 @@ export function ClientNutritionDocuments({ clientId, coachId, canUpload, lang }:
     }
     setUploading(true);
     const safe = file.name.replace(/[^a-zA-Z0-9._-]+/g, "_");
-    const path = `${clientId}/${Date.now()}_${safe}`;
-    const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, file, {
-      contentType: file.type || "application/pdf",
-      upsert: false,
-    });
-    if (upErr) {
+    let storedPath: string;
+    try {
+      const uploaded = await uploadToBlob(file, "nutrition-documents", safe);
+      storedPath = uploaded.url;
+    } catch (e) {
       setUploading(false);
-      toast.error(upErr.message);
+      toast.error(e instanceof Error ? e.message : "Upload failed");
       return;
     }
     const { error: dbErr } = await db.from("client_nutrition_documents").insert({
       coach_id: coachId,
       client_id: clientId,
-      file_path: path,
+      file_path: storedPath,
       file_name: file.name,
       mime_type: file.type || "application/pdf",
       size_bytes: file.size,
@@ -109,7 +106,7 @@ export function ClientNutritionDocuments({ clientId, coachId, canUpload, lang }:
     if (!canUpload) return;
     if (!confirm(tx("Document verwijderen?", "Delete this document?"))) return;
     setBusyId(d.id);
-    await supabase.storage.from(BUCKET).remove([d.file_path]);
+    await deleteStorageObject(d.file_path, BUCKET);
     await db.from("client_nutrition_documents").delete().eq("id", d.id);
     setBusyId(null);
     load();

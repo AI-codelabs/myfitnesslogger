@@ -1,6 +1,5 @@
 import { invokeFn } from "@/lib/api/fn";
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Loader2, Upload, Trash2, Image as ImageIcon, Send } from "lucide-react";
 import { GmailConnectionCard } from "@/components/GmailConnectionCard";
+import { db } from "@/lib/db";
+import { uploadToBlob } from "@/lib/blobStorage";
 
 type TemplateKey = "sunday" | "monday";
 
@@ -75,7 +76,7 @@ export default function Settings() {
     if (!user) return;
     (async () => {
       setLoading(true);
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from("email_templates")
         .select("template_key, subject, body, header_image_url")
         .eq("coach_id", user.id);
@@ -107,7 +108,7 @@ export default function Settings() {
   const save = async () => {
     if (!user) return;
     setSaving(true);
-    const { error } = await supabase
+    const { error } = await db
       .from("email_templates")
       .upsert(
         {
@@ -128,19 +129,16 @@ export default function Settings() {
     if (!user) return;
     setUploading(true);
     const ext = file.name.split(".").pop() || "png";
-    const path = `${user.id}/${active}-${Date.now()}.${ext}`;
-    const { error } = await supabase.storage
-      .from("email-assets")
-      .upload(path, file, { upsert: true, contentType: file.type });
-    if (error) {
+    try {
+      const uploaded = await uploadToBlob(file, "email-assets", `${active}.${ext}`);
+      const assetUrl = `${window.location.origin}/api/storage/email-asset?url=${encodeURIComponent(uploaded.url)}`;
+      update({ header_image_url: assetUrl });
+      toast.success("Image uploaded");
+    } catch (e) {
+      toast.error("Upload failed: " + (e instanceof Error ? e.message : "unknown error"));
+    } finally {
       setUploading(false);
-      toast.error("Upload failed: " + error.message);
-      return;
     }
-    const { data } = supabase.storage.from("email-assets").getPublicUrl(path);
-    update({ header_image_url: data.publicUrl });
-    setUploading(false);
-    toast.success("Image uploaded");
   };
 
   if (loading) {

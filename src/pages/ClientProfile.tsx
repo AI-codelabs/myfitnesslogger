@@ -37,6 +37,7 @@ import { ClientGoalsTab } from "@/components/ClientGoalsTab";
 import { CronometerCoachCard } from "@/components/CronometerCoachCard";
 import { clientFullName } from "@/lib/clientName";
 import { db } from "@/lib/db";
+import { resolveStorageUrl } from "@/lib/blobStorage";
 
 
 
@@ -178,10 +179,8 @@ const ClientProfile = () => {
         ].filter(Boolean) as string[];
         const urls: Record<string, string> = {};
         for (const p of paths) {
-          const { data } = await supabase.storage
-            .from("onboarding-uploads")
-            .createSignedUrl(p, 3600);
-          if (data) urls[p] = data.signedUrl;
+          const signed = await resolveStorageUrl(p, "onboarding-uploads");
+          if (signed) urls[p] = signed;
         }
         setPhotoUrls(urls);
       }

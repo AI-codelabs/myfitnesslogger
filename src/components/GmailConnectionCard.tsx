@@ -1,11 +1,11 @@
 import { invokeFn } from "@/lib/api/fn";
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Mail, CheckCircle2, Loader2, Unplug } from "lucide-react";
 import { toast } from "sonner";
+import { db } from "@/lib/db";
 
 interface Connection {
   email: string;
@@ -20,7 +20,7 @@ export function GmailConnectionCard() {
 
   const load = async () => {
     if (!user) return;
-    const { data } = await supabase
+    const { data } = await db
       .from("coach_email_connections")
       .select("email, connected_at")
       .eq("coach_id", user.id)
@@ -58,7 +58,7 @@ export function GmailConnectionCard() {
 
   const handleDisconnect = async () => {
     if (!user) return;
-    const { error } = await supabase
+    const { error } = await db
       .from("coach_email_connections")
       .delete()
       .eq("coach_id", user.id);

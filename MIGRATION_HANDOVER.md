@@ -28,8 +28,14 @@ between legacy and Neon with an env flag, with no code changes.
 - Full `public` schema migrated: 33 tables plus enums, indexes, triggers,
   functions (`has_role`, `is_coach_of`, `get_clients_last_active`,
   `get_active_client_goal`), RLS policies and GRANTs.
-- All rows copied from the legacy database (point-in-time snapshot).
+- All rows copied from the legacy database, then **delta-synced again** after
+  cutover (PK upsert; Neon-only rows preserved). `auth.users` synced (13 users;
+  password hashes stay on the legacy provider while login does).
 - Verification endpoint `api/admin/db-report.ts` compares row counts per table.
+- **Storage:** 30 legacy objects copied into Vercel Blob at
+  `{bucket}/{original_path}` (`onboarding-uploads` 21, `nutrition-documents` 8,
+  `nutrition-templates` 1; `email-assets` was empty). New UI uploads go to Blob.
+  Reads prefer the copied pathname, then a legacy signed URL.
 
 ### 2.2 Access layer (the migration switch)
 - `src/lib/api/pg.ts` — a Supabase-compatible query builder that serialises the
@@ -106,6 +112,22 @@ Cron auth: `CRON_SECRET` or the `cron_token` row in `internal_secrets`.
 
 ## 3. What is still open
 
+<<<<<<< HEAD
+1. **Auth migration itself.** Feature flags are on
+   (`weight,checkins,workouts,nutrition,clients,functions`). The API accepts
+   both issuers, but users still sign in through the legacy client
+   (`src/integrations/supabase/client.ts`, `src/hooks/useAuth.tsx`). Moving
+   sign-up/login/reset to Neon Auth is **not done**.
+2. **Legacy code still present.** `supabase/functions/*` and the Supabase
+   client remain as auth + signed-URL fallback. Delete only after the auth
+   cutover and a period of Blob-only reads.
+3. **Decommission the legacy project** after auth is on Neon Auth and Blob
+   reads have been stable (signed-URL fallback no longer needed).
+
+Done since the last handover: Postgres delta re-sync, Storage → Blob copy
+(30 files at `{bucket}/{original_path}`), UI uploads to Blob, and read paths
+prefer Blob then fall back to legacy signed URLs.
+=======
 0. **Delta copy done (13 Aug 2026).** All 33 public tables re-synced from the
    legacy database into Neon by primary-key upsert (rows with a newer
    `updated_at` upstream were refreshed; rows written on Neon after cutover were
@@ -138,6 +160,7 @@ Cron auth: `CRON_SECRET` or the `cron_token` row in `internal_secrets`.
    flags, smoke test, then decommission the legacy project.
 6. **Row-count / integrity verification** after each re-copy via
    `/api/admin/db-report` (requires `ADMIN_API_SECRET`).
+>>>>>>> origin/main
 
 ---
 

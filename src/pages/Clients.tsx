@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { pgRpc } from "@/lib/api/pg";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -74,7 +74,7 @@ const Clients = () => {
         .select("id, email, status, accepted_user_id, created_at, accepted_at, coaching_end_date")
         .eq("coach_id", user.id)
         .order("created_at", { ascending: false }),
-      supabase.rpc("get_clients_last_active", { _coach_id: user.id }),
+      pgRpc("get_clients_last_active", { _coach_id: user.id }),
     ]);
     const baseInvs = (invs ?? []) as Invitation[];
     const acceptedIds = baseInvs.map((i) => i.accepted_user_id).filter(Boolean) as string[];

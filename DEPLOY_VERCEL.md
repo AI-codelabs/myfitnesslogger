@@ -33,9 +33,15 @@ Backend / serverless functions (`api/`):
 ## After the first deploy
 1. Add `https://<project>.vercel.app` to Neon Auth → Domains (trusted domains).
 2. Attach a Vercel Blob store (Storage → Create → Blob) so
-   `BLOB_READ_WRITE_TOKEN` is injected.
-3. Smoke test: `GET /api/weight/list` with a Neon Auth bearer token should
-   return 200, and without a token 401.
+   `BLOB_READ_WRITE_TOKEN` is injected. (Done for `myfitnesslogger-blob`.)
+3. Smoke test: `GET /api/health` should return `{ ok: true, db: "ok" }`.
+   `GET /api/weight/list` without a token should return 401.
+
+## Cron jobs (Hobby vs Pro)
+
+Vercel Hobby only allows **daily** crons. `vercel.json` therefore runs
+`/api/cron/cronometer-pull` once a day at 05:00 UTC. On Pro, restore hourly with
+`"schedule": "0 * * * *"`.
 
 ## Feature cutover flag
 
@@ -50,7 +56,16 @@ through the Neon-backed serverless API instead of the legacy backend.
 - `nutrition`: meal plans/selections, nutrition documents/templates/plans,
   Cronometer client + log tables
 - `clients`: profiles, invitations, notifications, roles, coach messages,
-  onboarding, goals, progress photos
+  onboarding, goals, progress photos, Gmail connections, email templates
+- `functions`: all ported `/api/...` endpoints instead of legacy edge functions
+
+Production build flag (`.env.production` and `VITE_NEON_FEATURES` on Vercel):
+
+`weight,checkins,workouts,nutrition,clients,functions`
+
+Login/signup still uses the legacy auth client. New uploads go to Vercel Blob.
+Copied legacy files are read from Blob at `{bucket}/{original_path}`; Supabase
+signed URLs remain a fallback only.
 
 All table access in the frontend now goes through `db.from(...)` (`src/lib/db.ts`),
 so enabling a group is a flag change only — no code edits.

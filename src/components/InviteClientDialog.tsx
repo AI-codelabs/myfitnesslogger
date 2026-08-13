@@ -1,7 +1,6 @@
 import { invokeFn } from "@/lib/api/fn";
 import { useEffect, useState } from "react";
 import { z } from "zod";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import {
   Dialog,
@@ -44,7 +43,7 @@ export function InviteClientDialog({ open, onOpenChange, onInvited }: Props) {
     if (!open || !user) return;
     setGeneratedLink(null);
     (async () => {
-      const { data } = await supabase
+      const { data } = await db
         .from("coach_email_connections")
         .select("email")
         .eq("coach_id", user.id)

@@ -4,6 +4,7 @@ import type { VercelRequest } from "@vercel/node";
 export type AuthUser = {
   id: string;
   email: string | null;
+  userMetadata: Record<string, unknown>;
 };
 
 let neonJwks: ReturnType<typeof createRemoteJWKSet> | null = null;
@@ -74,11 +75,14 @@ export async function requireUser(req: VercelRequest): Promise<AuthUser> {
       });
       const id = typeof payload.sub === "string" ? payload.sub : null;
       if (!id) throw new HttpError(401, "Token has no subject");
-      const email =
-        typeof (payload as Record<string, unknown>).email === "string"
-          ? ((payload as Record<string, unknown>).email as string)
-          : null;
-      return { id, email };
+      const claims = payload as Record<string, unknown>;
+      const email = typeof claims.email === "string" ? claims.email : null;
+      const meta = claims.user_metadata;
+      const userMetadata =
+        meta && typeof meta === "object" && !Array.isArray(meta)
+          ? (meta as Record<string, unknown>)
+          : {};
+      return { id, email, userMetadata };
     } catch {
       /* try the next issuer */
     }

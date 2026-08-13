@@ -5,11 +5,15 @@
   "outputDirectory": "dist",
   "installCommand": "npm install --legacy-peer-deps",
   "functions": {
-    "api/**/*.ts": {
+    "api/index.ts": {
       "maxDuration": 60
     }
   },
   "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "/api?__route=:path*"
+    },
     {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
@@ -18,7 +22,7 @@
   "crons": [
     {
       "path": "/api/cron/cronometer-pull",
-      "schedule": "0 * * * *"
+      "schedule": "0 5 * * *"
     },
     {
       "path": "/api/cron/check-expirations",

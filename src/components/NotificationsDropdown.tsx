@@ -11,7 +11,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
-import { db } from "@/lib/db";
+import { db, isNeonFeature } from "@/lib/db";
 
 interface Notification {
   id: string;
@@ -42,6 +42,10 @@ export function NotificationsDropdown() {
   useEffect(() => {
     load();
     if (!user) return;
+    if (isNeonFeature("clients")) {
+      const timer = setInterval(load, 30_000);
+      return () => clearInterval(timer);
+    }
     const channel = supabase
       .channel("notifications-" + user.id)
       .on(
