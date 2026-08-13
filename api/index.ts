@@ -50,9 +50,9 @@ const routes: Record<string, Handler> = {
 };
 
 function routeKey(req: VercelRequest): string {
-  const raw = req.query.path;
-  if (Array.isArray(raw)) return raw.join("/");
-  if (typeof raw === "string" && raw) return raw;
+  const routed = req.query.__route;
+  if (typeof routed === "string" && routed) return routed.replace(/^\/+|\/+$/g, "");
+  if (Array.isArray(routed) && routed[0]) return routed.join("/").replace(/^\/+|\/+$/g, "");
   const url = req.url ?? "";
   const noQuery = url.split("?")[0] ?? "";
   return noQuery.replace(/^\/api\/?/, "").replace(/\/$/, "");
@@ -64,6 +64,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const fn = routes[key];
   if (!fn) {
     return res.status(404).json({ error: "not_found", path: key });
+  }
+  if (req.query && "__route" in req.query) {
+    delete (req.query as Record<string, unknown>).__route;
   }
   return fn(req, res);
 }

@@ -5,11 +5,15 @@
   "outputDirectory": "dist",
   "installCommand": "npm install --legacy-peer-deps",
   "functions": {
-    "api/[...path].ts": {
+    "api/index.ts": {
       "maxDuration": 60
     }
   },
   "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "/api?__route=:path*"
+    },
     {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
