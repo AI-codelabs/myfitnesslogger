@@ -1006,4 +1006,22 @@ export default serviceEndpoint({ auth: "either", methods: CORS_METHODS }, async 
     error: "invalid_action",
     message: "Valid actions: invite_client, remove_client, refresh_status, sync_client, sync_all, get_targets, sync, web_connect, web_disconnect, web_push_targets, web_status",
   }, 400);
+ } catch (e) {
+  // Preserve the original edge function's Cronometer error mapping.
+  if (e instanceof CronoApiError) {
+    const status = e.status === 401 ? 401 : e.status >= 500 ? 502 : 400;
+    let cronoMessage = e.body.slice(0, 500);
+    try {
+      const parsed = JSON.parse(e.body);
+      if (parsed?.error) cronoMessage = String(parsed.error);
+    } catch { /* not JSON */ }
+    return json(res, {
+      error: "cronometer_api",
+      status: e.status,
+      message: `Cronometer HTTP ${e.status}: ${cronoMessage}`,
+    }, status);
+  }
+  throw e;
+ }
 });
+
