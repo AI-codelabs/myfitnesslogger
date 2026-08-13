@@ -1,3 +1,4 @@
+import { invokeFn } from "@/lib/api/fn";
 import { supabase } from "@/integrations/supabase/client";
 import { db } from "@/lib/db";
 
@@ -19,7 +20,7 @@ export interface CronometerClientLink {
 }
 
 async function invoke<T = any>(body: Record<string, unknown>): Promise<{ data?: T; error?: string }> {
-  const { data, error } = await supabase.functions.invoke("cronometer", { body });
+  const { data, error } = await invokeFn("cronometer", { body });
   if (error) {
     const ctx = (error as any).context;
     try {

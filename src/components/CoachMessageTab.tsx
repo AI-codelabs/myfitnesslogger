@@ -1,3 +1,4 @@
+import { invokeFn } from "@/lib/api/fn";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -61,7 +62,7 @@ export function CoachMessageTab({ clientId, coachId, lang }: Props) {
   const generate = async () => {
     setGenerating(true);
     try {
-      const { data, error } = await supabase.functions.invoke("generate-coach-message", {
+      const { data, error } = await invokeFn("generate-coach-message", {
         body: { clientId },
       });
       if (error) throw error;

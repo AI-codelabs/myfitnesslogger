@@ -1,3 +1,4 @@
+import { invokeFn } from "@/lib/api/fn";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -103,7 +104,7 @@ const ClientProfile = () => {
   const deleteClient = async () => {
     if (!clientId) return;
     setActionLoading(true);
-    const { data, error } = await supabase.functions.invoke("delete-client", {
+    const { data, error } = await invokeFn("delete-client", {
       body: { clientId },
     });
     setActionLoading(false);

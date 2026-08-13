@@ -1,3 +1,4 @@
+import { invokeFn } from "@/lib/api/fn";
 import { useEffect, useState } from "react";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
@@ -92,7 +93,7 @@ export function InviteClientDialog({ open, onOpenChange, onInvited }: Props) {
       setLoading(false);
       return;
     }
-    const { error: sendErr } = await supabase.functions.invoke("send-invite-email", {
+    const { error: sendErr } = await invokeFn("send-invite-email", {
       body: {
         recipientEmail: invite.email,
         inviteToken: invite.token,

@@ -1,3 +1,4 @@
+import { invokeFn } from "@/lib/api/fn";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
@@ -213,7 +214,7 @@ export function WeeklyReviewTab({ clientId, coachId, lang }: Props) {
     if (!selected) return;
     setGenerating(true);
     try {
-      const { data, error } = await supabase.functions.invoke("generate-weekly-review", {
+      const { data, error } = await invokeFn("generate-weekly-review", {
         body: { clientId, weekStart: selected.week_start },
       });
       if (error) throw error;
