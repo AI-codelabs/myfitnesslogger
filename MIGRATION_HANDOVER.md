@@ -112,6 +112,7 @@ Cron auth: `CRON_SECRET` or the `cron_token` row in `internal_secrets`.
 
 ## 3. What is still open
 
+<<<<<<< HEAD
 1. **Auth migration itself.** Feature flags are on
    (`weight,checkins,workouts,nutrition,clients,functions`). The API accepts
    both issuers, but users still sign in through the legacy client
@@ -126,6 +127,40 @@ Cron auth: `CRON_SECRET` or the `cron_token` row in `internal_secrets`.
 Done since the last handover: Postgres delta re-sync, Storage → Blob copy
 (30 files at `{bucket}/{original_path}`), UI uploads to Blob, and read paths
 prefer Blob then fall back to legacy signed URLs.
+=======
+0. **Delta copy done (13 Aug 2026).** All 33 public tables re-synced from the
+   legacy database into Neon by primary-key upsert (rows with a newer
+   `updated_at` upstream were refreshed; rows written on Neon after cutover were
+   preserved). `auth.users` synced from the legacy admin API (13 users; password
+   hashes are not exported and are not needed while login stays on the legacy
+   provider). Row counts verified equal or higher on Neon for every table.
+   Storage copied too: 30 files from `onboarding-uploads`,
+   `nutrition-documents`, `nutrition-templates` (and empty `email-assets`) into
+   Vercel Blob at `{bucket}/{original_path}`, private access, sizes verified.
+1. **Cutover flags.** `VITE_NEON_FEATURES` is the single control. Only the
+   groups listed there run on Neon.
+   - `weight`, `checkins` — validated first, safe.
+   - `workouts` — ready, no legacy writers.
+   - `nutrition`, `clients` — depend on the `functions` flag being on, because
+     legacy edge functions and database triggers still write those tables.
+   - `functions` — flips all ported endpoints at once; there is no per-function
+     flag.
+2. **Auth migration itself.** The API accepts both issuers, but users still
+   sign in through the legacy client (`src/integrations/supabase/client.ts`,
+   `src/hooks/useAuth.tsx`). Moving sign-up/login/reset to Neon Auth and
+   migrating user records is **not done**.
+3. **Storage read paths.** Files now exist in Blob, but the app still reads
+   existing progress photos and nutrition documents through legacy signed URLs;
+   switch those read paths before decommissioning the legacy project.
+
+4. **Legacy code still present.** `supabase/functions/*` (11 functions) and the
+   Supabase client remain in the repo as the fallback path. Delete only after
+   full cutover.
+5. **Final delta sync + cutover.** Read-only window, final data sync, flip all
+   flags, smoke test, then decommission the legacy project.
+6. **Row-count / integrity verification** after each re-copy via
+   `/api/admin/db-report` (requires `ADMIN_API_SECRET`).
+>>>>>>> origin/main
 
 ---
 
