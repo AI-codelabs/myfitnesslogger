@@ -106,10 +106,17 @@ Cron auth: `CRON_SECRET` or the `cron_token` row in `internal_secrets`.
 
 ## 3. What is still open
 
+0. **Delta copy done (13 Aug 2026).** All 33 public tables re-synced from the
+   legacy database into Neon by primary-key upsert (rows with a newer
+   `updated_at` upstream were refreshed; rows written on Neon after cutover were
+   preserved). `auth.users` synced from the legacy admin API (13 users; password
+   hashes are not exported and are not needed while login stays on the legacy
+   provider). Row counts verified equal or higher on Neon for every table.
+   Storage copied too: 30 files from `onboarding-uploads`,
+   `nutrition-documents`, `nutrition-templates` (and empty `email-assets`) into
+   Vercel Blob at `{bucket}/{original_path}`, private access, sizes verified.
 1. **Cutover flags.** `VITE_NEON_FEATURES` is the single control. Only the
-   groups listed there run on Neon. Before flipping a group: re-copy that
-   group's tables (the initial copy is a snapshot) and confirm nothing legacy
-   still writes them.
+   groups listed there run on Neon.
    - `weight`, `checkins` — validated first, safe.
    - `workouts` — ready, no legacy writers.
    - `nutrition`, `clients` — depend on the `functions` flag being on, because
@@ -120,9 +127,10 @@ Cron auth: `CRON_SECRET` or the `cron_token` row in `internal_secrets`.
    sign in through the legacy client (`src/integrations/supabase/client.ts`,
    `src/hooks/useAuth.tsx`). Moving sign-up/login/reset to Neon Auth and
    migrating user records is **not done**.
-3. **Storage migration.** `api/storage/upload-url.ts` exists, but existing
-   progress photos and nutrition documents have not been copied out of the
-   legacy buckets, and not every upload path uses the new endpoint yet.
+3. **Storage read paths.** Files now exist in Blob, but the app still reads
+   existing progress photos and nutrition documents through legacy signed URLs;
+   switch those read paths before decommissioning the legacy project.
+
 4. **Legacy code still present.** `supabase/functions/*` (11 functions) and the
    Supabase client remain in the repo as the fallback path. Delete only after
    full cutover.
