@@ -58,12 +58,13 @@ export default function Settings() {
       return;
     }
     setSendingTest(key);
-    const { data, error } = await invokeFn("send-test-checkin-email", {
-      body: { mode: key, recipientEmail: testEmail.trim() },
-    });
+    const { data, error } = await invokeFn<{ error?: string }>(
+      "send-test-checkin-email",
+      { body: { mode: key, recipientEmail: testEmail.trim() } },
+    );
     setSendingTest(null);
-    if (error || (data as any)?.error) {
-      toast.error((data as any)?.error || error?.message || "Failed to send test email");
+    if (error || data?.error) {
+      toast.error(data?.error || error?.message || "Failed to send test email");
       return;
     }
     toast.success(`Test email sent to ${testEmail.trim()}`);
