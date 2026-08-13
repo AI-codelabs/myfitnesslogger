@@ -34,7 +34,8 @@ export const neonFunctionsEnabled = () => enabledFeatures.has("functions");
 
 export type InvokeResult<T> = { data: T | null; error: { message: string } | null };
 
-export async function invokeFn<T = unknown>(
+/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+export async function invokeFn<T = any>(
   name: string,
   options?: { body?: unknown; headers?: Record<string, string> },
 ): Promise<InvokeResult<T>> {
