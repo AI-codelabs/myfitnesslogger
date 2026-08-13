@@ -9,5 +9,28 @@
       "maxDuration": 60
     }
   },
-  "rewrites": [{ "source": "/((?!api/).*)", "destination": "/index.html" }]
+  "rewrites": [
+    {
+      "source": "/((?!api/).*)",
+      "destination": "/index.html"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/cronometer-pull",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/check-expirations",
+      "schedule": "30 6 * * *"
+    },
+    {
+      "path": "/api/email/send-checkin-reminders?mode=sunday",
+      "schedule": "0 17 * * 0"
+    },
+    {
+      "path": "/api/email/send-checkin-reminders?mode=monday",
+      "schedule": "0 8 * * 1"
+    }
+  ]
 }
