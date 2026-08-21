@@ -1,20 +1,19 @@
 // Password-recovery guard.
 //
-// When a user opens a reset-password email link, Supabase establishes a real
-// session. Without a guard the app would simply log the user in — which is
-// exactly the flaw we prevent here: while a recovery flow is active the user
-// is locked to /reset-password until a new password is actually set.
+// Neon Auth redirects reset emails to `/reset-password?token=...`. While that
+// flow is active we keep the user on the reset page until a new password is set.
 
 const FLAG = "pw_recovery_active";
 
-/** Detects Supabase recovery params in the current URL (hash or query). */
+/** Detects Neon (and legacy) recovery params in the current URL. */
 export const urlHasRecovery = (): boolean => {
   if (typeof window === "undefined") return false;
   const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
   const query = new URLSearchParams(window.location.search);
+  if (query.get("token") && window.location.pathname.includes("reset-password")) return true;
+  if (query.get("error") && window.location.pathname.includes("reset-password")) return true;
   const type = hash.get("type") ?? query.get("type");
   if (type === "recovery") return true;
-  // PKCE style links: ?code=...  landing on the reset route
   if (query.get("code") && window.location.pathname.includes("reset-password")) return true;
   return false;
 };
@@ -43,6 +42,4 @@ export const isRecoveryActive = (): boolean => {
   }
 };
 
-// Run detection as early as module-load so the flag exists before any route
-// (including the auto-redirecting protected routes) renders.
 if (urlHasRecovery()) markRecoveryActive();

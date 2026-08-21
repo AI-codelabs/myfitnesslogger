@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { z } from "zod";
-import { supabase } from "@/integrations/supabase/client";
+import { getBetterAuth } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,35 +36,15 @@ const ChangePassword = () => {
     }
 
     setLoading(true);
-
-    // Verify current password
-    const { data: userData } = await supabase.auth.getUser();
-    const email = userData.user?.email;
-    if (!email) {
-      toast.error("Unable to verify user.");
-      setLoading(false);
-      return;
-    }
-
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password: currentPassword,
+    const { error } = await getBetterAuth().changePassword({
+      currentPassword,
+      newPassword: password,
+      revokeOtherSessions: true,
     });
-
-    if (signInError) {
-      toast.error("Current password is incorrect");
-      setLoading(false);
-      return;
-    }
-
-    const { error: updateError } = await supabase.auth.updateUser({
-      password,
-    });
-
     setLoading(false);
 
-    if (updateError) {
-      toast.error(updateError.message);
+    if (error) {
+      toast.error(error.message || "Could not update password");
       return;
     }
 

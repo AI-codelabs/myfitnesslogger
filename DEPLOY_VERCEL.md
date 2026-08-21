@@ -28,28 +28,34 @@ the serverless functions under `api/`.
 
 Frontend (must exist at **build** time, all environments):
 
-- `VITE_SUPABASE_URL`
-- `VITE_SUPABASE_PUBLISHABLE_KEY`
-- `VITE_SUPABASE_PROJECT_ID`
-
-(Still required while login uses the legacy auth client.)
+- `VITE_NEON_AUTH_URL` — `https://ep-super-butterfly-b1u1cypj.neonauth.c-5.eu-central-1.aws.neon.tech/neondb/auth`
+- `VITE_NEON_FEATURES` — see cutover flag below
+- `VITE_SUPABASE_URL` / `VITE_SUPABASE_PUBLISHABLE_KEY` / `VITE_SUPABASE_PROJECT_ID` —
+  still required only for the Storage signed-URL fallback until that is removed
 
 Backend / serverless functions (`api/`):
 
 - `DATABASE_URL` — Neon pooled connection string (`...-pooler...neon.tech/neondb?sslmode=require`)
-- `NEON_AUTH_URL` — `https://ep-super-butterfly-b1u1cypj.neonauth.c-5.eu-central-1.aws.neon.tech/neondb/auth`
+- `NEON_AUTH_URL` — same base as `VITE_NEON_AUTH_URL`
 - `NEON_AUTH_JWKS_URL` — the above + `/.well-known/jwks.json` (optional, derived from `NEON_AUTH_URL`)
-- `NEON_AUTH_ISSUER` — optional issuer check
+- `NEON_AUTH_ISSUER` — JWT `iss` claim (origin only, **no** `/neondb/auth` path):
+  `https://ep-super-butterfly-b1u1cypj.neonauth.c-5.eu-central-1.aws.neon.tech`
 - `BLOB_READ_WRITE_TOKEN` — created automatically when a Vercel Blob store is
   attached to the project
 - `PUBLIC_APP_URL` / `PUBLIC_API_URL` — see canonical URL above
+- `LEGACY_AUTH_URL` — optional; legacy Supabase JWKS for sessions issued before
+  the Neon Auth cutover (defaults from `VITE_SUPABASE_URL` if unset)
 
 ## After the first deploy
-1. Add `https://myfitnesslogger.vercel.app` to Neon Auth → Domains (trusted domains).
-2. Attach a Vercel Blob store (Storage → Create → Blob) so
+1. Neon Console → Auth → Domains: add `https://myfitnesslogger.vercel.app` (trusted).
+2. Neon Console → Auth → Settings: enable **Sign-up with Email** (password reset
+   follows automatically). Configure the email provider if reset mail is needed.
+3. Attach a Vercel Blob store (Storage → Create → Blob) so
    `BLOB_READ_WRITE_TOKEN` is injected. (Done for `myfitnesslogger-blob`.)
-3. Smoke test: `GET /api/health` should return `{ ok: true, db: "ok" }`.
+4. Smoke test: `GET /api/health` should return `{ ok: true, db: "ok" }`.
    `GET /api/weight/list` without a token should return 401.
+5. Create a **new** coach account via `/signup?as=coach` (existing Supabase
+   password hashes cannot transfer — users must re-register or use OAuth).
 
 ## Cron jobs (Hobby vs Pro)
 
@@ -66,13 +72,15 @@ Production build flag (`.env.production` and `VITE_NEON_FEATURES` on Vercel):
 
 `weight,checkins,workouts,nutrition,clients,functions`
 
-Login/signup still uses the legacy auth client. New uploads go to Vercel Blob.
-Copied legacy files are read from Blob at `{bucket}/{original_path}`; Supabase
-signed URLs remain a fallback only until Neon Auth cutover.
+Login/signup uses **Neon Auth** (`@neondatabase/neon-js` + `SupabaseAuthAdapter`).
+After signup the client calls `POST /api/auth/bootstrap` so `auth.users`,
+`profiles`, and `user_roles` match the JWT subject (Neon JWTs have no custom
+app-role claims). New uploads go to Vercel Blob. Copied legacy files are read
+from Blob; Supabase signed URLs remain a fallback only until Storage is fully
+retired.
 
 All table access in the frontend goes through `db.from(...)` (`src/lib/db.ts`).
 Function calls go through `invokeFn` → `/api/...`.
 
-The API accepts both Neon Auth tokens and legacy tokens during the transition
-(`api/_lib/auth.ts` dual issuer). Set `LEGACY_AUTH_URL` (or `VITE_SUPABASE_URL`)
-on the functions so the legacy JWKS can be fetched.
+The API still accepts legacy Supabase JWTs for any pre-cutover sessions
+(`api/_lib/auth.ts` dual issuer).

@@ -18,6 +18,7 @@ import nutritionIngest from "./_routes/nutrition/ingest.js";
 import pgQuery from "./_routes/pg/query.js";
 import pgRpc from "./_routes/pg/rpc.js";
 import invitationsByToken from "./_routes/invitations/by-token.js";
+import authBootstrap from "./_routes/auth/bootstrap.js";
 import storageDelete from "./_routes/storage/delete.js";
 import storageEmailAsset from "./_routes/storage/email-asset.js";
 import storageFile from "./_routes/storage/file.js";
@@ -48,6 +49,7 @@ const routes: Record<string, Handler> = {
   "pg/query": pgQuery,
   "pg/rpc": pgRpc,
   "invitations/by-token": invitationsByToken,
+  "auth/bootstrap": authBootstrap,
   "storage/delete": storageDelete,
   "storage/email-asset": storageEmailAsset,
   "storage/file": storageFile,

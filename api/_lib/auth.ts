@@ -19,9 +19,8 @@ export const NEON_AUTH_BASE_URL =
   "https://ep-super-butterfly-b1u1cypj.neonauth.c-5.eu-central-1.aws.neon.tech/neondb/auth";
 
 /**
- * Bridge issuer: while the app is migrated feature by feature the frontend is
- * still signed in through the legacy auth provider, so its tokens must keep
- * working against the Neon-backed API. Remove once auth itself is cut over.
+ * Bridge issuer: legacy Supabase tokens stay valid for any sessions that were
+ * issued before the Neon Auth cutover. Safe to remove once those sessions expire.
  */
 export const LEGACY_AUTH_URL =
   process.env.LEGACY_AUTH_URL ?? process.env.VITE_SUPABASE_URL ?? "";
@@ -54,8 +53,39 @@ export class HttpError extends Error {
 }
 
 /**
+ * Build app-facing metadata from a JWT payload.
+ * Neon Auth puts `name` on the token root (no custom claims / user_metadata).
+ * Legacy Supabase tokens nest fields under `user_metadata`.
+ */
+function metadataFromClaims(claims: Record<string, unknown>): Record<string, unknown> {
+  const meta = claims.user_metadata;
+  const fromNested =
+    meta && typeof meta === "object" && !Array.isArray(meta)
+      ? { ...(meta as Record<string, unknown>) }
+      : {};
+
+  const name =
+    (typeof fromNested.display_name === "string" && fromNested.display_name) ||
+    (typeof fromNested.displayName === "string" && fromNested.displayName) ||
+    (typeof fromNested.name === "string" && fromNested.name) ||
+    (typeof claims.name === "string" && claims.name) ||
+    null;
+
+  if (name) {
+    fromNested.display_name = name;
+    fromNested.displayName = name;
+    fromNested.name = name;
+  }
+
+  // Neon JWT `role` is always "authenticated" — never treat it as app_role.
+  if (fromNested.role === "authenticated") delete fromNested.role;
+
+  return fromNested;
+}
+
+/**
  * Verifies the access token on the Authorization header. Neon Auth tokens are
- * tried first; legacy tokens are accepted while the cutover is in progress.
+ * tried first; legacy tokens are still accepted for pre-cutover sessions.
  */
 export async function requireUser(req: VercelRequest): Promise<AuthUser> {
   const header = req.headers.authorization ?? "";
@@ -77,12 +107,7 @@ export async function requireUser(req: VercelRequest): Promise<AuthUser> {
       if (!id) throw new HttpError(401, "Token has no subject");
       const claims = payload as Record<string, unknown>;
       const email = typeof claims.email === "string" ? claims.email : null;
-      const meta = claims.user_metadata;
-      const userMetadata =
-        meta && typeof meta === "object" && !Array.isArray(meta)
-          ? (meta as Record<string, unknown>)
-          : {};
-      return { id, email, userMetadata };
+      return { id, email, userMetadata: metadataFromClaims(claims) };
     } catch {
       /* try the next issuer */
     }

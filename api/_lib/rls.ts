@@ -2,17 +2,18 @@ import { getPool, type SqlClient } from "./db.js";
 import type { AuthUser } from "./auth.js";
 
 /**
- * Login still happens on the legacy auth provider, so a brand-new signup is
- * not in Neon until we upsert them. Must run as the table owner, before
- * `SET ROLE authenticated`. The snapshot copy of `handle_new_user` is not
- * attached to `auth.users` on Neon, so we also create profile + role rows.
+ * Neon Auth stores identity in `neon_auth.*`. App FKs still reference
+ * `auth.users`, so we upsert the JWT subject before RLS impersonation.
+ * App roles (coach/user) are set by `/api/auth/bootstrap` after signup —
+ * Neon JWTs cannot carry custom role claims.
  */
 async function ensureAuthUser(client: SqlClient, user: AuthUser): Promise<void> {
   const meta = user.userMetadata ?? {};
   const displayName =
-    typeof meta.display_name === "string" && meta.display_name.trim()
-      ? meta.display_name.trim()
-      : user.email;
+    (typeof meta.display_name === "string" && meta.display_name.trim()) ||
+    (typeof meta.displayName === "string" && meta.displayName.trim()) ||
+    (typeof meta.name === "string" && meta.name.trim()) ||
+    user.email;
   const role = meta.role === "coach" ? "coach" : "user";
 
   await client.query(
@@ -27,14 +28,18 @@ async function ensureAuthUser(client: SqlClient, user: AuthUser): Promise<void> 
     [user.id, user.email, JSON.stringify(meta)],
   );
 
-  const inserted = await client.query(
+  await client.query(
     `INSERT INTO public.profiles (user_id, display_name)
      VALUES ($1, $2)
-     ON CONFLICT (user_id) DO NOTHING
-     RETURNING id`,
+     ON CONFLICT (user_id) DO NOTHING`,
     [user.id, displayName],
   );
-  if (inserted.rowCount) {
+
+  const existingRole = await client.query(
+    `SELECT 1 FROM public.user_roles WHERE user_id = $1 LIMIT 1`,
+    [user.id],
+  );
+  if (!existingRole.rowCount) {
     await client.query(
       `INSERT INTO public.user_roles (user_id, role)
        VALUES ($1, $2::public.app_role)

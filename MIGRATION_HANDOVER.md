@@ -124,13 +124,16 @@ Cron auth: `CRON_SECRET` or the `cron_token` row in `internal_secrets`.
 - Canonical app URL defaults / OAuth allowlist point only at
   `myfitnesslogger.vercel.app`.
 
-### Remaining (blocked on Neon Auth)
+### Remaining
 
-1. **Neon Auth cutover** — login / signup / password reset still use
-   `supabase.auth`. Dual-issuer JWT already accepts Neon tokens.
-2. After auth: remove the Supabase JS client, `VITE_SUPABASE_*`, and the
-   Storage signed-URL fallback in `src/lib/blobStorage.ts`.
-3. **Decommission the Supabase project** only after (1)–(2).
+1. **Neon Auth cutover** — implemented: login / signup / reset / change password
+   use Neon Managed Better Auth (`SupabaseAuthAdapter`). Existing password users
+   must **re-register** (hashes are not transferable). Confirm trusted domain +
+   email auth in the Neon Console, and set `VITE_NEON_AUTH_URL` on Vercel.
+2. After auth is stable in production: remove the Supabase JS client,
+   `VITE_SUPABASE_*`, and the Storage signed-URL fallback in
+   `src/lib/blobStorage.ts`.
+3. **Decommission the Supabase project** only after (2).
 4. **Dashboard hygiene:** archive/delete the unused Vercel project that still
    serves https://my-fitness-logger.vercel.app (no `/api`, not this repo’s
    production). Confirm `PUBLIC_APP_URL` on the live project is

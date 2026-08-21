@@ -1,13 +1,28 @@
 import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from "react";
-import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { db } from "@/lib/db";
+
+/** Minimal session/user shapes returned by the Neon SupabaseAuthAdapter. */
+export type AuthUser = {
+  id: string;
+  email?: string | null;
+  user_metadata?: Record<string, unknown>;
+};
+
+export type AuthSession = {
+  access_token: string;
+  refresh_token?: string;
+  expires_at?: number;
+  expires_in?: number;
+  token_type?: string;
+  user: AuthUser;
+};
 
 type Role = "user" | "coach" | null;
 
 interface AuthContextValue {
-  session: Session | null;
-  user: User | null;
+  session: AuthSession | null;
+  user: AuthUser | null;
   role: Role;
   onboardingComplete: boolean | null; // null = unknown / loading
   loading: boolean;
@@ -18,8 +33,8 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [session, setSession] = useState<Session | null>(null);
-  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<AuthSession | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [role, setRole] = useState<Role>(null);
   const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
@@ -48,12 +63,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
-      setSession(newSession);
-      setUser(newSession?.user ?? null);
-      if (newSession?.user) {
+      const next = (newSession as AuthSession | null) ?? null;
+      setSession(next);
+      setUser(next?.user ?? null);
+      if (next?.user) {
         setTimeout(() => {
-          fetchRole(newSession.user.id);
-          fetchOnboarding(newSession.user.id);
+          fetchRole(next.user.id);
+          fetchOnboarding(next.user.id);
         }, 0);
       } else {
         setRole(null);
@@ -62,11 +78,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
 
     supabase.auth.getSession().then(({ data: { session: existing } }) => {
-      setSession(existing);
-      setUser(existing?.user ?? null);
-      if (existing?.user) {
-        fetchRole(existing.user.id);
-        fetchOnboarding(existing.user.id);
+      const next = (existing as AuthSession | null) ?? null;
+      setSession(next);
+      setUser(next?.user ?? null);
+      if (next?.user) {
+        fetchRole(next.user.id);
+        fetchOnboarding(next.user.id);
       }
       setLoading(false);
     });

@@ -2,6 +2,7 @@ import { invokeFn } from "@/lib/api/fn";
 import { useEffect, useState } from "react";
 import { z } from "zod";
 import { useAuth } from "@/hooks/useAuth";
+import { authDisplayName } from "@/lib/authDisplayName";
 import {
   Dialog,
   DialogContent,
@@ -97,7 +98,7 @@ export function InviteClientDialog({ open, onOpenChange, onInvited }: Props) {
         recipientEmail: invite.email,
         inviteToken: invite.token,
         inviteLink: invite.link,
-        coachName: user?.user_metadata?.display_name || user?.email,
+        coachName: authDisplayName(user, user?.email ?? "Coach"),
       },
     });
     setLoading(false);

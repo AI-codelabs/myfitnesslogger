@@ -6,6 +6,7 @@ import { LogOut, User as UserIcon, Mail, Shield, KeyRound, FileText } from "luci
 import { Link } from "react-router-dom";
 
 import { db } from "@/lib/db";
+import { authDisplayName } from "@/lib/authDisplayName";
 
 type PersonalInfo = {
   full_name: string | null;
@@ -47,7 +48,7 @@ const Account = () => {
           </div>
           <div className="min-w-0 flex-1">
             <p className="font-semibold truncate">
-              {user?.user_metadata?.display_name ?? "—"}
+              {authDisplayName(user)}
             </p>
             <p className="text-sm text-muted-foreground truncate flex items-center gap-1.5">
               <Mail className="h-3.5 w-3.5 shrink-0" />

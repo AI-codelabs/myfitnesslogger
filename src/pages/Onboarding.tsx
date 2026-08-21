@@ -40,12 +40,15 @@ const Onboarding = () => {
     localStorage.setItem("onbLang", lang);
   }, [lang]);
 
-  // Pre-fill name from auth (legacy display_name) -> seed first_name when possible
+  // Pre-fill name from auth metadata -> seed first_name when possible
   useEffect(() => {
     if (!user) return;
     setValues((v) => {
       if (v.first_name) return v;
-      const dn = (user.user_metadata?.display_name as string | undefined)?.trim();
+      const meta = user.user_metadata ?? {};
+      const dn = [meta.display_name, meta.displayName, meta.name]
+        .find((x): x is string => typeof x === "string" && !!x.trim())
+        ?.trim();
       if (!dn) return v;
       const sp = dn.indexOf(" ");
       return {

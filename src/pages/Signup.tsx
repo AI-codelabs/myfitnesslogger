@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
+import { bootstrapProfile } from "@/lib/bootstrapProfile";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -67,16 +68,34 @@ const Signup = () => {
       return;
     }
     setLoading(true);
+    // Neon adapter reads `displayName` for the Better Auth `name` field.
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         emailRedirectTo: `${window.location.origin}/`,
-        data: { display_name: displayName, role: tab },
+        data: { displayName, display_name: displayName, role: tab },
       },
     });
     if (error) {
       toast.error(error.message);
+      setLoading(false);
+      return;
+    }
+
+    if (!data.user) {
+      toast.error("Account created but no session returned. Check your email if verification is required.");
+      setLoading(false);
+      return;
+    }
+
+    const { error: bootErr } = await bootstrapProfile({
+      displayName,
+      role: tab,
+      inviteToken: token,
+    });
+    if (bootErr) {
+      toast.error(bootErr);
       setLoading(false);
       return;
     }
