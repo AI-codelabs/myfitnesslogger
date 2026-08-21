@@ -9,6 +9,7 @@
 // To edit the email subject / body, scroll down to TEMPLATES at the bottom.
 import { HttpError, serviceEndpoint } from "../../_lib/fn.js";
 import { ensureAccessToken, escapeHtml, sendGmail, userEmail, type CoachConnection } from "../../_lib/gmail.js";
+import { appUrlFromEnv } from "../../_lib/appUrl.js";
 
 type EmailTemplateRow = {
   subject: string | null;
@@ -43,7 +44,7 @@ function expectedCheckinWeekStart(d: Date): string {
 // to "Hi" when we don't have a display name.
 // =====================================================================
 
-const APP_URL = (process.env.PUBLIC_APP_URL ?? "https://my-fitness-logger.vercel.app").replace(/\/$/, "");
+const APP_URL = appUrlFromEnv();
 const CHECKIN_URL = `${APP_URL}/check-in`;
 
 function renderCustomTemplate(
