@@ -4,18 +4,16 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { withService } from "../../_lib/rls.js";
 import { googleCredentials } from "../../_lib/gmail.js";
 import { apiBaseUrl } from "./oauth-start.js";
+import { CANONICAL_APP_HOSTS, appUrlFromEnv } from "../../_lib/appUrl.js";
 
 function allowedReturnTo(returnTo: string, host: string | undefined): string {
-  const fallback = process.env.PUBLIC_APP_URL?.replace(/\/$/, "") || "/";
+  const fallback = appUrlFromEnv();
   if (!returnTo) return fallback;
   if (returnTo.startsWith("/") && !returnTo.startsWith("//")) return returnTo;
   try {
     const url = new URL(returnTo);
     if (url.protocol !== "https:" && url.protocol !== "http:") return fallback;
-    const allowed = new Set<string>([
-      "myfitnesslogger.vercel.app",
-      "myfitnesslogger-ai-codelab.vercel.app",
-    ]);
+    const allowed = new Set<string>([...CANONICAL_APP_HOSTS]);
     for (const envName of ["PUBLIC_APP_URL", "PUBLIC_API_URL"] as const) {
       const raw = process.env[envName];
       if (!raw) continue;

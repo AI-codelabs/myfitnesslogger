@@ -2,6 +2,7 @@
 import { z } from "zod";
 import { serviceEndpoint, HttpError } from "../../_lib/fn.js";
 import { googleCredentials } from "../../_lib/gmail.js";
+import { CANONICAL_APP_HOSTS } from "../../_lib/appUrl.js";
 
 const schema = z.object({ returnTo: z.string().max(2048).optional() });
 
@@ -23,9 +24,8 @@ export default serviceEndpoint({ auth: "user" }, async ({ req, sql, user }) => {
           try {
             const url = new URL(rawReturnTo);
             const host = req.headers.host?.split(":")[0];
-            const allowed = new Set([
-              "myfitnesslogger.vercel.app",
-              "myfitnesslogger-ai-codelab.vercel.app",
+            const allowed = new Set<string>([
+              ...CANONICAL_APP_HOSTS,
               ...(host ? [host] : []),
             ]);
             for (const envName of ["PUBLIC_APP_URL", "PUBLIC_API_URL"] as const) {

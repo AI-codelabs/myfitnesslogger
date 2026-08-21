@@ -103,64 +103,38 @@ Cron auth: `CRON_SECRET` or the `cron_token` row in `internal_secrets`.
 - Env vars set on Vercel: `DATABASE_URL`, `NEON_AUTH_*`, `LEGACY_AUTH_URL`,
   `ADMIN_API_SECRET` (generated), `CRON_SECRET`, `ANTHROPIC_API_KEY`,
   `CRONOMETER_PRO_TOKEN`, `CRONO_COACH_EMAIL/PASSWORD`, `CRONO_WEB_KEY`,
-  `GOOGLE_OAUTH_CLIENT_ID/SECRET`, `PUBLIC_APP_URL`, the three `VITE_SUPABASE_*`
-  build-time vars, and `VITE_NEON_FEATURES`.
-- Three manual steps outstanding at last handover: trusted domain in Neon Auth,
-  Vercel Blob store attached, first deploy triggered.
+  `GOOGLE_OAUTH_CLIENT_ID/SECRET`, `PUBLIC_APP_URL` /
+  `PUBLIC_API_URL` (= `https://myfitnesslogger.vercel.app`), the three
+  `VITE_SUPABASE_*` build-time vars, and `VITE_NEON_FEATURES`.
+- Production project: **`myfitnesslogger`** → https://myfitnesslogger.vercel.app
+  (GitHub homepage matches). Do **not** use the stray
+  `my-fitness-logger.vercel.app` host.
 
 ---
 
 ## 3. What is still open
 
-<<<<<<< HEAD
-1. **Auth migration itself.** Feature flags are on
-   (`weight,checkins,workouts,nutrition,clients,functions`). The API accepts
-   both issuers, but users still sign in through the legacy client
-   (`src/integrations/supabase/client.ts`, `src/hooks/useAuth.tsx`). Moving
-   sign-up/login/reset to Neon Auth is **not done**.
-2. **Legacy code still present.** `supabase/functions/*` and the Supabase
-   client remain as auth + signed-URL fallback. Delete only after the auth
-   cutover and a period of Blob-only reads.
-3. **Decommission the legacy project** after auth is on Neon Auth and Blob
-   reads have been stable (signed-URL fallback no longer needed).
+### Done
 
-Done since the last handover: Postgres delta re-sync, Storage → Blob copy
-(30 files at `{bucket}/{original_path}`), UI uploads to Blob, and read paths
-prefer Blob then fall back to legacy signed URLs.
-=======
-0. **Delta copy done (13 Aug 2026).** All 33 public tables re-synced from the
-   legacy database into Neon by primary-key upsert (rows with a newer
-   `updated_at` upstream were refreshed; rows written on Neon after cutover were
-   preserved). `auth.users` synced from the legacy admin API (13 users; password
-   hashes are not exported and are not needed while login stays on the legacy
-   provider). Row counts verified equal or higher on Neon for every table.
-   Storage copied too: 30 files from `onboarding-uploads`,
-   `nutrition-documents`, `nutrition-templates` (and empty `email-assets`) into
-   Vercel Blob at `{bucket}/{original_path}`, private access, sizes verified.
-1. **Cutover flags.** `VITE_NEON_FEATURES` is the single control. Only the
-   groups listed there run on Neon.
-   - `weight`, `checkins` — validated first, safe.
-   - `workouts` — ready, no legacy writers.
-   - `nutrition`, `clients` — depend on the `functions` flag being on, because
-     legacy edge functions and database triggers still write those tables.
-   - `functions` — flips all ported endpoints at once; there is no per-function
-     flag.
-2. **Auth migration itself.** The API accepts both issuers, but users still
-   sign in through the legacy client (`src/integrations/supabase/client.ts`,
-   `src/hooks/useAuth.tsx`). Moving sign-up/login/reset to Neon Auth and
-   migrating user records is **not done**.
-3. **Storage read paths.** Files now exist in Blob, but the app still reads
-   existing progress photos and nutrition documents through legacy signed URLs;
-   switch those read paths before decommissioning the legacy project.
+- Postgres delta copy + Storage → Blob (30 files).
+- All cutover flags live on production.
+- UI uploads + Blob-first reads (legacy signed URL only as fallback).
+- Legacy `supabase/functions/*` removed from the repo (Vercel `/api` is the
+  live path).
+- Canonical app URL defaults / OAuth allowlist point only at
+  `myfitnesslogger.vercel.app`.
 
-4. **Legacy code still present.** `supabase/functions/*` (11 functions) and the
-   Supabase client remain in the repo as the fallback path. Delete only after
-   full cutover.
-5. **Final delta sync + cutover.** Read-only window, final data sync, flip all
-   flags, smoke test, then decommission the legacy project.
-6. **Row-count / integrity verification** after each re-copy via
-   `/api/admin/db-report` (requires `ADMIN_API_SECRET`).
->>>>>>> origin/main
+### Remaining (blocked on Neon Auth)
+
+1. **Neon Auth cutover** — login / signup / password reset still use
+   `supabase.auth`. Dual-issuer JWT already accepts Neon tokens.
+2. After auth: remove the Supabase JS client, `VITE_SUPABASE_*`, and the
+   Storage signed-URL fallback in `src/lib/blobStorage.ts`.
+3. **Decommission the Supabase project** only after (1)–(2).
+4. **Dashboard hygiene:** archive/delete the unused Vercel project that still
+   serves https://my-fitness-logger.vercel.app (no `/api`, not this repo’s
+   production). Confirm `PUBLIC_APP_URL` on the live project is
+   `https://myfitnesslogger.vercel.app`.
 
 ---
 
