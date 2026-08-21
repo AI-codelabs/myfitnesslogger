@@ -38,7 +38,8 @@ Backend / serverless functions (`api/`):
 - `DATABASE_URL` — Neon pooled connection string (`...-pooler...neon.tech/neondb?sslmode=require`)
 - `NEON_AUTH_URL` — same base as `VITE_NEON_AUTH_URL`
 - `NEON_AUTH_JWKS_URL` — the above + `/.well-known/jwks.json` (optional, derived from `NEON_AUTH_URL`)
-- `NEON_AUTH_ISSUER` — optional issuer check (must match the JWT `iss` claim if set)
+- `NEON_AUTH_ISSUER` — JWT `iss` claim (origin only, **no** `/neondb/auth` path):
+  `https://ep-super-butterfly-b1u1cypj.neonauth.c-5.eu-central-1.aws.neon.tech`
 - `BLOB_READ_WRITE_TOKEN` — created automatically when a Vercel Blob store is
   attached to the project
 - `PUBLIC_APP_URL` / `PUBLIC_API_URL` — see canonical URL above
