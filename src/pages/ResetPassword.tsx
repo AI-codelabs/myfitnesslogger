@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { z } from "zod";
-import { supabase } from "@/integrations/supabase/client";
+import { getBetterAuth } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { clearRecovery, isRecoveryActive, markRecoveryActive, urlHasRecovery } from "@/lib/recovery";
+import { clearRecovery, markRecoveryActive } from "@/lib/recovery";
 
 const schema = z
   .object({
@@ -25,84 +25,49 @@ const ResetPassword = () => {
   const [confirm, setConfirm] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [ready, setReady] = useState(false);
+  const [token, setToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let active = true;
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "PASSWORD_RECOVERY") {
-        markRecoveryActive();
-        if (active) setReady(true);
-      }
-    });
-
-    const init = async () => {
-      const query = new URLSearchParams(window.location.search);
-      const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
-
-      // PKCE style link: ?code=...
-      const code = query.get("code");
-      // OTP style link: ?token_hash=...&type=recovery
-      const tokenHash = query.get("token_hash") ?? hash.get("token_hash");
-
-      try {
-        if (code) {
-          const { error: exErr } = await supabase.auth.exchangeCodeForSession(code);
-          if (exErr) throw exErr;
-          markRecoveryActive();
-        } else if (tokenHash) {
-          const { error: otpErr } = await supabase.auth.verifyOtp({ type: "recovery", token_hash: tokenHash });
-          if (otpErr) throw otpErr;
-          markRecoveryActive();
-        }
-      } catch (e) {
-        if (active) setError(e instanceof Error ? e.message : "This reset link is invalid or has expired.");
-        return;
-      }
-
-      const { data } = await supabase.auth.getSession();
-      if (!active) return;
-      if (data.session && (isRecoveryActive() || urlHasRecovery())) {
-        markRecoveryActive();
-        setReady(true);
-      } else if (data.session) {
-        // Signed in but not through a recovery link — nothing to verify here.
-        setReady(true);
-      } else {
-        setError("This reset link is invalid or has expired. Request a new one.");
-      }
-    };
-
-    init();
-
-    return () => {
-      active = false;
-      subscription.unsubscribe();
-    };
+    const query = new URLSearchParams(window.location.search);
+    const err = query.get("error");
+    if (err) {
+      setError("This reset link is invalid or has expired. Request a new one.");
+      return;
+    }
+    const resetToken = query.get("token");
+    if (!resetToken) {
+      setError("This reset link is invalid or has expired. Request a new one.");
+      return;
+    }
+    markRecoveryActive();
+    setToken(resetToken);
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!token) return;
     const parsed = schema.safeParse({ password, confirm });
     if (!parsed.success) {
       toast.error(parsed.error.errors[0].message);
       return;
     }
     setLoading(true);
-    const { error: updErr } = await supabase.auth.updateUser({ password });
+    const { error: resetErr } = await getBetterAuth().resetPassword({
+      newPassword: password,
+      token,
+    });
     setLoading(false);
-    if (updErr) {
-      toast.error(updErr.message);
+    if (resetErr) {
+      toast.error(resetErr.message || "Could not update password");
       return;
     }
     clearRecovery();
     toast.success("Password updated. Please sign in.");
-    await supabase.auth.signOut();
     navigate("/login", { replace: true });
   };
 
+  const ready = !!token && !error;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4 py-8">
@@ -123,8 +88,7 @@ const ResetPassword = () => {
           )}
         </div>
 
-
-        {ready && !error && (
+        {ready && (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="password">New password</Label>

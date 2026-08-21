@@ -14,6 +14,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/hooks/useAuth";
+import { authDisplayName } from "@/lib/authDisplayName";
 import { Button } from "@/components/ui/button";
 import logo from "@/assets/logo.png";
 
@@ -141,7 +142,7 @@ export function AppSidebar() {
             {!collapsed && (
               <div className="px-2 py-1.5 space-y-0.5">
                 <p className="text-sm font-medium truncate">
-                  {user?.user_metadata?.display_name ?? "Coach"}
+                  {authDisplayName(user, "Coach")}
                 </p>
                 <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
               </div>
