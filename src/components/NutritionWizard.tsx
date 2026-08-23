@@ -16,11 +16,14 @@ import { toast } from "sonner";
 import { parseDecimal } from "@/lib/parseDecimal";
 import { Lang } from "@/lib/onboardingSchema";
 import { pushTargetsToCronometer } from "@/lib/cronometerTargets";
+import { ensureCronometerInvite } from "@/lib/cronometerPro";
 import { db } from "@/lib/db";
 
 type Props = {
   clientId: string;
   coachId: string;
+  clientEmail?: string | null;
+  clientName?: string | null;
   lang: Lang;
   prefill?: Record<string, any>;
   existing?: any | null;
@@ -43,6 +46,8 @@ const t = (nl: string, en: string, lang: Lang) => (lang === "nl" ? nl : en);
 export const NutritionWizard = ({
   clientId,
   coachId,
+  clientEmail,
+  clientName,
   lang,
   prefill,
   existing,
@@ -107,7 +112,14 @@ export const NutritionWizard = ({
   const finish = async () => {
     if (!(await persist(true))) return;
     toast.success(t("Voedingsschema opgeslagen", "Nutrition plan saved", lang));
-    // Fire-and-forget push to client's Cronometer (no-ops if not opted in)
+    if (clientEmail) {
+      await ensureCronometerInvite({
+        coachId,
+        client_id: clientId,
+        email: clientEmail,
+        name: clientName ?? undefined,
+      });
+    }
     const det: any = v;
     const res = await pushTargetsToCronometer({
       client_id: clientId,

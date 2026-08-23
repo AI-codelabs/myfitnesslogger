@@ -586,6 +586,8 @@ const ClientProfile = () => {
             <NutritionWizard
               clientId={clientId}
               coachId={coachId}
+              clientEmail={invite?.email}
+              clientName={clientFullName(invite) || invite?.email}
               lang={lang}
               prefill={response ? {
                 // Step 1

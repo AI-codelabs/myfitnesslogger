@@ -1,12 +1,13 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, RefreshCw, Send, Trash2, Plug, AlertCircle, Target, CheckCircle2, KeyRound } from "lucide-react";
+import { Loader2, RefreshCw, Send, Trash2, Plug, AlertCircle, Target, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import type { Lang } from "@/lib/onboardingSchema";
 import {
   getCronometerLink,
+  ensureCronometerInvite,
   inviteCronometerClient,
   removeCronometerClient,
   refreshCronometerStatus,
@@ -46,6 +47,7 @@ export function CronometerCoachCard({ coachId, clientId, clientEmail, clientName
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<null | "invite" | "sync" | "refresh" | "remove" | "push">(null);
   const [webStatus, setWebStatus] = useState<CronoWebStatus | null>(null);
+  const autoInviteAttempted = useRef(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -59,6 +61,25 @@ export function CronometerCoachCard({ coachId, clientId, clientEmail, clientName
   }, [coachId, clientId]);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (loading || link || !clientEmail || autoInviteAttempted.current) return;
+    autoInviteAttempted.current = true;
+    void ensureCronometerInvite({
+      coachId,
+      client_id: clientId,
+      email: clientEmail,
+      name: clientName ?? undefined,
+    }).then((res) => {
+      if (res.data?.invited) {
+        toast.info(t(lang,
+          "Cronometer-uitnodiging automatisch verstuurd",
+          "Cronometer invite sent automatically",
+        ));
+        load();
+      }
+    });
+  }, [loading, link, clientEmail, coachId, clientId, clientName, lang, load]);
 
   const handlePushTargets = async (force = false) => {
     setBusy("push");
@@ -213,7 +234,7 @@ export function CronometerCoachCard({ coachId, clientId, clientEmail, clientName
         )}
       </div>
 
-      {/* ─── Target sync (scraper) ─── */}
+      {/* ─── Target sync (coach Pro session) ─── */}
       <div className="pt-3 border-t space-y-2">
         <div className="flex items-center gap-2">
           <Target className="h-4 w-4 text-primary" />
@@ -234,11 +255,6 @@ export function CronometerCoachCard({ coachId, clientId, clientEmail, clientName
                   : t(lang, "Verbonden", "Connected")}
             </Badge>
           )}
-          {webStatus?.status === "needs_reauth" && (
-            <Badge variant="outline" className="bg-amber-500/10 text-amber-700 border-amber-500/30">
-              <KeyRound className="h-3 w-3 mr-1" />{t(lang, "Her-verificatie", "Needs re-auth")}
-            </Badge>
-          )}
           {webStatus?.status === "error" && (
             <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30">
               <AlertCircle className="h-3 w-3 mr-1" />{t(lang, "Fout", "Error")}
@@ -247,17 +263,13 @@ export function CronometerCoachCard({ coachId, clientId, clientEmail, clientName
         </div>
         <p className="text-xs text-muted-foreground">
           {!webStatus?.connected && t(lang,
-            "Nog geen pushkanaal. Nodig de client uit in Cronometer Pro; daarna pushen we de doelen automatisch vanuit het coach-account.",
-            "No push channel yet. Invite the client in Cronometer Pro; after that we push targets automatically from the coach account.",
+            "Nodig de client uit in Cronometer Pro; daarna pushen we de doelen automatisch vanuit het coach-account.",
+            "Invite the client in Cronometer Pro; after that we push targets automatically from the coach account.",
           )}
-          {webStatus?.mode === "coach" && (
-            <>
-              {t(lang,
-                "Doelen worden vanuit het Pro coach-account gepusht. De client hoeft niets te doen.",
-                "Targets are pushed from the Pro coach account. The client doesn't need to do anything.",
-              )}{" "}
-            </>
-          )}
+          {webStatus?.connected && t(lang,
+            "Doelen worden vanuit het Pro coach-account gepusht. De client hoeft niets te doen.",
+            "Targets are pushed from the Pro coach account. The client doesn't need to do anything.",
+          )}{" "}
           {webStatus?.connected && webStatus.last_push_at && (
             <>{t(lang, "Laatste push", "Last push")}: {new Date(webStatus.last_push_at).toLocaleString()}</>
           )}
@@ -294,16 +306,6 @@ export function CronometerCoachCard({ coachId, clientId, clientEmail, clientName
               {t(lang, "Nu pushen", "Push now")}
             </Button>
           </div>
-        )}
-
-        {webStatus?.status === "needs_reauth" && !webStatus?.coach_push && (
-
-          <p className="text-xs text-amber-700">
-            {t(lang,
-              "De Cronometer-sessie van deze client is verlopen. Vraag de client opnieuw in te loggen vanuit hun portal.",
-              "This client's Cronometer session has expired. Ask them to sign in again from their portal.",
-            )}
-          </p>
         )}
       </div>
     </Card>

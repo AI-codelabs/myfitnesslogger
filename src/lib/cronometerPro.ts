@@ -54,6 +54,26 @@ export function inviteCronometerClient(args: { client_id: string; email: string;
   return invoke({ action: "invite_client", ...args });
 }
 
+/** Send a Pro invite only when the client has no pending/active link yet. */
+export async function ensureCronometerInvite(args: {
+  coachId: string;
+  client_id: string;
+  email: string;
+  name?: string;
+}): Promise<{ data?: { invited: boolean; skipped?: boolean }; error?: string }> {
+  const existing = await getCronometerLink(args.coachId, args.client_id);
+  if (existing && (existing.status === "pending" || existing.status === "active")) {
+    return { data: { invited: false, skipped: true } };
+  }
+  const res = await inviteCronometerClient({
+    client_id: args.client_id,
+    email: args.email,
+    name: args.name,
+  });
+  if (res.error) return res;
+  return { data: { invited: true } };
+}
+
 export function removeCronometerClient(client_id: string) {
   return invoke({ action: "remove_client", client_id });
 }
