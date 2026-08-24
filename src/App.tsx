@@ -49,7 +49,13 @@ const RecoveryGate = ({ children }: { children: JSX.Element }) => {
 const Protected = ({ children, requireOnboarding = true }: { children: JSX.Element; requireOnboarding?: boolean }) => {
   const { session, loading, role, onboardingComplete } = useAuth();
   const location = useLocation();
-  if (loading) return null;
+  if (loading) {
+    return (
+      <div className="min-h-[100dvh] flex items-center justify-center bg-background text-muted-foreground text-sm">
+        Loading…
+      </div>
+    );
+  }
   if (!session) return <Navigate to="/login" replace />;
   // Gate clients (role=user) until onboarding is complete
   if (
@@ -65,7 +71,13 @@ const Protected = ({ children, requireOnboarding = true }: { children: JSX.Eleme
 
 const PublicOnly = ({ children }: { children: JSX.Element }) => {
   const { session, loading } = useAuth();
-  if (loading) return null;
+  if (loading) {
+    return (
+      <div className="min-h-[100dvh] flex items-center justify-center bg-background text-muted-foreground text-sm">
+        Loading…
+      </div>
+    );
+  }
   if (session) return <Navigate to="/" replace />;
   return children;
 };

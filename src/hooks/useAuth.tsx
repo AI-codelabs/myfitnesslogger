@@ -64,32 +64,48 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [user, fetchOnboarding]);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
-      const next = (newSession as AuthSession | null) ?? null;
+    let cancelled = false;
+    const finish = (next: AuthSession | null) => {
+      if (cancelled) return;
       setSession(next);
       setUser(next?.user ?? null);
       if (next?.user) {
-        fetchRole(next.user.id);
-        fetchOnboarding(next.user.id);
+        void fetchRole(next.user.id);
+        void fetchOnboarding(next.user.id);
       } else {
         setRole(null);
         setOnboardingComplete(null);
       }
       setLoading(false);
+    };
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      finish((newSession as AuthSession | null) ?? null);
     });
 
-    supabase.auth.getSession().then(({ data: { session: existing } }) => {
-      const next = (existing as AuthSession | null) ?? null;
-      setSession(next);
-      setUser(next?.user ?? null);
-      if (next?.user) {
-        fetchRole(next.user.id);
-        fetchOnboarding(next.user.id);
+    const boot = Promise.resolve(supabase.auth.getSession())
+      .then(({ data: { session: existing } }) => {
+        finish((existing as AuthSession | null) ?? null);
+      })
+      .catch((err) => {
+        console.error("[auth] getSession failed", err);
+        finish(null);
+      });
+
+    // Never leave the app on a blank white screen if auth hangs (Safari cookie issues).
+    const timeout = window.setTimeout(() => {
+      if (!cancelled) {
+        console.warn("[auth] getSession timed out; showing public routes");
+        setLoading(false);
       }
-      setLoading(false);
-    });
+    }, 4000);
 
-    return () => subscription.unsubscribe();
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
+      void boot;
+      subscription.unsubscribe();
+    };
   }, [fetchOnboarding]);
 
   const signOut = async () => {
