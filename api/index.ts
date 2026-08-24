@@ -20,6 +20,7 @@ import pgRpc from "./_routes/pg/rpc.js";
 import invitationsByToken from "./_routes/invitations/by-token.js";
 import authBootstrap from "./_routes/auth/bootstrap.js";
 import authMigratedPassword from "./_routes/auth/migrated-password.js";
+import neonAuthProxy from "./_routes/neon-auth/proxy.js";
 import storageDelete from "./_routes/storage/delete.js";
 import storageEmailAsset from "./_routes/storage/email-asset.js";
 import storageFile from "./_routes/storage/file.js";
@@ -73,6 +74,9 @@ function routeKey(req: VercelRequest): string {
 /** Single Hobby-plan function that serves every `/api/*` route. */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const key = routeKey(req);
+  if (key === "neon-auth" || key.startsWith("neon-auth/")) {
+    return neonAuthProxy(req, res);
+  }
   const fn = routes[key];
   if (!fn) {
     return res.status(404).json({ error: "not_found", path: key });
