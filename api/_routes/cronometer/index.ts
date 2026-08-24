@@ -1,10 +1,10 @@
-// Cronometer Pro API + web-target-sync integration, ported from
+// Cronometer Pro API + coach-session target push, ported from
 // supabase/functions/cronometer/index.ts to a Vercel serverless function
 // backed by Neon Postgres. Action router, payload shapes, error codes and
 // cronometer_api_logs logging are preserved as-is.
 //
 // Auth model (unchanged):
-//   - web_* target-sync actions accept any signed-in user (client self-connect).
+//   - web_* target-sync actions accept any signed-in user (coach pushes for a client).
 //   - Pro invite / diary sync actions require the coach role.
 //   - sync_all / hourly_reconcile require the cron secret.
 //   - sync (self-sync) accepts the signed-in client.
@@ -21,7 +21,6 @@ import type { AuthUser } from "../../_lib/auth.js";
 import {
   cronoLogin,
   pushTargets,
-  targetsHash,
   encryptJson,
   decryptJson,
   loadCurrentTargets,

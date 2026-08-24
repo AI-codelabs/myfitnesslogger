@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,6 +20,7 @@ type Tab = "user" | "coach";
 
 const Login = () => {
   const navigate = useNavigate();
+  const { notifySignIn } = useAuth();
   const [params] = useSearchParams();
   const [tab, setTab] = useState<Tab>((params.get("as") as Tab) || "user");
   const [email, setEmail] = useState("");
@@ -56,7 +58,9 @@ const Login = () => {
     }
 
     toast.success("Signed in");
-    navigate("/");
+    // Re-enter loading state so Protected doesn't see session=null briefly.
+    notifySignIn();
+    navigate("/", { replace: true });
   };
 
   return (

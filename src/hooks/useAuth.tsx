@@ -28,6 +28,8 @@ interface AuthContextValue {
   loading: boolean;
   signOut: () => Promise<void>;
   refreshOnboarding: () => Promise<void>;
+  /** Call after signInWithPassword to re-enter loading state until onAuthStateChange fires. */
+  notifySignIn: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -67,14 +69,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setSession(next);
       setUser(next?.user ?? null);
       if (next?.user) {
-        setTimeout(() => {
-          fetchRole(next.user.id);
-          fetchOnboarding(next.user.id);
-        }, 0);
+        fetchRole(next.user.id);
+        fetchOnboarding(next.user.id);
       } else {
         setRole(null);
         setOnboardingComplete(null);
       }
+      setLoading(false);
     });
 
     supabase.auth.getSession().then(({ data: { session: existing } }) => {
@@ -95,8 +96,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     await supabase.auth.signOut();
   };
 
+  const notifySignIn = useCallback(() => {
+    setLoading(true);
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ session, user, role, onboardingComplete, loading, signOut, refreshOnboarding }}>
+    <AuthContext.Provider value={{ session, user, role, onboardingComplete, loading, signOut, refreshOnboarding, notifySignIn }}>
       {children}
     </AuthContext.Provider>
   );
