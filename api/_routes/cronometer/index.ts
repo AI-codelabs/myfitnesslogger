@@ -491,13 +491,16 @@ export default serviceEndpoint({ auth: "either", methods: CORS_METHODS }, async 
     const COACH_PASSWORD = process.env.CRONO_COACH_PASSWORD ?? "";
 
     async function findProLink(clientId: string): Promise<{ coach_id: string; cronometer_client_id: number } | null> {
-      const { rows } = await sql.query<{ coach_id: string; cronometer_client_id: number }>(
+      const { rows } = await sql.query<{ coach_id: string; cronometer_client_id: number | string }>(
         `SELECT coach_id, cronometer_client_id FROM public.cronometer_clients
          WHERE client_id = $1 AND cronometer_client_id IS NOT NULL
          ORDER BY invited_at DESC LIMIT 1`,
         [clientId],
       );
-      return rows[0]?.cronometer_client_id ? rows[0] : null;
+      const rawId = rows[0]?.cronometer_client_id;
+      const parsedId = Number(rawId);
+      if (!rows[0] || !Number.isFinite(parsedId) || parsedId <= 0) return null;
+      return { coach_id: rows[0].coach_id, cronometer_client_id: parsedId };
     }
 
     async function loadCoachSessionRow(coachId: string): Promise<WebSessionRow | null> {

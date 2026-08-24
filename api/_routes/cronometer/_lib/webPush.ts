@@ -302,15 +302,17 @@ export async function pushTargets(args: {
    * Cronometer numeric user id to write to. Omit to write to the session owner.
    * A Pro coach session can write to any of its managed clients' ids.
    */
-  targetUserId?: number;
+  targetUserId?: number | string;
   log?: LogFn;
 }): Promise<{ ok: boolean; error?: string; endpoint?: string; cookies: CookieJar }> {
   const jar = { ...args.cookies };
   const ua = args.userAgent || UA;
 
   const nonce = jar["sesnonce"];
-  const userId = Number.isFinite(args.targetUserId) && (args.targetUserId ?? 0) > 0
-    ? Number(args.targetUserId)
+  // Postgres often returns numeric ids as strings. Coerce first, then validate.
+  const explicitTargetId = Number(args.targetUserId);
+  const userId = Number.isFinite(explicitTargetId) && explicitTargetId > 0
+    ? explicitTargetId
     : Number(jar[USER_ID_KEY]);
   if (!nonce) return { ok: false, error: "session_expired", cookies: jar };
   if (!Number.isFinite(userId) || userId <= 0) {
