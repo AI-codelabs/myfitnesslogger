@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { NEON_AUTH_BASE_URL } from "../_lib/auth.js";
+import { NEON_AUTH_BASE_URL } from "../../_lib/auth.js";
 
 const HOP_BY_HOP = new Set([
   "connection",
