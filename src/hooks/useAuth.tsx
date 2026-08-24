@@ -28,8 +28,12 @@ interface AuthContextValue {
   loading: boolean;
   signOut: () => Promise<void>;
   refreshOnboarding: () => Promise<void>;
-  /** Call after signInWithPassword to re-enter loading state until onAuthStateChange fires. */
-  notifySignIn: () => void;
+  /**
+   * Apply a session returned by signInWithPassword. Neon Auth's same-tab
+   * SIGNED_IN event is not delivered to onAuthStateChange, so login must set
+   * the session explicitly or the app stays on "Loading…".
+   */
+  acceptSession: (session: AuthSession) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -63,10 +67,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (user) await fetchOnboarding(user.id);
   }, [user, fetchOnboarding]);
 
-  useEffect(() => {
-    let cancelled = false;
-    const finish = (next: AuthSession | null) => {
-      if (cancelled) return;
+  const applySession = useCallback(
+    (next: AuthSession | null) => {
       setSession(next);
       setUser(next?.user ?? null);
       if (next?.user) {
@@ -77,6 +79,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setOnboardingComplete(null);
       }
       setLoading(false);
+    },
+    [fetchOnboarding],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    const finish = (next: AuthSession | null) => {
+      if (cancelled) return;
+      applySession(next);
     };
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
@@ -106,18 +117,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       void boot;
       subscription.unsubscribe();
     };
-  }, [fetchOnboarding]);
+  }, [applySession]);
 
   const signOut = async () => {
     await supabase.auth.signOut();
   };
 
-  const notifySignIn = useCallback(() => {
-    setLoading(true);
-  }, []);
+  const acceptSession = useCallback(
+    (next: AuthSession) => {
+      applySession(next);
+    },
+    [applySession],
+  );
 
   return (
-    <AuthContext.Provider value={{ session, user, role, onboardingComplete, loading, signOut, refreshOnboarding, notifySignIn }}>
+    <AuthContext.Provider
+      value={{
+        session,
+        user,
+        role,
+        onboardingComplete,
+        loading,
+        signOut,
+        refreshOnboarding,
+        acceptSession,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

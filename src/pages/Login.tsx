@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth, type AuthSession } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,20 +25,24 @@ function isMissingSessionError(err: unknown) {
   return err instanceof Error && /retrieve user session/i.test(err.message);
 }
 
-async function waitForSession(attempts = 8) {
-  for (let i = 0; i < attempts; i++) {
-    const { data } = await supabase.auth.getSession();
-    if (data.session?.user) return true;
-    await new Promise((r) => setTimeout(r, 150));
-  }
-  return false;
+async function readSession(): Promise<AuthSession | null> {
+  const { data } = await supabase.auth.getSession();
+  return (data.session as AuthSession | null) ?? null;
 }
 
-async function signInWithRetry(email: string, password: string) {
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
-  if (!error) return;
+async function signInWithRetry(email: string, password: string): Promise<AuthSession> {
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (!error) {
+    const session = (data.session as AuthSession | null) ?? (await readSession());
+    if (session?.user) return session;
+    throw new Error("Failed to retrieve user session");
+  }
   if (!isMissingSessionError(error)) throw error;
-  if (await waitForSession()) return;
+  for (let i = 0; i < 8; i++) {
+    const session = await readSession();
+    if (session?.user) return session;
+    await new Promise((r) => setTimeout(r, 150));
+  }
   throw error;
 }
 
@@ -49,16 +53,20 @@ export default function Login() {
   const [setup, setSetup] = useState<SetupState | null>(null);
   const [savingPassword, setSavingPassword] = useState(false);
   const navigate = useNavigate();
-  const { notifySignIn } = useAuth();
+  const { acceptSession } = useAuth();
+
+  const finishSignIn = (session: AuthSession) => {
+    acceptSession(session);
+    navigate("/");
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
       try {
-        await signInWithRetry(email, password);
-        notifySignIn();
-        navigate("/");
+        const session = await signInWithRetry(email, password);
+        finishSignIn(session);
         return;
       } catch (signInErr) {
         const check = await fetch("/api/auth/migrated-password", {
@@ -104,10 +112,9 @@ export default function Login() {
       setPassword(nextPassword);
       setEmail(setup.email);
       try {
-        await signInWithRetry(setup.email, nextPassword);
+        const session = await signInWithRetry(setup.email, nextPassword);
         setSetup(null);
-        notifySignIn();
-        navigate("/");
+        finishSignIn(session);
         return;
       } catch (signInErr) {
         if (isMissingSessionError(signInErr)) {
