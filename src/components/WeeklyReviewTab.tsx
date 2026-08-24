@@ -34,7 +34,7 @@ import {
 import { toast } from "sonner";
 import { Lang } from "@/lib/onboardingSchema";
 import { formatHumanDate } from "@/lib/weeklyCheckin";
-import { pushTargetsToCronometer } from "@/lib/cronometerTargets";
+import { pushTargetsToCronometer, cronometerPushSuccessCopy } from "@/lib/cronometerTargets";
 import { db } from "@/lib/db";
 
 interface Props {
@@ -343,7 +343,7 @@ export function WeeklyReviewTab({ clientId, coachId, lang }: Props) {
       fat_g: Number(next.fat_g) || 0,
     });
     if (res.success) {
-      toast.success(tx(lang, "Doelen gesynchroniseerd met Cronometer", "Targets synced to Cronometer"));
+      toast.success(cronometerPushSuccessCopy(lang === "nl"), { duration: 8000 });
     } else if (res.error) {
       toast.error(tx(lang, `Cronometer-sync mislukt: ${res.error}`, `Cronometer sync failed: ${res.error}`));
     }

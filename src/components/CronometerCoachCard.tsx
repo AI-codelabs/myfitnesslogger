@@ -19,6 +19,7 @@ import {
   pushCronometerTargets,
   type CronoWebStatus,
 } from "@/lib/cronometerTargetsWeb";
+import { cronometerExpenditureNote, cronometerPushSuccessCopy } from "@/lib/cronometerTargets";
 
 interface Props {
   coachId: string;
@@ -88,13 +89,8 @@ export function CronometerCoachCard({ coachId, clientId, clientEmail, clientName
     if (res.error) return toast.error(res.error);
     if ((res.data as any)?.skipped === "unchanged") {
       toast.info(t(lang, "Doelen zijn al gesynchroniseerd", "Targets are already in sync"));
-    } else if ((res.data as any)?.verified === false) {
-      toast.error(t(lang,
-        "Push verstuurd, maar Cronometer toont nog andere doelen (coach-doelen in Cronometer Pro overschrijven dit).",
-        "Push sent, but Cronometer still shows different targets (coach targets in Cronometer Pro override it).",
-      ));
     } else {
-      toast.success(t(lang, "Doelen naar Cronometer verzonden", "Targets pushed to Cronometer"));
+      toast.success(cronometerPushSuccessCopy(lang === "nl"), { duration: 8000 });
     }
     load();
   };
@@ -242,17 +238,10 @@ export function CronometerCoachCard({ coachId, clientId, clientEmail, clientName
           {webStatus?.connected && webStatus.status === "active" && (
             <Badge
               variant="outline"
-              className={
-                webStatus.verified === false
-                  ? "bg-destructive/10 text-destructive border-destructive/30"
-                  : "bg-emerald-500/10 text-emerald-700 border-emerald-500/30"
-              }
+              className="bg-emerald-500/10 text-emerald-700 border-emerald-500/30"
             >
-              {webStatus.verified === false
-                ? <><AlertCircle className="h-3 w-3 mr-1" />{t(lang, "Niet in sync", "Not in sync")}</>
-                : webStatus.in_sync
-                  ? <><CheckCircle2 className="h-3 w-3 mr-1" />{t(lang, "In sync", "In sync")}</>
-                  : t(lang, "Verbonden", "Connected")}
+              <CheckCircle2 className="h-3 w-3 mr-1" />
+              {t(lang, "Doelen gezet", "Targets set")}
             </Badge>
           )}
           {webStatus?.status === "error" && (
@@ -286,15 +275,12 @@ export function CronometerCoachCard({ coachId, clientId, clientEmail, clientName
             <p className="text-muted-foreground">
               {t(lang, "In de app", "In the app")}: {fmtTargets(webStatus.app_targets)}
             </p>
-            <p className={webStatus.verified === false ? "text-destructive" : "text-muted-foreground"}>
-              {t(lang, "In Cronometer", "In Cronometer")}: {fmtTargets(webStatus.remote_targets)}
+            <p className="text-muted-foreground">
+              {t(lang, "In Cronometer (verbruik / diary API)", "In Cronometer (expenditure / diary API)")}: {fmtTargets(webStatus.remote_targets)}
             </p>
             {webStatus.verified === false && (
-              <p className="text-destructive">
-                {t(lang,
-                  "Cronometer toont andere doelen. Deze client heeft coach-doelen die in Cronometer Pro zijn ingesteld; die overschrijven de gepushte waarden. Pas ze aan in Cronometer Pro (Clients → client → Targets) of verwijder de coach-doelen zodat de push wél doorkomt.",
-                  "Cronometer is showing different targets. This client has coach-assigned targets set in Cronometer Pro, which override the pushed values. Update them in Cronometer Pro (Clients → client → Targets), or clear the coach targets so the pushed values take effect.",
-                )}
+              <p className="text-muted-foreground">
+                {cronometerExpenditureNote(lang === "nl")}
               </p>
             )}
           </div>

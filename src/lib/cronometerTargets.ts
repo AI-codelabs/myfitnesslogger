@@ -2,6 +2,17 @@
 // No-ops when the client is not linked in Cronometer Pro yet.
 import { pushCronometerTargets } from "./cronometerTargetsWeb";
 
+/** Success copy after a Cronometer target push (custom eating target vs expenditure). */
+export const cronometerPushSuccessCopy = (nl: boolean) =>
+  nl
+    ? "Doelen zijn volledig bijgewerkt in Cronometer en staan als Custom Energy Target. Energy expenditure (verbruik) kan een ander getal tonen door BMR en basisactiviteit — ook op dagen zonder training. Dat is geen extra eetdoel."
+    : "Targets are fully updated in Cronometer and visible as the Custom Energy Target. Energy expenditure (calories burned) can show a different number based on BMR and baseline activity — including days with no workouts. That is not a second eating target.";
+
+export const cronometerExpenditureNote = (nl: boolean) =>
+  nl
+    ? "Cronometer's Energy-overzicht (verbruik) kan hoger zijn dan dit eetdoel. Dat komt door BMR + basisactiviteit (Sedentary) en geldt ook voor toekomstige dagen zonder logging. Controleer Custom Energy Target / Remaining — daar staat het gepushte doel."
+    : "Cronometer's energy expenditure (burned) can be higher than this eating target. That comes from BMR + baseline activity (Sedentary) and also appears on future days with no logged activity. Check Custom Energy Target / Remaining — that is the pushed target.";
+
 export interface PushTargetsArgs {
   client_id: string;
   calories: number;

@@ -15,7 +15,7 @@ import { Loader2, Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { parseDecimal } from "@/lib/parseDecimal";
 import { Lang } from "@/lib/onboardingSchema";
-import { pushTargetsToCronometer } from "@/lib/cronometerTargets";
+import { pushTargetsToCronometer, cronometerPushSuccessCopy } from "@/lib/cronometerTargets";
 import { ensureCronometerInvite } from "@/lib/cronometerPro";
 import { db } from "@/lib/db";
 
@@ -129,7 +129,7 @@ export const NutritionWizard = ({
       fat_g: Number(det.fat_g) || 0,
     });
     if (res.success) {
-      toast.success(t("Doelen gesynchroniseerd met Cronometer", "Targets synced to Cronometer", lang));
+      toast.success(cronometerPushSuccessCopy(lang === "nl"), { duration: 8000 });
     } else if (res.error) {
       toast.error(t(`Cronometer-sync mislukt: ${res.error}`, `Cronometer sync failed: ${res.error}`, lang));
     }
