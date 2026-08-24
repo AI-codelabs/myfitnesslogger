@@ -17,6 +17,12 @@ export default defineConfig(({ mode }) => ({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/mfp/, ""),
       },
+      "/neon-auth": {
+        target: "https://ep-super-butterfly-b1u1cypj.neonauth.c-5.eu-central-1.aws.neon.tech",
+        changeOrigin: true,
+        secure: true,
+        rewrite: (p) => p.replace(/^\/neon-auth/, "/neondb/auth"),
+      },
     },
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),

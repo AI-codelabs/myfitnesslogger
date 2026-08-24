@@ -6,9 +6,18 @@ import { createAuthClient } from "@neondatabase/neon-js/auth";
 import { SupabaseAuthAdapter } from "@neondatabase/neon-js/auth/vanilla/adapters";
 import type { Database } from "./types";
 
-const NEON_AUTH_URL =
+const NEON_AUTH_UPSTREAM =
   import.meta.env.VITE_NEON_AUTH_URL ??
   "https://ep-super-butterfly-b1u1cypj.neonauth.c-5.eu-central-1.aws.neon.tech/neondb/auth";
+
+/**
+ * Browser auth must be same-origin. Neon sets a `__Secure-neon-auth.session_token`
+ * cookie on the auth host; iPhone Safari drops that third-party cookie, then
+ * sign-in succeeds in the DB but `getSession()` throws "Failed to retrieve user session".
+ * `/neon-auth` is rewritten to the Neon Auth URL (Vercel + Vite).
+ */
+const NEON_AUTH_URL =
+  typeof window !== "undefined" ? `${window.location.origin}/neon-auth` : NEON_AUTH_UPSTREAM;
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;

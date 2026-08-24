@@ -21,6 +21,27 @@ const SETUP_ERRORS: Record<string, string> = {
   account_not_found: "Account not found",
 };
 
+function isMissingSessionError(err: unknown) {
+  return err instanceof Error && /retrieve user session/i.test(err.message);
+}
+
+async function waitForSession(attempts = 8) {
+  for (let i = 0; i < attempts; i++) {
+    const { data } = await supabase.auth.getSession();
+    if (data.session?.user) return true;
+    await new Promise((r) => setTimeout(r, 150));
+  }
+  return false;
+}
+
+async function signInWithRetry(email: string, password: string) {
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  if (!error) return;
+  if (!isMissingSessionError(error)) throw error;
+  if (await waitForSession()) return;
+  throw error;
+}
+
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -34,8 +55,12 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) {
+      try {
+        await signInWithRetry(email, password);
+        notifySignIn();
+        navigate("/");
+        return;
+      } catch (signInErr) {
         const check = await fetch("/api/auth/migrated-password", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -49,10 +74,8 @@ export default function Login() {
           });
           return;
         }
-        throw error;
+        throw signInErr;
       }
-      notifySignIn();
-      navigate("/");
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Login failed");
     } finally {
@@ -78,14 +101,22 @@ export default function Login() {
         const code = typeof payload.error === "string" ? payload.error : "";
         throw new Error(SETUP_ERRORS[code] || "Could not save password");
       }
-      const { error } = await supabase.auth.signInWithPassword({
-        email: setup.email,
-        password: nextPassword,
-      });
-      if (error) throw error;
-      setSetup(null);
-      notifySignIn();
-      navigate("/");
+      setPassword(nextPassword);
+      setEmail(setup.email);
+      try {
+        await signInWithRetry(setup.email, nextPassword);
+        setSetup(null);
+        notifySignIn();
+        navigate("/");
+        return;
+      } catch (signInErr) {
+        if (isMissingSessionError(signInErr)) {
+          setSetup(null);
+          toast.success("Password saved. Tap Sign In.");
+          return;
+        }
+        throw signInErr;
+      }
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Could not save password");
     } finally {
