@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { apiGet } from "@/lib/dataApi";
+import { apiGet, ApiError } from "@/lib/dataApi";
+import { ensureAccessToken, setCachedAccessToken } from "@/lib/authToken";
 import { getExpectedCheckinWeekStart } from "@/lib/weeklyCheckin";
 import type { ClientGoal } from "@/lib/clientGoal";
 import { complianceFromLogDates, type ComplianceStats } from "@/lib/nutritionCompliance";
@@ -72,21 +73,41 @@ export function ClientHomeProvider({
     setLoading(true);
     const weekStart = getExpectedCheckinWeekStart();
     const today = todayKey();
-    void apiGet<BootstrapPayload>("home/client", { weekStart, today })
-      .then((payload) => {
+
+    const load = async () => {
+      await ensureAccessToken();
+      try {
+        const payload = await apiGet<BootstrapPayload>("home/client", { weekStart, today });
         if (cancelled) return;
         setData({
           ...payload,
           compliance: complianceFromLogDates(payload.nutritionLogDates ?? []),
         });
-      })
-      .catch((err) => {
-        console.error("[home/client] bootstrap failed", err);
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 401) {
+          setCachedAccessToken(null);
+          await ensureAccessToken();
+          try {
+            const payload = await apiGet<BootstrapPayload>("home/client", { weekStart, today });
+            if (cancelled) return;
+            setData({
+              ...payload,
+              compliance: complianceFromLogDates(payload.nutritionLogDates ?? []),
+            });
+            return;
+          } catch (retryErr) {
+            console.error("[home/client] bootstrap retry failed", retryErr);
+          }
+        } else {
+          console.error("[home/client] bootstrap failed", err);
+        }
         if (!cancelled) setData(null);
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setLoading(false);
-      });
+      }
+    };
+
+    void load();
     return () => {
       cancelled = true;
     };

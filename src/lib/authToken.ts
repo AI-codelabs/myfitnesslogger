@@ -7,6 +7,8 @@
  * Never cache a non-JWT or API calls 401 and the home screen goes empty.
  */
 
+import { supabase } from "@/integrations/supabase/client";
+
 let cachedJwt: string | null = null;
 let inflightJwt: Promise<string | null> | null = null;
 
@@ -43,34 +45,49 @@ async function fetchJwtFromNeonAuth(): Promise<string | null> {
   }
 }
 
+async function resolveAccessTokenOnce(): Promise<string | null> {
+  if (cachedJwt && looksLikeJwt(cachedJwt)) return cachedJwt;
+
+  const fromEndpoint = await fetchJwtFromNeonAuth();
+  if (fromEndpoint) {
+    cachedJwt = fromEndpoint;
+    return fromEndpoint;
+  }
+
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token ?? null;
+  if (token && looksLikeJwt(token)) {
+    cachedJwt = token;
+    return token;
+  }
+  return null;
+}
+
 export async function getAccessToken(
   getSession: () => Promise<{ data: { session: { access_token?: string } | null } }>,
 ): Promise<string | null> {
   if (cachedJwt && looksLikeJwt(cachedJwt)) return cachedJwt;
 
   if (!inflightJwt) {
-    inflightJwt = (async () => {
-      // Prefer the dedicated JWT endpoint (same-origin cookie session).
-      const fromEndpoint = await fetchJwtFromNeonAuth();
-      if (fromEndpoint) {
-        cachedJwt = fromEndpoint;
-        return fromEndpoint;
-      }
-
-      // Fallback: getSession may already expose a JWT via set-auth-jwt handling.
-      const { data } = await getSession();
-      const token = data.session?.access_token ?? null;
-      if (token && looksLikeJwt(token)) {
-        cachedJwt = token;
-        return token;
-      }
-      return null;
-    })().finally(() => {
+    inflightJwt = resolveAccessTokenOnce().finally(() => {
       inflightJwt = null;
     });
   }
 
   return inflightJwt;
+}
+
+/** Call before the first authenticated API request (login boot, role fetch). */
+export async function ensureAccessToken(maxAttempts = 6): Promise<string | null> {
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const token = await getAccessToken(() => supabase.auth.getSession());
+    if (token) return token;
+    if (attempt < maxAttempts - 1) {
+      await new Promise((r) => setTimeout(r, 120 * (attempt + 1)));
+      cachedJwt = null;
+    }
+  }
+  return null;
 }
 
 export async function authHeaders(
