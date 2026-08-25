@@ -357,7 +357,6 @@ function ClientHomeInner({ lang }: { lang: Lang }) {
   const firstName =
     data?.profile?.first_name ||
     data?.profile?.display_name?.split(" ")[0] ||
-    user?.email?.split("@")[0] ||
     "";
 
   return (

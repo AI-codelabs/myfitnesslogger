@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { db } from "@/lib/db";
-import { setCachedAccessToken } from "@/lib/authToken";
+import { setCachedAccessToken, ensureAccessToken } from "@/lib/authToken";
 
 /** Minimal session/user shapes returned by the Neon SupabaseAuthAdapter. */
 export type AuthUser = {
@@ -78,14 +78,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setCachedAccessToken(next?.access_token ?? null);
 
       if (next?.user) {
-        // Keep loading until role/onboarding resolve so Index does not mount
-        // the client home for a coach (and fire a wasted query storm).
         setLoading(true);
         setRole(null);
         setOnboardingComplete(null);
-        void Promise.all([fetchRole(next.user.id), fetchOnboarding(next.user.id)]).finally(() => {
+        void (async () => {
+          await ensureAccessToken();
+          await Promise.all([fetchRole(next.user.id), fetchOnboarding(next.user.id)]);
           if (applyGen.current === gen) setLoading(false);
-        });
+        })();
       } else {
         setRole(null);
         setOnboardingComplete(null);

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, type AuthSession } from "@/hooks/useAuth";
+import { ensureAccessToken } from "@/lib/authToken";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -55,8 +56,9 @@ export default function Login() {
   const navigate = useNavigate();
   const { acceptSession } = useAuth();
 
-  const finishSignIn = (session: AuthSession) => {
+  const finishSignIn = async (session: AuthSession) => {
     acceptSession(session);
+    await ensureAccessToken();
     navigate("/");
   };
 
@@ -66,7 +68,7 @@ export default function Login() {
     try {
       try {
         const session = await signInWithRetry(email, password);
-        finishSignIn(session);
+        await finishSignIn(session);
         return;
       } catch (signInErr) {
         const check = await fetch("/api/auth/migrated-password", {
