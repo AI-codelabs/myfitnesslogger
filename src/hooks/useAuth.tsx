@@ -74,6 +74,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const gen = ++applyGen.current;
       setSession(next);
       setUser(next?.user ?? null);
+      // Only JWTs are cached; short Better Auth session tokens are ignored.
       setCachedAccessToken(next?.access_token ?? null);
 
       if (next?.user) {
@@ -96,8 +97,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     let cancelled = false;
+    let roleFetchStarted = false;
     const finish = (next: AuthSession | null) => {
       if (cancelled) return;
+      if (next?.user) roleFetchStarted = true;
       applySession(next);
     };
 
@@ -115,8 +118,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
 
     // Never leave the app on a blank white screen if auth hangs (Safari cookie issues).
+    // Do not interrupt an in-flight role fetch — that left role=null and hid the nav.
     const timeout = window.setTimeout(() => {
-      if (!cancelled) {
+      if (!cancelled && !roleFetchStarted) {
         console.warn("[auth] getSession timed out; showing public routes");
         setLoading(false);
       }
