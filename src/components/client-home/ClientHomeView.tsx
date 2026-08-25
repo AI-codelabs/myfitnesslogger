@@ -1,6 +1,4 @@
-import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { listWeightLogs } from "@/lib/api/weight";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,19 +12,16 @@ import {
   Plus,
   Target,
 } from "lucide-react";
-import {
-  getExpectedCheckinWeekStart,
-  isCheckinWindowOpen,
-} from "@/lib/weeklyCheckin";
+import { isCheckinWindowOpen } from "@/lib/weeklyCheckin";
 import { ProgressionSummary } from "@/components/ProgressionSummary";
 import { ClientStartMessageCard } from "@/components/ClientStartMessageCard";
 import heroImage from "@/assets/checkin-hero.jpg";
 import { cn } from "@/lib/utils";
 import { Lang } from "@/lib/onboardingSchema";
-import { fetchActiveGoal, ClientGoal, GOAL_TYPE_LABELS } from "@/lib/clientGoal";
+import { GOAL_TYPE_LABELS } from "@/lib/clientGoal";
 import { NutritionTodayCard } from "@/components/client-home/NutritionTodayCard";
 import { ComplianceCard } from "@/components/client-home/ComplianceCard";
-import { db } from "@/lib/db";
+import { ClientHomeProvider, useClientHome } from "@/lib/clientHome";
 
 const tx = (lang: Lang, nl: string, en: string) => (lang === "nl" ? nl : en);
 
@@ -59,27 +54,10 @@ function startOfWeekMon(d: Date) {
 
 /* ---------------- Hero check-in ---------------- */
 function HeroCheckinCard({ lang }: { lang: Lang }) {
-  const { user } = useAuth();
-  const [submittedAt, setSubmittedAt] = useState<string | null>(null);
-  const [loaded, setLoaded] = useState(false);
-  const weekStart = getExpectedCheckinWeekStart();
+  const { data, loading } = useClientHome();
+  if (loading || !data) return null;
 
-  useEffect(() => {
-    if (!user) return;
-    (async () => {
-      const { data } = await db.from("weekly_checkins")
-        .select("submitted_at")
-        .eq("client_id", user.id)
-        .eq("week_start", weekStart)
-        .maybeSingle();
-      setSubmittedAt(data?.submitted_at ?? null);
-      setLoaded(true);
-    })();
-  }, [user, weekStart]);
-
-  if (!loaded) return null;
-
-  const done = !!submittedAt;
+  const done = !!data.checkinSubmittedAt;
   const title = done
     ? tx(lang, "Check-in ingevuld ✨", "Check-in complete ✨")
     : tx(lang, "New check-in time! 🌟", "New check-in time! 🌟");
@@ -188,40 +166,25 @@ function WeekStrip({ lang }: { lang: Lang }) {
 type Todo = { id: string; title: string; subtitle: string; to: string; done: boolean };
 
 function TodayTodos({ lang }: { lang: Lang }) {
-  const { user } = useAuth();
-  const [todos, setTodos] = useState<Todo[] | null>(null);
+  const { data, loading } = useClientHome();
   const showCheckin = isCheckinWindowOpen();
 
-  useEffect(() => {
-    if (!user) return;
-    (async () => {
-      const list: Todo[] = [];
+  if (loading || !data) return null;
 
-      const todayKey = toKey(new Date());
-      const { data: todaySessions } = await db
-        .from("workout_sessions")
-        .select("id, completed_at")
-        .eq("client_id", user.id)
-        .eq("scheduled_date", todayKey);
+  const todos: Todo[] = [];
+  if (data.todaySessions.length > 0) {
+    const done = data.todaySessions.some((s) => s.completed_at);
+    todos.push({
+      id: "workout",
+      title: tx(lang, "Training van vandaag", "Today's workout"),
+      subtitle: done
+        ? tx(lang, "Voltooid — goed bezig!", "Completed — nice work!")
+        : tx(lang, "Nog te loggen", "Not logged yet"),
+      to: "/training",
+      done,
+    });
+  }
 
-      if (todaySessions && todaySessions.length > 0) {
-        const done = todaySessions.some((s) => s.completed_at);
-        list.push({
-          id: "workout",
-          title: tx(lang, "Training van vandaag", "Today's workout"),
-          subtitle: done
-            ? tx(lang, "Voltooid — goed bezig!", "Completed — nice work!")
-            : tx(lang, "Nog te loggen", "Not logged yet"),
-          to: "/training",
-          done,
-        });
-      }
-
-      setTodos(list);
-    })();
-  }, [user, lang]);
-
-  if (!todos) return null;
   const isEmpty = todos.length === 0 && !showCheckin;
 
   return (
@@ -286,24 +249,11 @@ function TodayTodos({ lang }: { lang: Lang }) {
 
 /* ---------------- Goals ---------------- */
 function GoalsSection({ lang }: { lang: Lang }) {
-  const { user } = useAuth();
-  const [goal, setGoal] = useState<ClientGoal | null>(null);
-  const [latestWeight, setLatestWeight] = useState<number | null>(null);
-  const [loaded, setLoaded] = useState(false);
+  const { data, loading } = useClientHome();
+  if (loading || !data) return null;
 
-  useEffect(() => {
-    if (!user) return;
-    (async () => {
-      const g = await fetchActiveGoal(user.id);
-      setGoal(g);
-      const logs = await listWeightLogs(user.id, { limit: 1 }).catch(() => []);
-      setLatestWeight(logs[0]?.weight_kg ?? null);
-
-      setLoaded(true);
-    })();
-  }, [user]);
-
-  if (!loaded) return null;
+  const goal = data.goal;
+  const latestWeight = data.latestWeightKg;
 
   return (
     <section className="mb-6">
@@ -401,26 +351,14 @@ function QuickActions({ lang }: { lang: Lang }) {
 }
 
 /* ---------------- Main view ---------------- */
-export function ClientHomeView({ lang }: { lang: Lang }) {
+function ClientHomeInner({ lang }: { lang: Lang }) {
   const { user } = useAuth();
-  const [firstName, setFirstName] = useState<string>("");
-
-  useEffect(() => {
-    if (!user) return;
-    (async () => {
-      const { data } = await db
-        .from("profiles")
-        .select("first_name, display_name")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      const name =
-        data?.first_name ||
-        data?.display_name?.split(" ")[0] ||
-        user.email?.split("@")[0] ||
-        "";
-      setFirstName(name);
-    })();
-  }, [user]);
+  const { data } = useClientHome();
+  const firstName =
+    data?.profile?.first_name ||
+    data?.profile?.display_name?.split(" ")[0] ||
+    user?.email?.split("@")[0] ||
+    "";
 
   return (
     <>
@@ -440,6 +378,15 @@ export function ClientHomeView({ lang }: { lang: Lang }) {
       <QuickActions lang={lang} />
       <ProgressionSummary lang={lang} />
     </>
+  );
+}
+
+export function ClientHomeView({ lang }: { lang: Lang }) {
+  const { user } = useAuth();
+  return (
+    <ClientHomeProvider userId={user?.id}>
+      <ClientHomeInner lang={lang} />
+    </ClientHomeProvider>
   );
 }
 

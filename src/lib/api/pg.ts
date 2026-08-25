@@ -3,6 +3,7 @@
 // with the same row-level security rules.
 
 import { supabase } from "@/integrations/supabase/client";
+import { authHeaders } from "@/lib/authToken";
 
 type Filter = { op: string; column: string; value: unknown };
 type Order = { column: string; ascending: boolean };
@@ -11,9 +12,7 @@ export type Result<T> = { data: T; error: { message: string } | null; count?: nu
 type Action = "select" | "insert" | "upsert" | "update" | "delete";
 
 async function authHeader(): Promise<Record<string, string>> {
-  const { data } = await supabase.auth.getSession();
-  const token = data.session?.access_token;
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  return authHeaders(() => supabase.auth.getSession());
 }
 
 class PgQuery<T = unknown> implements PromiseLike<Result<T>> {

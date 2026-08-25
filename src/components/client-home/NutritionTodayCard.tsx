@@ -1,12 +1,10 @@
-import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { ArrowRight, Flame } from "lucide-react";
 import { Lang } from "@/lib/onboardingSchema";
 import { cn } from "@/lib/utils";
-import { db } from "@/lib/db";
+import { useClientHome } from "@/lib/clientHome";
 
 const tx = (lang: Lang, nl: string, en: string) => (lang === "nl" ? nl : en);
 
@@ -21,11 +19,6 @@ interface Consumed {
   protein_g: number;
   carbs_g: number;
   fat_g: number;
-}
-
-function todayKey() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 function MacroRow({
@@ -65,57 +58,25 @@ function MacroRow({
 }
 
 export function NutritionTodayCard({ lang }: { lang: Lang }) {
-  const { user } = useAuth();
-  const [targets, setTargets] = useState<Targets | null>(null);
-  const [consumed, setConsumed] = useState<Consumed>({
-    calories: 0,
-    protein_g: 0,
-    carbs_g: 0,
-    fat_g: 0,
-  });
-  const [loaded, setLoaded] = useState(false);
+  const { data, loading } = useClientHome();
+  if (loading || !data) return null;
 
-  useEffect(() => {
-    if (!user) return;
-    (async () => {
-      const [{ data: plan }, { data: log }] = await Promise.all([
-        db
-          .from("nutrition_plans")
-          .select("details")
-          .eq("client_id", user.id)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle(),
-        db
-          .from("cronometer_nutrition_logs")
-          .select("calories, protein_g, carbs_g, fat_g")
-          .eq("client_id", user.id)
-          .eq("log_date", todayKey())
-          .maybeSingle(),
-      ]);
+  const d = (data.nutritionPlanDetails as any) ?? null;
+  if (!d || !d.calories) return null;
 
-      const d = (plan?.details as any) ?? null;
-      if (d && d.calories) {
-        setTargets({
-          calories: Number(d.calories) || 0,
-          protein_g: Number(d.protein_g) || 0,
-          carbs_g: Number(d.carbs_g) || 0,
-          fat_g: Number(d.fat_g) || 0,
-        });
-      }
-      if (log) {
-        setConsumed({
-          calories: Number(log.calories) || 0,
-          protein_g: Number(log.protein_g) || 0,
-          carbs_g: Number(log.carbs_g) || 0,
-          fat_g: Number(log.fat_g) || 0,
-        });
-      }
-      setLoaded(true);
-    })();
-  }, [user]);
-
-  if (!loaded || !targets) return null;
+  const targets: Targets = {
+    calories: Number(d.calories) || 0,
+    protein_g: Number(d.protein_g) || 0,
+    carbs_g: Number(d.carbs_g) || 0,
+    fat_g: Number(d.fat_g) || 0,
+  };
+  const log = data.nutritionToday;
+  const consumed: Consumed = {
+    calories: Number(log?.calories) || 0,
+    protein_g: Number(log?.protein_g) || 0,
+    carbs_g: Number(log?.carbs_g) || 0,
+    fat_g: Number(log?.fat_g) || 0,
+  };
 
   const kcalLeft = Math.max(0, Math.round(targets.calories - consumed.calories));
   const kcalPct =

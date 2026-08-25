@@ -34,14 +34,9 @@ function computeStreak(daysSet: Set<string>): number {
   return streak;
 }
 
-export async function fetchCompliance(clientId: string, days = 30): Promise<ComplianceStats> {
-  const since = daysAgoKey(days - 1);
-  const { data } = await db
-    .from("cronometer_nutrition_logs")
-    .select("log_date")
-    .eq("client_id", clientId)
-    .gte("log_date", since);
-  const daysSet = new Set<string>((data ?? []).map((r: any) => r.log_date));
+/** Build compliance stats from a list of log_date strings (e.g. home bootstrap). */
+export function complianceFromLogDates(logDates: string[]): ComplianceStats {
+  const daysSet = new Set(logDates);
   const cutoff7 = daysAgoKey(6);
   let loggedLast7 = 0;
   daysSet.forEach((d) => {
@@ -53,6 +48,16 @@ export async function fetchCompliance(clientId: string, days = 30): Promise<Comp
     loggedLast7,
     loggedLast30: daysSet.size,
   };
+}
+
+export async function fetchCompliance(clientId: string, days = 30): Promise<ComplianceStats> {
+  const since = daysAgoKey(days - 1);
+  const { data } = await db
+    .from("cronometer_nutrition_logs")
+    .select("log_date")
+    .eq("client_id", clientId)
+    .gte("log_date", since);
+  return complianceFromLogDates((data ?? []).map((r: { log_date: string }) => r.log_date));
 }
 
 /** Batch fetch last-7-day logged counts for many clients (coach dashboard). */

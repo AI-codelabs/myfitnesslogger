@@ -1,38 +1,22 @@
-import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Flame, TrendingDown, TrendingUp, Minus, Target } from "lucide-react";
-import { fetchActiveGoal, judgeWeightChange, type ClientGoal, GOAL_TYPE_LABELS } from "@/lib/clientGoal";
-import { db } from "@/lib/db";
+import { judgeWeightChange, GOAL_TYPE_LABELS } from "@/lib/clientGoal";
+import { useClientHome } from "@/lib/clientHome";
 
 interface Props {
   lang: "nl" | "en";
 }
 
-type Row = { week_start: string; weight_kg: number | null; body_fat_pct: number | null };
-
-
-
-
 export function ProgressionSummary({ lang }: Props) {
-  const { user } = useAuth();
+  const { data, loading } = useClientHome();
   const navigate = useNavigate();
-  const [rows, setRows] = useState<Row[]>([]);
-  const [goal, setGoal] = useState<ClientGoal | null>(null);
 
-  useEffect(() => {
-    if (!user) return;
-    (async () => {
-      const { data } = await db.from("weekly_checkins")
-        .select("week_start,weight_kg,body_fat_pct")
-        .eq("client_id", user.id)
-        .order("week_start", { ascending: true });
-      setRows((data as Row[]) ?? []);
-      setGoal(await fetchActiveGoal(user.id));
-    })();
-  }, [user?.id]);
+  if (loading || !data) return null;
+
+  const rows = data.progressionCheckins;
+  const goal = data.goal;
 
   const w = rows.filter((r) => r.weight_kg != null);
   const f = rows.filter((r) => r.body_fat_pct != null);
@@ -95,7 +79,6 @@ export function ProgressionSummary({ lang }: Props) {
             )}
           </div>
         </Card>
-
 
         <Card className="p-4 relative overflow-hidden">
           <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full bg-gradient-to-br from-emerald-500/15 to-emerald-500/5 blur-xl opacity-60" />

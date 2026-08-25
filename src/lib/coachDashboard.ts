@@ -1,8 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { getExpectedCheckinWeekStart, getWeekStart } from "./weeklyCheckin";
 import type { GoalType } from "./clientGoal";
-import { db } from "@/lib/db";
-
+import { apiGet } from "@/lib/dataApi";
 
 export type DashCheckin = {
   id: string;
@@ -76,111 +75,78 @@ export function useCoachDashboardData(coachId: string | undefined) {
     setLoading(true);
     const weekStart = getExpectedCheckinWeekStart();
 
-    const { data: invs } = await db
-      .from("invitations")
-      .select(
-        "id, email, status, accepted_user_id, accepted_at, created_at, coaching_start_date, coaching_end_date",
-      )
-      .eq("coach_id", coachId);
+    try {
+      const payload = await apiGet<{
+        invitations: {
+          id: string;
+          email: string;
+          status: string;
+          accepted_user_id: string | null;
+          accepted_at: string | null;
+          created_at: string;
+          coaching_start_date: string | null;
+          coaching_end_date: string | null;
+        }[];
+        pendingInvites: PendingInvite[];
+        profiles: {
+          user_id: string;
+          display_name: string | null;
+          first_name: string | null;
+          last_name: string | null;
+        }[];
+        onboarding: {
+          user_id: string;
+          completed_at: string | null;
+          primary_goal: string | null;
+        }[];
+        goals: {
+          client_id: string;
+          goal_type: string;
+          goal_weight_kg: number | null;
+          weekly_drift_tolerance_kg: number | null;
+        }[];
+        checkins: DashCheckin[];
+        messages: DashMessage[];
+        reviews: DashReview[];
+      }>("coach/dashboard", { weekStart });
 
-    const accepted = (invs ?? []).filter(
-      (i: any) =>
-        i.accepted_user_id &&
-        ["onboarding", "active", "accepted", "inactive"].includes(i.status),
-    );
-    const pendingInvites: PendingInvite[] = (invs ?? [])
-      .filter((i: any) => i.status === "pending")
-      .map((i: any) => ({ id: i.id, email: i.email, created_at: i.created_at }));
+      const clients: DashClient[] = (payload.invitations ?? []).map((inv) => {
+        const p = (payload.profiles ?? []).find((x) => x.user_id === inv.accepted_user_id);
+        const ob = (payload.onboarding ?? []).find((x) => x.user_id === inv.accepted_user_id);
+        const g = (payload.goals ?? []).find((x) => x.client_id === inv.accepted_user_id);
+        return {
+          user_id: inv.accepted_user_id!,
+          display_name: p?.display_name ?? null,
+          first_name: p?.first_name ?? null,
+          last_name: p?.last_name ?? null,
+          email: inv.email,
+          invitation_status: inv.status,
+          accepted_at: inv.accepted_at,
+          primary_goal: ob?.primary_goal ?? null,
+          active_goal_type: (g?.goal_type as GoalType | undefined) ?? null,
+          active_goal_weight_kg: g?.goal_weight_kg != null ? Number(g.goal_weight_kg) : null,
+          active_goal_tolerance_kg:
+            g?.weekly_drift_tolerance_kg != null ? Number(g.weekly_drift_tolerance_kg) : null,
+          onboarding_completed: !!ob?.completed_at,
+          coaching_start_date: inv.coaching_start_date ?? null,
+          coaching_end_date: inv.coaching_end_date ?? null,
+        };
+      });
 
-    const clientIds = accepted.map((i: any) => i.accepted_user_id);
-
-    if (clientIds.length === 0) {
       setData({
-        clients: [],
-        checkins: [],
-        messages: [],
-        reviews: [],
-        pendingInvites,
+        clients,
+        checkins: (payload.checkins ?? []) as DashCheckin[],
+        messages: (payload.messages ?? []) as DashMessage[],
+        reviews: (payload.reviews ?? []) as DashReview[],
+        pendingInvites: payload.pendingInvites ?? [],
         weekStart,
       });
+    } catch (err) {
+      console.error("[coach/dashboard] bootstrap failed", err);
+      setData(null);
+    } finally {
       setLoading(false);
-      return;
     }
-
-    // Lookback 8 weeks for risk + activity
-    const lookback = new Date();
-    lookback.setDate(lookback.getDate() - 7 * 8);
-    const lookbackIso = lookback.toISOString().slice(0, 10);
-
-    const [profilesRes, onboardingRes, goalsRes, checkinsRes, msgsRes, reviewsRes] =
-      await Promise.all([
-        db
-          .from("profiles")
-          .select("user_id, display_name, first_name, last_name")
-          .in("user_id", clientIds),
-        db
-          .from("onboarding_responses")
-          .select("user_id, completed_at, primary_goal")
-          .in("user_id", clientIds),
-        db
-          .from("client_goals")
-          .select("client_id, goal_type, goal_weight_kg, weekly_drift_tolerance_kg, is_active, created_at")
-          .in("client_id", clientIds)
-          .eq("is_active", true),
-        db.from("weekly_checkins")
-          .select(
-            "id, client_id, week_start, submitted_at, feeling, energy, progression, nutrition_stars, supplements_consistency, weight_kg, obstacles, progress_feeling, cravings, other_notes",
-          )
-          .in("client_id", clientIds)
-          .gte("week_start", lookbackIso)
-          .order("week_start", { ascending: false }),
-        db
-          .from("coach_messages")
-          .select("client_id, published_at, generated_at")
-          .eq("coach_id", coachId)
-          .in("client_id", clientIds),
-        db.from("weekly_review_drafts")
-          .select("client_id, week_start, published_at")
-          .eq("coach_id", coachId)
-          .in("client_id", clientIds),
-      ]);
-
-    const profiles = (profilesRes.data ?? []) as any[];
-    const onboarding = (onboardingRes.data ?? []) as any[];
-    const goals = (goalsRes.data ?? []) as any[];
-
-    const clients: DashClient[] = accepted.map((inv: any) => {
-      const p = profiles.find((x) => x.user_id === inv.accepted_user_id);
-      const ob = onboarding.find((x) => x.user_id === inv.accepted_user_id);
-      const g = goals.find((x) => x.client_id === inv.accepted_user_id);
-      return {
-        user_id: inv.accepted_user_id,
-        display_name: p?.display_name ?? null,
-        first_name: p?.first_name ?? null,
-        last_name: p?.last_name ?? null,
-        email: inv.email,
-        invitation_status: inv.status,
-        accepted_at: inv.accepted_at,
-        primary_goal: ob?.primary_goal ?? null,
-        active_goal_type: (g?.goal_type as GoalType | undefined) ?? null,
-        active_goal_weight_kg: g?.goal_weight_kg != null ? Number(g.goal_weight_kg) : null,
-        active_goal_tolerance_kg: g?.weekly_drift_tolerance_kg != null ? Number(g.weekly_drift_tolerance_kg) : null,
-        onboarding_completed: !!ob?.completed_at,
-        coaching_start_date: inv.coaching_start_date ?? null,
-        coaching_end_date: inv.coaching_end_date ?? null,
-      };
-    });
-
-
-    setData({
-      clients,
-      checkins: (checkinsRes.data ?? []) as DashCheckin[],
-      messages: (msgsRes.data ?? []) as DashMessage[],
-      reviews: (reviewsRes.data ?? []) as DashReview[],
-      pendingInvites,
-      weekStart,
-    });
-    setLoading(false);
   }, [coachId]);
 
   useEffect(() => {

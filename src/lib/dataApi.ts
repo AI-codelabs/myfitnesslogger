@@ -5,6 +5,7 @@
 // Everything else keeps using the legacy client until its turn comes.
 
 import { supabase } from "@/integrations/supabase/client";
+import { authHeaders } from "@/lib/authToken";
 
 export type NeonFeature =
   | "weight"
@@ -30,9 +31,7 @@ export class ApiError extends Error {
 }
 
 async function authHeader(): Promise<Record<string, string>> {
-  const { data } = await supabase.auth.getSession();
-  const token = data.session?.access_token;
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  return authHeaders(() => supabase.auth.getSession());
 }
 
 /** Calls a serverless endpoint and unwraps its { data } envelope. */

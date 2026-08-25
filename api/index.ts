@@ -28,6 +28,8 @@ import uploadUrl from "./_routes/storage/upload-url.js";
 import weightDelete from "./_routes/weight/delete.js";
 import weightList from "./_routes/weight/list.js";
 import weightLog from "./_routes/weight/log.js";
+import homeClient from "./_routes/home/client.js";
+import coachDashboard from "./_routes/coach/dashboard.js";
 
 type Handler = (req: VercelRequest, res: VercelResponse) => unknown;
 
@@ -60,6 +62,8 @@ const routes: Record<string, Handler> = {
   "weight/delete": weightDelete,
   "weight/list": weightList,
   "weight/log": weightLog,
+  "home/client": homeClient,
+  "coach/dashboard": coachDashboard,
 };
 
 function routeKey(req: VercelRequest): string {
