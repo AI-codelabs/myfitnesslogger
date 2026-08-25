@@ -1,6 +1,9 @@
 import { getPool, type SqlClient } from "./db.js";
 import type { AuthUser } from "./auth.js";
 
+/** Per warm isolate: skip upserts after the first successful ensure for a user. */
+const ensuredAuthUsers = new Set<string>();
+
 /**
  * Neon Auth stores identity in `neon_auth.*`. App FKs still reference
  * `auth.users`, so we upsert the JWT subject before RLS impersonation.
@@ -8,6 +11,8 @@ import type { AuthUser } from "./auth.js";
  * Neon JWTs cannot carry custom role claims.
  */
 async function ensureAuthUser(client: SqlClient, user: AuthUser): Promise<void> {
+  if (ensuredAuthUsers.has(user.id)) return;
+
   const meta = user.userMetadata ?? {};
   const displayName =
     (typeof meta.display_name === "string" && meta.display_name.trim()) ||
@@ -47,6 +52,8 @@ async function ensureAuthUser(client: SqlClient, user: AuthUser): Promise<void> 
       [user.id, role],
     );
   }
+
+  ensuredAuthUsers.add(user.id);
 }
 
 /**

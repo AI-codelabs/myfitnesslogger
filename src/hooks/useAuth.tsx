@@ -1,6 +1,7 @@
-import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from "react";
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { db } from "@/lib/db";
+import { setCachedAccessToken } from "@/lib/authToken";
 
 /** Minimal session/user shapes returned by the Neon SupabaseAuthAdapter. */
 export type AuthUser = {
@@ -44,6 +45,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [role, setRole] = useState<Role>(null);
   const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
+  const applyGen = useRef(0);
 
   const fetchRole = async (uid: string) => {
     const { data } = await db
@@ -69,16 +71,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const applySession = useCallback(
     (next: AuthSession | null) => {
+      const gen = ++applyGen.current;
       setSession(next);
       setUser(next?.user ?? null);
+      setCachedAccessToken(next?.access_token ?? null);
+
       if (next?.user) {
-        void fetchRole(next.user.id);
-        void fetchOnboarding(next.user.id);
+        // Keep loading until role/onboarding resolve so Index does not mount
+        // the client home for a coach (and fire a wasted query storm).
+        setLoading(true);
+        setRole(null);
+        setOnboardingComplete(null);
+        void Promise.all([fetchRole(next.user.id), fetchOnboarding(next.user.id)]).finally(() => {
+          if (applyGen.current === gen) setLoading(false);
+        });
       } else {
         setRole(null);
         setOnboardingComplete(null);
+        setLoading(false);
       }
-      setLoading(false);
     },
     [fetchOnboarding],
   );
@@ -120,6 +131,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [applySession]);
 
   const signOut = async () => {
+    setCachedAccessToken(null);
     await supabase.auth.signOut();
   };
 

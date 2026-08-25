@@ -1,27 +1,17 @@
-import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Flame, Apple } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
 import { Lang } from "@/lib/onboardingSchema";
 import { cn } from "@/lib/utils";
-import {
-  fetchCompliance,
-  buildHeatmap,
-  ComplianceStats,
-} from "@/lib/nutritionCompliance";
+import { buildHeatmap } from "@/lib/nutritionCompliance";
+import { useClientHome } from "@/lib/clientHome";
 
 const tx = (lang: Lang, nl: string, en: string) => (lang === "nl" ? nl : en);
 
 export function ComplianceCard({ lang }: { lang: Lang }) {
-  const { user } = useAuth();
-  const [stats, setStats] = useState<ComplianceStats | null>(null);
+  const { data, loading } = useClientHome();
+  if (loading || !data) return null;
 
-  useEffect(() => {
-    if (!user) return;
-    fetchCompliance(user.id, 30).then(setStats);
-  }, [user]);
-
-  if (!stats) return null;
+  const stats = data.compliance;
   // Hide entirely if the client has never logged — avoids empty noise pre-connection.
   if (stats.loggedLast30 === 0 && stats.currentStreak === 0) return null;
 
@@ -64,9 +54,7 @@ export function ComplianceCard({ lang }: { lang: Lang }) {
               title={d.date}
               className={cn(
                 "aspect-square rounded-[3px]",
-                d.logged
-                  ? "bg-emerald-500"
-                  : "bg-muted",
+                d.logged ? "bg-emerald-500" : "bg-muted",
               )}
             />
           ))}

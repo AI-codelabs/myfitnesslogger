@@ -7,6 +7,7 @@
 // it falls back to the legacy edge function.
 
 import { supabase } from "@/integrations/supabase/client";
+import { authHeaders } from "@/lib/authToken";
 
 /** Legacy edge function name -> ported endpoint path. */
 export const FUNCTION_ROUTES: Record<string, string> = {
@@ -48,15 +49,14 @@ export async function invokeFn<T = any>(
     return { data: (res.data ?? null) as T | null, error: res.error ?? null };
   }
 
-  const { data: session } = await supabase.auth.getSession();
-  const token = session.session?.access_token;
+  const headers = await authHeaders(() => supabase.auth.getSession());
 
   try {
     const res = await fetch(path, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...headers,
         ...(options?.headers ?? {}),
       },
       body: JSON.stringify(options?.body ?? {}),

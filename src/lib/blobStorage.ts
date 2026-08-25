@@ -4,6 +4,7 @@
 
 import { upload } from "@vercel/blob/client";
 import { supabase } from "@/integrations/supabase/client";
+import { authHeaders } from "@/lib/authToken";
 import {
   isBlobUrl,
   isHttpUrl,
@@ -30,9 +31,7 @@ export {
 const objectUrlCache = new Map<string, string>();
 
 async function authHeader(): Promise<Record<string, string>> {
-  const { data } = await supabase.auth.getSession();
-  const token = data.session?.access_token;
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  return authHeaders(() => supabase.auth.getSession());
 }
 
 async function currentUserId(): Promise<string> {

@@ -1,8 +1,7 @@
-import { useEffect, useState } from "react";
-import { useAuth } from "@/hooks/useAuth";
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { CheckCircle2, AlertTriangle, Target, ChevronDown, LucideIcon } from "lucide-react";
-import { db } from "@/lib/db";
+import { useClientHome } from "@/lib/clientHome";
 
 interface Msg {
   voice_memo: string;
@@ -67,39 +66,22 @@ function SectionCard({
 }
 
 export function ClientStartMessageCard({ lang }: { lang: "nl" | "en" }) {
-  const { user } = useAuth();
-  const [msg, setMsg] = useState<Msg | null>(null);
-  const [source, setSource] = useState<"start" | "weekly">("start");
+  const { data, loading } = useClientHome();
+  if (loading || !data) return null;
 
-  useEffect(() => {
-    if (!user) return;
-    (async () => {
-      // Prefer the most recent published weekly review; fall back to the
-      // one-time start message if no weekly review has been published yet.
-      const { data: weekly } = await db.from("weekly_review_drafts")
-        .select("voice_memo, client_positive, client_attention, client_actions, published_at, week_start")
-        .eq("client_id", user.id)
-        .not("published_at", "is", null)
-        .order("week_start", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (weekly) {
-        setMsg(weekly as unknown as Msg);
-        setSource("weekly");
-        return;
-      }
-      const { data: start } = await db
-        .from("coach_messages")
-        .select("voice_memo, client_positive, client_attention, client_actions, published_at")
-        .eq("client_id", user.id)
-        .not("published_at", "is", null)
-        .maybeSingle();
-      setMsg(start as Msg | null);
-      setSource("start");
-    })();
-  }, [user]);
+  const weekly = data.weeklyMessage;
+  const start = data.startMessage;
+  const raw = weekly ?? start;
+  if (!raw || !raw.published_at) return null;
 
-  if (!msg || !msg.published_at) return null;
+  const msg: Msg = {
+    voice_memo: raw.voice_memo ?? "",
+    client_positive: (raw.client_positive as string[]) ?? [],
+    client_attention: (raw.client_attention as string[]) ?? [],
+    client_actions: (raw.client_actions as string[]) ?? [],
+    published_at: raw.published_at,
+  };
+  const source: "start" | "weekly" = weekly ? "weekly" : "start";
 
   const tx = (nl: string, en: string) => (lang === "nl" ? nl : en);
   const countLabel = tx("punten", "points");

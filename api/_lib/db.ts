@@ -9,7 +9,9 @@ export function getPool(): pg.Pool {
     if (!connectionString) throw new Error("DATABASE_URL is not set");
     pool = new pg.Pool({
       connectionString,
-      max: 1,
+      // Home/dashboard fire many parallel /api/pg/query calls. max:1 forced
+      // them to queue behind ensureAuthUser + SELECT on a single connection.
+      max: 5,
       idleTimeoutMillis: 10_000,
       connectionTimeoutMillis: 10_000,
       ssl: { rejectUnauthorized: false },
