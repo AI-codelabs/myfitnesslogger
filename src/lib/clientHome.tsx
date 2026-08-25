@@ -63,7 +63,11 @@ export function ClientHomeProvider({
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId) {
+      setData(null);
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
     setLoading(true);
     const weekStart = getExpectedCheckinWeekStart();
