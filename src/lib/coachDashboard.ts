@@ -1,7 +1,118 @@
 import { useEffect, useState, useCallback } from "react";
 import { getExpectedCheckinWeekStart, getWeekStart } from "./weeklyCheckin";
 import type { GoalType } from "./clientGoal";
-import { apiGet } from "@/lib/dataApi";
+import { apiGet, usesNeon } from "@/lib/dataApi";
+import { db } from "@/lib/db";
+
+type DashboardPayload = {
+  invitations: {
+    id: string;
+    email: string;
+    status: string;
+    accepted_user_id: string | null;
+    accepted_at: string | null;
+    created_at: string;
+    coaching_start_date: string | null;
+    coaching_end_date: string | null;
+  }[];
+  pendingInvites: { id: string; email: string; created_at: string }[];
+  profiles: {
+    user_id: string;
+    display_name: string | null;
+    first_name: string | null;
+    last_name: string | null;
+  }[];
+  onboarding: { user_id: string; completed_at: string | null; primary_goal: string | null }[];
+  goals: {
+    client_id: string;
+    goal_type: string;
+    goal_weight_kg: number | null;
+    weekly_drift_tolerance_kg: number | null;
+  }[];
+  checkins: DashCheckin[];
+  messages: DashMessage[];
+  reviews: DashReview[];
+};
+
+/** Legacy (Lovable Cloud) coach bootstrap — mirrors the /api/coach/dashboard route. */
+async function fetchLegacyDashboard(coachId: string): Promise<DashboardPayload> {
+  const { data: invRows } = await db
+    .from("invitations")
+    .select(
+      "id, email, status, accepted_user_id, accepted_at, created_at, coaching_start_date, coaching_end_date",
+    )
+    .eq("coach_id", coachId);
+
+  const invs = (invRows ?? []) as DashboardPayload["invitations"];
+  const accepted = invs.filter(
+    (i) =>
+      i.accepted_user_id && ["onboarding", "active", "accepted", "inactive"].includes(i.status),
+  );
+  const pendingInvites = invs
+    .filter((i) => i.status === "pending")
+    .map((i) => ({ id: i.id, email: i.email, created_at: i.created_at }));
+  const clientIds = accepted.map((i) => i.accepted_user_id).filter((id): id is string => !!id);
+
+  if (clientIds.length === 0) {
+    return {
+      invitations: accepted,
+      pendingInvites,
+      profiles: [],
+      onboarding: [],
+      goals: [],
+      checkins: [],
+      messages: [],
+      reviews: [],
+    };
+  }
+
+  const lookback = new Date();
+  lookback.setDate(lookback.getDate() - 7 * 8);
+  const lookbackIso = lookback.toISOString().slice(0, 10);
+
+  const [profiles, onboarding, goals, checkins, messages, reviews] = await Promise.all([
+    db.from("profiles").select("user_id, display_name, first_name, last_name").in("user_id", clientIds),
+    db
+      .from("onboarding_responses")
+      .select("user_id, completed_at, primary_goal")
+      .in("user_id", clientIds),
+    db
+      .from("client_goals")
+      .select("client_id, goal_type, goal_weight_kg, weekly_drift_tolerance_kg, is_active, created_at")
+      .in("client_id", clientIds)
+      .eq("is_active", true),
+    db
+      .from("weekly_checkins")
+      .select(
+        "id, client_id, week_start, submitted_at, feeling, energy, progression, nutrition_stars, supplements_consistency, weight_kg, obstacles, progress_feeling, cravings, other_notes",
+      )
+      .in("client_id", clientIds)
+      .gte("week_start", lookbackIso)
+      .order("week_start", { ascending: false }),
+    db
+      .from("coach_messages")
+      .select("client_id, published_at, generated_at")
+      .eq("coach_id", coachId)
+      .in("client_id", clientIds),
+    db
+      .from("weekly_review_drafts")
+      .select("client_id, week_start, published_at")
+      .eq("coach_id", coachId)
+      .in("client_id", clientIds),
+  ]);
+
+  return {
+    invitations: accepted,
+    pendingInvites,
+    profiles: (profiles.data ?? []) as DashboardPayload["profiles"],
+    onboarding: (onboarding.data ?? []) as DashboardPayload["onboarding"],
+    goals: (goals.data ?? []) as DashboardPayload["goals"],
+    checkins: (checkins.data ?? []) as DashCheckin[],
+    messages: (messages.data ?? []) as DashMessage[],
+    reviews: (reviews.data ?? []) as DashReview[],
+  };
+}
+
 
 export type DashCheckin = {
   id: string;
@@ -76,39 +187,10 @@ export function useCoachDashboardData(coachId: string | undefined) {
     const weekStart = getExpectedCheckinWeekStart();
 
     try {
-      const payload = await apiGet<{
-        invitations: {
-          id: string;
-          email: string;
-          status: string;
-          accepted_user_id: string | null;
-          accepted_at: string | null;
-          created_at: string;
-          coaching_start_date: string | null;
-          coaching_end_date: string | null;
-        }[];
-        pendingInvites: PendingInvite[];
-        profiles: {
-          user_id: string;
-          display_name: string | null;
-          first_name: string | null;
-          last_name: string | null;
-        }[];
-        onboarding: {
-          user_id: string;
-          completed_at: string | null;
-          primary_goal: string | null;
-        }[];
-        goals: {
-          client_id: string;
-          goal_type: string;
-          goal_weight_kg: number | null;
-          weekly_drift_tolerance_kg: number | null;
-        }[];
-        checkins: DashCheckin[];
-        messages: DashMessage[];
-        reviews: DashReview[];
-      }>("coach/dashboard", { weekStart });
+      const payload = usesNeon("clients")
+        ? await apiGet<DashboardPayload>("coach/dashboard", { weekStart })
+        : await fetchLegacyDashboard(coachId);
+
 
       const clients: DashClient[] = (payload.invitations ?? []).map((inv) => {
         const p = (payload.profiles ?? []).find((x) => x.user_id === inv.accepted_user_id);
