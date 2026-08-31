@@ -98,7 +98,7 @@ const Clients = () => {
     }));
     setInvitations(merged);
     const map: Record<string, string | null> = {};
-    ((la ?? []) as any[]).forEach((r: any) => {
+    (la ?? []).forEach((r: any) => {
       map[r.user_id] = r.last_sign_in_at;
     });
     setLastActive(map);
