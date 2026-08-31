@@ -25,7 +25,18 @@
   <meta name="twitter:title" content="My fitnes logger">
   <meta property="og:description" content="Use my fitness logger to log all your fitness and track your data">
   <meta name="twitter:description" content="Use my fitness logger to log all your fitness and track your data">
+  <script>
+    // The Lovable static host cannot serve this app's serverless API (/api, /neon-auth).
+    // Send visitors of the legacy host to the production deployment, keeping the path.
+    (function () {
+      var legacyHosts = ["myfitnesslogger.lovable.app"];
+      if (legacyHosts.indexOf(location.hostname) !== -1) {
+        location.replace("https://myfitnesslogger.vercel.app" + location.pathname + location.search + location.hash);
+      }
+    })();
+  </script>
 </head>
+
 
   <body>
     <div id="root"></div>
