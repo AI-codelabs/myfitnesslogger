@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, neonEnabled } from "@/integrations/supabase/client";
 import { useAuth, type AuthSession } from "@/hooks/useAuth";
 import { ensureAccessToken } from "@/lib/authToken";
 import { Button } from "@/components/ui/button";
