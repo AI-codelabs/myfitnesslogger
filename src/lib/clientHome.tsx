@@ -1,9 +1,11 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { apiGet, ApiError } from "@/lib/dataApi";
+import { apiGet, ApiError, usesNeon } from "@/lib/dataApi";
+import { db } from "@/lib/db";
 import { ensureAccessToken, setCachedAccessToken } from "@/lib/authToken";
 import { getExpectedCheckinWeekStart } from "@/lib/weeklyCheckin";
 import type { ClientGoal } from "@/lib/clientGoal";
 import { complianceFromLogDates, type ComplianceStats } from "@/lib/nutritionCompliance";
+
 
 function todayKey() {
   const d = new Date();
