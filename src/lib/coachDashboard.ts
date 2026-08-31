@@ -187,39 +187,10 @@ export function useCoachDashboardData(coachId: string | undefined) {
     const weekStart = getExpectedCheckinWeekStart();
 
     try {
-      const payload = await apiGet<{
-        invitations: {
-          id: string;
-          email: string;
-          status: string;
-          accepted_user_id: string | null;
-          accepted_at: string | null;
-          created_at: string;
-          coaching_start_date: string | null;
-          coaching_end_date: string | null;
-        }[];
-        pendingInvites: PendingInvite[];
-        profiles: {
-          user_id: string;
-          display_name: string | null;
-          first_name: string | null;
-          last_name: string | null;
-        }[];
-        onboarding: {
-          user_id: string;
-          completed_at: string | null;
-          primary_goal: string | null;
-        }[];
-        goals: {
-          client_id: string;
-          goal_type: string;
-          goal_weight_kg: number | null;
-          weekly_drift_tolerance_kg: number | null;
-        }[];
-        checkins: DashCheckin[];
-        messages: DashMessage[];
-        reviews: DashReview[];
-      }>("coach/dashboard", { weekStart });
+      const payload = usesNeon("clients")
+        ? await apiGet<DashboardPayload>("coach/dashboard", { weekStart })
+        : await fetchLegacyDashboard(coachId);
+
 
       const clients: DashClient[] = (payload.invitations ?? []).map((inv) => {
         const p = (payload.profiles ?? []).find((x) => x.user_id === inv.accepted_user_id);
