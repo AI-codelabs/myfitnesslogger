@@ -181,7 +181,7 @@ export function WeeklyReviewTab({ clientId, coachId, lang }: Props) {
         fat_delta: adj?.nutrition?.fat_delta ?? 0,
         rationale: adj?.nutrition?.rationale ?? "",
       },
-      training: adj?.training ?? [],
+      training: Array.isArray(adj?.training) ? adj.training : [],
     });
   }, [selected?.id]);
 
