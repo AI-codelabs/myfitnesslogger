@@ -30,10 +30,12 @@ const NEON_AUTH_URL =
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
+const makeNeonAuth = () => createAuthClient(NEON_AUTH_URL, { adapter: SupabaseAuthAdapter() });
+
 /** Neon Auth with Supabase-shaped methods (signInWithPassword, getSession, …). */
-export const neonAuth = neonEnabled
-  ? createAuthClient(NEON_AUTH_URL, { adapter: SupabaseAuthAdapter() })
-  : (null as unknown as ReturnType<typeof createAuthClient>);
+export const neonAuth: ReturnType<typeof makeNeonAuth> = neonEnabled
+  ? makeNeonAuth()
+  : (null as unknown as ReturnType<typeof makeNeonAuth>);
 
 /** Underlying Better Auth client (changePassword, resetPassword, …). */
 export function getBetterAuth() {
