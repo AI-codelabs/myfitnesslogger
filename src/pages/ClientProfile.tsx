@@ -1,7 +1,7 @@
 import { invokeFn } from "@/lib/api/fn";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -43,6 +43,7 @@ import { resolveStorageUrl } from "@/lib/blobStorage";
 
 const ClientProfile = () => {
   const { clientId } = useParams<{ clientId: string }>();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [lang, setLang] = useState<Lang>(() => (localStorage.getItem("onbLang") as Lang) || "nl");
   const [loading, setLoading] = useState(true);
@@ -52,7 +53,7 @@ const ClientProfile = () => {
   const [actionLoading, setActionLoading] = useState(false);
   const [nutrition, setNutrition] = useState<any>(null);
   const [editingNutrition, setEditingNutrition] = useState(false);
-  const [coachId, setCoachId] = useState<string | null>(null);
+  const coachId = user?.id ?? null;
   const [nutritionLogs, setNutritionLogs] = useState<DailyLog[]>([]);
   const [coachingStart, setCoachingStart] = useState<string>("");
   const [coachingEnd, setCoachingEnd] = useState<string>("");
@@ -130,8 +131,6 @@ const ClientProfile = () => {
     if (!clientId) return;
     (async () => {
       setLoading(true);
-      const { data: u } = await supabase.auth.getUser();
-      setCoachId(u.user?.id ?? null);
       const [invQ, respQ, nutQ, logsQ, profQ] = await Promise.all([
         db
           .from("invitations")
