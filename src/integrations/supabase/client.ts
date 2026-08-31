@@ -50,10 +50,19 @@ const legacy =
  */
 export const supabase = {
   auth: neonAuth,
-  from: ((...args: Parameters<NonNullable<typeof legacy>["from"]>) => {
+  from: ((...args: unknown[]) => {
     if (!legacy) throw new Error("Legacy Supabase client is not configured");
-    return legacy.from(...args);
-  }) as NonNullable<typeof legacy>["from"],
+    return (legacy.from as (...a: unknown[]) => unknown)(...args);
+  }) as unknown as NonNullable<typeof legacy>["from"],
+  channel: ((...args: unknown[]) => {
+    if (!legacy) throw new Error("Legacy Supabase client is not configured");
+    return (legacy.channel as (...a: unknown[]) => unknown)(...args);
+  }) as unknown as NonNullable<typeof legacy>["channel"],
+  removeChannel: ((...args: unknown[]) => {
+    if (!legacy) throw new Error("Legacy Supabase client is not configured");
+    return (legacy.removeChannel as (...a: unknown[]) => unknown)(...args);
+  }) as unknown as NonNullable<typeof legacy>["removeChannel"],
+
   storage: new Proxy({} as NonNullable<typeof legacy>["storage"], {
     get(_target, prop, receiver) {
       if (!legacy) throw new Error("Legacy Supabase client is not configured");
