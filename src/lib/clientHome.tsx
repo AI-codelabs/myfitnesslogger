@@ -185,8 +185,25 @@ export function ClientHomeProvider({
     const today = todayKey();
 
     const load = async () => {
+      if (!usesNeon("clients")) {
+        try {
+          const payload = await fetchLegacyBootstrap(userId, weekStart, today);
+          if (cancelled) return;
+          setData({
+            ...payload,
+            compliance: complianceFromLogDates(payload.nutritionLogDates ?? []),
+          });
+        } catch (err) {
+          console.error("[home/client] legacy bootstrap failed", err);
+          if (!cancelled) setData(null);
+        } finally {
+          if (!cancelled) setLoading(false);
+        }
+        return;
+      }
       await ensureAccessToken();
       try {
+
         const payload = await apiGet<BootstrapPayload>("home/client", { weekStart, today });
         if (cancelled) return;
         setData({
