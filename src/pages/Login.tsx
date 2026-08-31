@@ -1,11 +1,13 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase, neonEnabled } from "@/integrations/supabase/client";
 import { useAuth, type AuthSession } from "@/hooks/useAuth";
 import { ensureAccessToken } from "@/lib/authToken";
+import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Dumbbell, Loader2 } from "lucide-react";
 import { MigratedPasswordDialog } from "@/components/MigratedPasswordDialog";
@@ -14,6 +16,8 @@ type SetupState = {
   email: string;
   name?: string | null;
 };
+
+type LoginRole = "user" | "coach";
 
 const SETUP_ERRORS: Record<string, string> = {
   passwords_do_not_match: "Passwords do not match",
@@ -48,6 +52,9 @@ async function signInWithRetry(email: string, password: string): Promise<AuthSes
 }
 
 export default function Login() {
+  const [params] = useSearchParams();
+  const requestedRole = params.get("as");
+  const [loginRole, setLoginRole] = useState<LoginRole>(requestedRole === "coach" ? "coach" : "user");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -68,6 +75,17 @@ export default function Login() {
     try {
       try {
         const session = await signInWithRetry(email, password);
+        const { data: roleData, error: roleError } = await db
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", session.user.id)
+          .maybeSingle();
+        if (roleError) throw roleError;
+        if (roleData?.role && roleData.role !== loginRole) {
+          await supabase.auth.signOut();
+          const actualRole = roleData.role === "coach" ? "coach" : "client";
+          throw new Error(`This is a ${actualRole} account. Select ${actualRole === "coach" ? "Coach" : "Client"} to sign in.`);
+        }
         await finishSignIn(session);
         return;
       } catch (signInErr) {
@@ -145,6 +163,13 @@ export default function Login() {
           <p className="text-muted-foreground">Sign in to your account</p>
         </div>
 
+        <Tabs value={loginRole} onValueChange={(value) => setLoginRole(value as LoginRole)}>
+          <TabsList className="grid h-12 w-full grid-cols-2">
+            <TabsTrigger value="user" className="h-10">Client</TabsTrigger>
+            <TabsTrigger value="coach" className="h-10">Coach</TabsTrigger>
+          </TabsList>
+        </Tabs>
+
         <form onSubmit={handleLogin} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
@@ -185,12 +210,16 @@ export default function Login() {
           <Link to="/forgot-password" className="text-primary underline-offset-4 hover:underline">
             Forgot your password?
           </Link>
-          <p className="text-muted-foreground">
-            No account yet?{" "}
-            <Link to="/signup" className="text-primary underline-offset-4 hover:underline">
-              Sign up as coach or client
-            </Link>
-          </p>
+          {loginRole === "coach" ? (
+            <p className="text-muted-foreground">
+              New coach?{" "}
+              <Link to="/signup?as=coach" className="text-primary underline-offset-4 hover:underline">
+                Create an account
+              </Link>
+            </p>
+          ) : (
+            <p className="text-muted-foreground">Clients join through an invitation from their coach.</p>
+          )}
         </div>
       </div>
 
