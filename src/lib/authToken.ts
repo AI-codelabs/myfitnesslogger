@@ -7,7 +7,7 @@
  * Never cache a non-JWT or API calls 401 and the home screen goes empty.
  */
 
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, neonEnabled } from "@/integrations/supabase/client";
 
 let cachedJwt: string | null = null;
 let inflightJwt: Promise<string | null> | null = null;
