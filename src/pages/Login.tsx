@@ -71,6 +71,7 @@ export default function Login() {
         await finishSignIn(session);
         return;
       } catch (signInErr) {
+        if (!neonEnabled) throw signInErr;
         const check = await fetch("/api/auth/migrated-password", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
