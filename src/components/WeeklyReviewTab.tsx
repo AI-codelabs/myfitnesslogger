@@ -230,7 +230,10 @@ export function WeeklyReviewTab({ clientId, coachId, lang }: Props) {
           fat_delta: data.suggested_adjustments?.nutrition?.fat_delta ?? 0,
           rationale: data.suggested_adjustments?.nutrition?.rationale ?? "",
         },
-        training: data.suggested_adjustments?.training ?? [],
+        training: Array.isArray(data.suggested_adjustments?.training)
+          ? data.suggested_adjustments.training
+          : [],
+
       };
       setVoice(data.voice_memo ?? "");
       setPositive(nextPositive);
