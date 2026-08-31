@@ -1,5 +1,18 @@
 # Vercel import checklist
 
+## Neon foundation project (new)
+
+Canonical Neon project for greenfield / foundation work:
+
+- Name: `coaching-platform`
+- ID: `fragrant-queen-24129188`
+- Region: `aws-eu-central-1`
+- Auth: `https://ep-winter-sky-b1m35c4c.neonauth.c-5.eu-central-1.aws.neon.tech/neondb/auth`
+
+Metadata: `neon.project.json`. Env template: `.env.example`.
+
+Production may still point at the prior Neon endpoint until cutover (see `MIGRATION_HANDOVER.md`). When cutting over, set Vercel env to the pooled `DATABASE_URL` and Auth URLs above, and confirm Neon Auth trusted domains include the production host.
+
 ## Canonical production URL
 
 **Only this host is production:** https://myfitnesslogger.vercel.app  

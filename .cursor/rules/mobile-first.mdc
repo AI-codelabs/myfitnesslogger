@@ -1,0 +1,29 @@
+---
+description: Mobile-first UX for every coaching platform screen
+alwaysApply: true
+---
+
+# Mobile-first (clients + coaches)
+
+Clients primarily use this product as a **mobile web app**. Every UI change must be designed mobile-first and then verified on desktop.
+
+## Required for every screen / component change
+
+1. **Design for ~375px width first** (iPhone SE / compact phone). Layout, typography, tap targets, and navigation must work without horizontal scroll.
+2. **Then verify desktop** (≥1024px). Do not ship a mobile layout that collapses or wastes space on desktop, and do not ship a desktop layout that is unusable on a phone.
+3. **Touch targets** ≥44×44px for primary actions. Prefer full-width primary CTAs on small screens.
+4. **Safe areas**: respect `100dvh`, bottom nav / keyboard overlap, and notch/home-indicator padding when sticky footers or fixed bars are used.
+5. **Navigation**: coach desktop may use a sidebar; on mobile prefer bottom nav or a compact drawer. Client flows should feel app-like on a phone.
+6. **Forms**: single-column on mobile; avoid multi-column field grids below `md`.
+7. **Tables / dense data**: on mobile use stacked cards, horizontal scroll with sticky first column, or a dedicated compact view — never force a wide table that overflows unreadably.
+8. **Modals / sheets**: prefer bottom sheets / drawers on mobile; centered dialogs are fine on desktop.
+9. **Images / media**: fluid widths; avoid fixed widths that overflow small viewports.
+
+## Definition of done
+
+A UI change is not done until it has been checked at:
+
+- mobile width (~375px)
+- desktop width (≥1024px)
+
+If you cannot run a browser, still structure markup/CSS for mobile-first breakpoints (`sm` / `md` / `lg`) and call out remaining visual QA.

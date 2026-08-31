@@ -1,0 +1,13 @@
+---
+description: Prefer automation that removes coach admin busywork
+alwaysApply: true
+---
+
+# Automation-first product bias
+
+This product exists to remove repetitive coach admin. When designing or implementing features:
+
+1. Prefer templates, schedules, reminders, invites, and bulk actions over one-off manual entry.
+2. Client portals should surface the next action clearly (train, log, check in) with minimal navigation.
+3. Avoid adding coach workflows that require copying data between screens when a sync/automation path exists.
+4. Background jobs belong in `api/cron/*` or domain `api/` handlers — not in the browser.
