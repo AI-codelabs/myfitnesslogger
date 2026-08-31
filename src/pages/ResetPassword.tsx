@@ -37,6 +37,12 @@ const ResetPassword = () => {
     }
     const resetToken = query.get("token");
     if (!resetToken) {
+      if (!neonEnabled) {
+        // Supabase recovery links carry the session in the URL hash.
+        markRecoveryActive();
+        setToken("supabase-recovery");
+        return;
+      }
       setError("This reset link is invalid or has expired. Request a new one.");
       return;
     }
@@ -53,10 +59,9 @@ const ResetPassword = () => {
       return;
     }
     setLoading(true);
-    const { error: resetErr } = await getBetterAuth().resetPassword({
-      newPassword: password,
-      token,
-    });
+    const resetErr = neonEnabled
+      ? (await getBetterAuth().resetPassword({ newPassword: password, token })).error
+      : (await supabase.auth.updateUser({ password })).error;
     setLoading(false);
     if (resetErr) {
       toast.error(resetErr.message || "Could not update password");
