@@ -30,7 +30,7 @@ export function getCachedAccessToken(): string | null {
 }
 
 async function fetchJwtFromNeonAuth(): Promise<string | null> {
-  if (typeof window === "undefined") return null;
+  if (typeof window === "undefined" || !neonEnabled) return null;
   try {
     const res = await fetch(`${window.location.origin}/neon-auth/token`, {
       credentials: "include",
