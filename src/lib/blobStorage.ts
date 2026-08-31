@@ -3,7 +3,7 @@
 // Relative DB paths are resolved from Blob first, then the legacy signed-URL fallback.
 
 import { upload } from "@vercel/blob/client";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, neonEnabled } from "@/integrations/supabase/client";
 import { authHeaders } from "@/lib/authToken";
 import {
   isBlobUrl,
@@ -67,6 +67,15 @@ export async function uploadToBlob(
   const name =
     filename || (file instanceof File && file.name ? file.name : "file");
   const pathname = `${scope}/${userId}/${safeBlobFilename(name)}`;
+  if (!neonEnabled) {
+    // Legacy Lovable Cloud storage: bucket name matches the scope.
+    const objectPath = `${userId}/${safeBlobFilename(name)}`;
+    const { error } = await supabase.storage.from(scope).upload(objectPath, file, {
+      upsert: true,
+    });
+    if (error) throw new Error(error.message);
+    return { url: objectPath, pathname: objectPath };
+  }
   const result = await upload(pathname, file, {
     access: "private",
     handleUploadUrl: "/api/storage/upload-url",
@@ -95,6 +104,17 @@ export async function resolveStorageUrl(
     const qs = new URLSearchParams({ url: path });
     if (opts?.downloadName) qs.set("download", opts.downloadName);
     return fetchBlobObjectUrl(qs, `${path}::${opts?.downloadName ?? ""}`);
+  }
+
+  if (!neonEnabled) {
+    const { data } = await supabase.storage
+      .from(bucket)
+      .createSignedUrl(
+        path,
+        60 * 60,
+        opts?.downloadName ? { download: opts.downloadName } : undefined,
+      );
+    return data?.signedUrl ?? null;
   }
 
   const pathname = legacyCopiedPathname(bucket, path);
@@ -135,6 +155,12 @@ export async function downloadStorageFile(
     return res.blob();
   }
 
+  if (!neonEnabled) {
+    const { data, error } = await supabase.storage.from(bucket).download(path);
+    if (error || !data) throw new Error(error?.message || "Download failed");
+    return data;
+  }
+
   const pathname = legacyCopiedPathname(bucket, path);
   const copied = await fetch(`/api/storage/file?${new URLSearchParams({ pathname })}`, {
     headers: await authHeader(),
@@ -165,6 +191,11 @@ export async function deleteStorageObject(
     return;
   }
   if (isHttpUrl(path)) return;
+
+  if (!neonEnabled) {
+    await supabase.storage.from(bucket).remove([path]);
+    return;
+  }
 
   await fetch("/api/storage/delete", {
     method: "POST",

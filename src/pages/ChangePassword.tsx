@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { z } from "zod";
-import { getBetterAuth } from "@/integrations/supabase/client";
+import { getBetterAuth, neonEnabled, supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,11 +36,23 @@ const ChangePassword = () => {
     }
 
     setLoading(true);
-    const { error } = await getBetterAuth().changePassword({
-      currentPassword,
-      newPassword: password,
-      revokeOtherSessions: true,
-    });
+    let error: { message?: string } | null = null;
+    if (neonEnabled) {
+      error = (
+        await getBetterAuth().changePassword({
+          currentPassword,
+          newPassword: password,
+          revokeOtherSessions: true,
+        })
+      ).error;
+    } else {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const email = sessionData.session?.user?.email ?? "";
+      const verify = await supabase.auth.signInWithPassword({ email, password: currentPassword });
+      error = verify.error
+        ? { message: "Current password is incorrect" }
+        : (await supabase.auth.updateUser({ password })).error;
+    }
     setLoading(false);
 
     if (error) {

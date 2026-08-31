@@ -7,7 +7,7 @@
  * Never cache a non-JWT or API calls 401 and the home screen goes empty.
  */
 
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, neonEnabled } from "@/integrations/supabase/client";
 
 let cachedJwt: string | null = null;
 let inflightJwt: Promise<string | null> | null = null;
@@ -30,7 +30,7 @@ export function getCachedAccessToken(): string | null {
 }
 
 async function fetchJwtFromNeonAuth(): Promise<string | null> {
-  if (typeof window === "undefined") return null;
+  if (typeof window === "undefined" || !neonEnabled) return null;
   try {
     const res = await fetch(`${window.location.origin}/neon-auth/token`, {
       credentials: "include",

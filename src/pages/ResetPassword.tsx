@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { z } from "zod";
-import { getBetterAuth } from "@/integrations/supabase/client";
+import { getBetterAuth, neonEnabled, supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -37,6 +37,12 @@ const ResetPassword = () => {
     }
     const resetToken = query.get("token");
     if (!resetToken) {
+      if (!neonEnabled) {
+        // Supabase recovery links carry the session in the URL hash.
+        markRecoveryActive();
+        setToken("supabase-recovery");
+        return;
+      }
       setError("This reset link is invalid or has expired. Request a new one.");
       return;
     }
@@ -53,10 +59,9 @@ const ResetPassword = () => {
       return;
     }
     setLoading(true);
-    const { error: resetErr } = await getBetterAuth().resetPassword({
-      newPassword: password,
-      token,
-    });
+    const resetErr = neonEnabled
+      ? (await getBetterAuth().resetPassword({ newPassword: password, token })).error
+      : (await supabase.auth.updateUser({ password })).error;
     setLoading(false);
     if (resetErr) {
       toast.error(resetErr.message || "Could not update password");

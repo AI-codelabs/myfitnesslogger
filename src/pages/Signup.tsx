@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { z } from "zod";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, neonEnabled } from "@/integrations/supabase/client";
 import { bootstrapProfile } from "@/lib/bootstrapProfile";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,13 +38,23 @@ const Signup = () => {
   useEffect(() => {
     if (!token) return;
     (async () => {
-      const { data, error } = await fetch(
-        `/api/invitations/by-token?token=${encodeURIComponent(token)}`,
-      ).then(async (res) => {
-        const body = await res.json().catch(() => null);
-        if (!res.ok) return { data: null, error: true as const };
-        return { data: body, error: false as const };
-      });
+      const { data, error } = neonEnabled
+        ? await fetch(
+            `/api/invitations/by-token?token=${encodeURIComponent(token)}`,
+          ).then(async (res) => {
+            const body = await res.json().catch(() => null);
+            if (!res.ok) return { data: null, error: true as const };
+            return { data: body, error: false as const };
+          })
+        : await db
+            .from("invitations")
+            .select("id,email,status")
+            .eq("token", token)
+            .maybeSingle()
+            .then(({ data: row, error: err }) => ({
+              data: row,
+              error: !!err,
+            }));
       const row = Array.isArray(data) ? data[0] : data;
       if (error || !row || row.status !== "pending") {
         setInviteState("invalid");
@@ -89,11 +99,9 @@ const Signup = () => {
       return;
     }
 
-    const { error: bootErr } = await bootstrapProfile({
-      displayName,
-      role: tab,
-      inviteToken: token,
-    });
+    const { error: bootErr } = neonEnabled
+      ? await bootstrapProfile({ displayName, role: tab, inviteToken: token })
+      : { error: null as string | null };
     if (bootErr) {
       toast.error(bootErr);
       setLoading(false);
