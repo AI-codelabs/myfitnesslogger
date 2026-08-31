@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, type AuthSession } from "@/hooks/useAuth";
 import { ensureAccessToken } from "@/lib/authToken";
@@ -179,6 +179,18 @@ export default function Login() {
             Sign In
           </Button>
         </form>
+
+        <div className="space-y-3 text-center text-sm">
+          <Link to="/forgot-password" className="text-primary underline-offset-4 hover:underline">
+            Forgot your password?
+          </Link>
+          <p className="text-muted-foreground">
+            No account yet?{" "}
+            <Link to="/signup" className="text-primary underline-offset-4 hover:underline">
+              Sign up as coach or client
+            </Link>
+          </p>
+        </div>
       </div>
 
       <MigratedPasswordDialog
