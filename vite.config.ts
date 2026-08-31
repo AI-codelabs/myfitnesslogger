@@ -22,7 +22,21 @@ export default defineConfig(({ mode }) => ({
         changeOrigin: true,
         secure: true,
         rewrite: (p) => p.replace(/^\/neon-auth/, "/neondb/auth"),
+        configure: (proxy) => {
+          // Neon Auth rejects unknown Origin/Referer with 400 INVALID_HOSTNAME.
+          // The Lovable preview origin is not a trusted domain, so present the
+          // Neon host itself (same thing the Vercel proxy function does).
+          proxy.on("proxyReq", (proxyReq) => {
+            const origin =
+              "https://ep-super-butterfly-b1u1cypj.neonauth.c-5.eu-central-1.aws.neon.tech";
+            proxyReq.setHeader("origin", origin);
+            proxyReq.setHeader("referer", `${origin}/neondb/auth`);
+            proxyReq.removeHeader("x-forwarded-host");
+            proxyReq.removeHeader("x-forwarded-proto");
+          });
+        },
       },
+
     },
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
