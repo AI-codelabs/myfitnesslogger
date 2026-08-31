@@ -53,7 +53,7 @@ const Signup = () => {
             .maybeSingle()
             .then(({ data: row, error: err }) => ({
               data: row,
-              error: !!err as const,
+              error: !!err,
             }));
       const row = Array.isArray(data) ? data[0] : data;
       if (error || !row || row.status !== "pending") {
