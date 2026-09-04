@@ -70,6 +70,10 @@ export const supabase = {
     (requireLegacy().from as (...a: unknown[]) => unknown)(...args)) as unknown as NonNullable<
     typeof legacy
   >["from"],
+  rpc: ((...args: unknown[]) =>
+    (requireLegacy().rpc as (...a: unknown[]) => unknown)(...args)) as unknown as NonNullable<
+    typeof legacy
+  >["rpc"],
   channel: ((...args: unknown[]) =>
     (requireLegacy().channel as (...a: unknown[]) => unknown)(...args)) as unknown as NonNullable<
     typeof legacy

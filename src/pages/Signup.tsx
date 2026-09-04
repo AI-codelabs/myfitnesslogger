@@ -46,13 +46,10 @@ const Signup = () => {
             if (!res.ok) return { data: null, error: true as const };
             return { data: body, error: false as const };
           })
-        : await db
-            .from("invitations")
-            .select("id,email,status")
-            .eq("token", token)
-            .maybeSingle()
-            .then(({ data: row, error: err }) => ({
-              data: row,
+        : await supabase
+            .rpc("get_invitation_by_token", { _token: token })
+            .then(({ data: rows, error: err }) => ({
+              data: Array.isArray(rows) ? rows[0] ?? null : rows ?? null,
               error: !!err,
             }));
       const row = Array.isArray(data) ? data[0] : data;
