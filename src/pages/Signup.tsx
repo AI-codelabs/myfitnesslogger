@@ -46,7 +46,7 @@ const Signup = () => {
             if (!res.ok) return { data: null, error: true as const };
             return { data: body, error: false as const };
           })
-        : await db
+        : await supabase
             .rpc("get_invitation_by_token", { _token: token })
             .then(({ data: rows, error: err }) => ({
               data: Array.isArray(rows) ? rows[0] ?? null : rows ?? null,
