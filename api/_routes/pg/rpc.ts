@@ -10,6 +10,7 @@ const ALLOWED_RPCS: Record<string, string[]> = {
   get_active_client_goal: ["_client_id"],
   has_role: ["_user_id", "_role"],
   is_coach_of: ["_coach_id", "_client_id"],
+  ensure_weekly_review_drafts: ["_client_id"],
 };
 
 const schema = z.object({
@@ -44,6 +45,9 @@ export default endpoint({ method: "POST", schema }, async ({ sql, user, input })
     if (String(input.args._coach_id) !== user.id) {
       throw new HttpError(403, "Relationship checks are only allowed for the signed-in user");
     }
+  }
+  if (input.fn === "ensure_weekly_review_drafts") {
+    await requireOwnClient(sql, user, String(input.args._client_id));
   }
 
   const params = names.map((n) => input.args[n]);

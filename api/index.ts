@@ -5,6 +5,7 @@ import generateCoachMessage from "./_routes/ai/generate-coach-message.js";
 import generateWeeklyReview from "./_routes/ai/generate-weekly-review.js";
 import checkinsList from "./_routes/checkins/list.js";
 import checkinsSubmit from "./_routes/checkins/submit.js";
+import checkinsEnsureReviewDrafts from "./_routes/checkins/ensure-review-drafts.js";
 import clientsDelete from "./_routes/clients/delete.js";
 import checkExpirations from "./_routes/cron/check-expirations.js";
 import cronometerPull from "./_routes/cron/cronometer-pull.js";
@@ -40,6 +41,7 @@ const routes: Record<string, Handler> = {
   "ai/generate-weekly-review": generateWeeklyReview,
   "checkins/list": checkinsList,
   "checkins/submit": checkinsSubmit,
+  "checkins/ensure-review-drafts": checkinsEnsureReviewDrafts,
   "clients/delete": clientsDelete,
   "cron/check-expirations": checkExpirations,
   "cron/cronometer-pull": cronometerPull,

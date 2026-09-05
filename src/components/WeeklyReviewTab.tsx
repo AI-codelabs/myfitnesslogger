@@ -36,6 +36,8 @@ import { Lang } from "@/lib/onboardingSchema";
 import { formatHumanDate } from "@/lib/weeklyCheckin";
 import { pushTargetsToCronometer, cronometerPushSuccessCopy } from "@/lib/cronometerTargets";
 import { db } from "@/lib/db";
+import { authHeaders } from "@/lib/authToken";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Props {
   clientId: string;
@@ -140,6 +142,19 @@ export function WeeklyReviewTab({ clientId, coachId, lang }: Props) {
 
   const loadDrafts = async () => {
     setLoading(true);
+    // Check-ins copied before the auto-draft trigger existed have no review rows.
+    try {
+      await fetch("/api/checkins/ensure-review-drafts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(await authHeaders(() => supabase.auth.getSession())),
+        },
+        body: JSON.stringify({ clientId }),
+      });
+    } catch {
+      /* non-fatal — still load whatever drafts exist */
+    }
     const { data } = await db.from("weekly_review_drafts")
       .select("*")
       .eq("client_id", clientId)
