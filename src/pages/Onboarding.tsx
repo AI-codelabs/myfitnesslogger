@@ -31,7 +31,16 @@ const Onboarding = () => {
   const navigate = useNavigate();
   const [lang, setLang] = useState<Lang>(() => (localStorage.getItem("onbLang") as Lang) || "nl");
   const [step, setStep] = useState(0);
-  const [values, setValues] = useState<Values>({});
+  const [values, setValues] = useState<Values>(() => {
+    // Yes/No toggles start at "No" so they count as answered.
+    const init: Values = {};
+    for (const sec of onboardingSections) {
+      for (const f of sec.fields) {
+        if (f.type === "boolean") init[f.name] = false;
+      }
+    }
+    return init;
+  });
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState<string | null>(null);
   const fileInputs = useRef<Record<string, HTMLInputElement | null>>({});
