@@ -1,0 +1,24 @@
+---
+description: Neon + Vercel deployment and secrets conventions
+alwaysApply: true
+---
+
+# Neon + Vercel
+
+## Neon
+
+- Postgres is required from day one — do not add local-only ephemeral DB shortcuts that skip Neon.
+- Prefer the **pooled** connection string for serverless (`DATABASE_URL`).
+- Schema changes belong in `db/migrations/` (and historical Supabase SQL under `supabase/migrations/` until fully consolidated).
+- Neon Auth trusted domains must include local (`http://localhost:5173`) and production (`https://myfitnesslogger.vercel.app`).
+
+## Vercel
+
+- Keep `vercel.json` SPA rewrites: `/api/*` and `/neon-auth/*` must not be swallowed by `index.html`.
+- Frontend env vars prefixed with `VITE_` are build-time — set them on Vercel for Production/Preview.
+- After infra changes, smoke-test `GET /api/health`.
+
+## Secrets
+
+- Store runtime secrets in Vercel project env and local `.env.local` only.
+- Rotate any Neon API key that was shared in chat once setup is confirmed.

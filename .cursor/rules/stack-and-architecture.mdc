@@ -1,0 +1,43 @@
+---
+description: Coaching platform stack, roles, and architecture conventions
+alwaysApply: true
+---
+
+# Stack & architecture
+
+## Product model
+
+- Exactly two roles: **coach** and **client** (`app_role`: `coach` | `user`).
+- Each client has their own workspace/portal; coaches invite clients by email.
+- Core goal: automate admin so coaches focus on clients.
+
+## Coach-facing pages
+
+Dashboard · Clients · Workouts · Nutrition templates · Tasks · Configuration (`/settings`)
+
+## Client-facing pages
+
+Dashboard · Training · Nutrition · Progression
+
+## Stack (do not reinvent)
+
+| Layer | Choice |
+| --- | --- |
+| App | Vite + React + TypeScript + React Router |
+| UI | Untitled UI (primary); legacy shadcn under migration |
+| Data | Neon Postgres (`DATABASE_URL`, pooled) |
+| Auth | Neon Auth (Managed Better Auth) |
+| API | Vercel serverless functions under `api/` |
+| Files | Vercel Blob |
+| Hosting | Vercel (`vercel.json` already configured) |
+
+## Data access conventions
+
+- Frontend table access goes through `db.from(...)` (`src/lib/db.ts`), not raw Supabase clients for new code.
+- Server handlers use `withUser` / RLS impersonation (`api/_lib/rls.ts`) or `withService` for trusted jobs.
+- Never commit secrets (`.env.local`, Neon API keys, DB passwords). Use `.env.example` as the template.
+- Neon project for this foundation: `coaching-platform` (`fragrant-queen-24129188`, `aws-eu-central-1`). Production cutover env vars live in Vercel — do not hardcode connection strings.
+
+## Automation bias
+
+When adding features, prefer workflows that remove repetitive coach admin (templates, scheduling, reminders, invites) over one-off manual screens.

@@ -1,0 +1,18 @@
+---
+description: Untitled UI is the primary component library
+alwaysApply: true
+---
+
+# UI components — Untitled UI
+
+**Untitled UI** ([untitledui.com](https://www.untitledui.com)) is the primary component library for this product.
+
+## Rules
+
+1. Prefer Untitled UI components for **new** UI (buttons, inputs, dialogs, nav, tables, etc.).
+2. Add components with the CLI when possible: `npx untitledui@latest add <component> --yes`
+3. Do not introduce new shadcn/Radix wrappers under `src/components/ui/` unless Untitled UI has no equivalent and the existing local pattern is required for consistency.
+4. Existing shadcn-based components may remain during migration. When touching a screen substantially, migrate that screen’s primitives toward Untitled UI rather than deepening the shadcn dependency.
+5. Untitled UI targets **Tailwind CSS v4**. Do not run a blanket `untitledui init --overwrite` against this repo without an explicit Tailwind v4 migration plan — it will break the current Vite + Tailwind v3 app. Prefer additive adoption (`add` into a dedicated path) or a dedicated upgrade PR.
+6. Keep icons consistent: prefer `@untitledui/icons` for new work; avoid mixing icon packs on the same screen.
+7. Follow Untitled UI spacing, radius, and typography tokens once `theme.css` is introduced; until then, match existing CSS variables and keep visual density mobile-first.

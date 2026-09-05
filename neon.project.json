@@ -1,0 +1,17 @@
+{
+  "projectId": "fragrant-queen-24129188",
+  "projectName": "coaching-platform",
+  "regionId": "aws-eu-central-1",
+  "branchId": "br-nameless-unit-b1jeijpa",
+  "endpointId": "ep-winter-sky-b1m35c4c",
+  "database": "neondb",
+  "auth": {
+    "provider": "better_auth",
+    "baseUrl": "https://ep-winter-sky-b1m35c4c.neonauth.c-5.eu-central-1.aws.neon.tech/neondb/auth",
+    "jwksUrl": "https://ep-winter-sky-b1m35c4c.neonauth.c-5.eu-central-1.aws.neon.tech/neondb/auth/.well-known/jwks.json",
+    "trustedDomains": [
+      "http://localhost:5173",
+      "https://myfitnesslogger.vercel.app"
+    ]
+  }
+}
